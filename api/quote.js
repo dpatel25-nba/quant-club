@@ -102,10 +102,25 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: `Not enough history for ${symbol}.` });
     }
 
-    // Cached at the edge. Intraday moves, so it is held briefly; daily and
-    // longer series change once a day and can be held far longer. This is what
-    // keeps a club's worth of lookups inside a free tier.
-    const ttl = spec.interval.includes("min") ? 60 : 900;
+    // EDGE CACHE — the single biggest lever on credit usage, because it is
+    // shared across everyone using the site rather than per browser.
+    //
+    // The length is set by how often the underlying bars can actually change.
+    // A daily bar is fixed once the session closes, so holding it for hours
+    // costs nothing in accuracy: the second person to look up AAPL over 1Y
+    // today spends no credits at all. In a club everybody looks at the same
+    // handful of names, which is exactly the pattern this rewards.
+    //
+    // stale-while-revalidate lets the edge serve the cached copy INSTANTLY
+    // while refreshing behind the scenes, so nobody waits on a slow upstream.
+    const TTL = {
+      "1min":   60,        // intraday, moving now
+      "5min":   300,       // still today's session
+      "1day":   6 * 3600,  // fixed once the close is in
+      "1week":  12 * 3600,
+      "1month": 24 * 3600,
+    };
+    const ttl = TTL[spec.interval] || 900;
     res.setHeader("Cache-Control",
       `public, s-maxage=${ttl}, stale-while-revalidate=${ttl * 4}`);
 
