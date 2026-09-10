@@ -168,7 +168,14 @@
 (function () {
   "use strict";
   var el = function (id) { return document.getElementById(id); };
-  var state = { range: "1y", symbol: "", busy: false };
+  var state = { range: "1y", symbol: "", busy: false, pending: null };
+
+  // Every request costs an API credit and the free plan allows 8 a minute, so
+  // the cheapest request is the one never made. Results are kept per
+  // symbol+range for the life of the page: clicking 1Y, then 5Y, then back to
+  // 1Y costs two credits rather than three. The quote block is cached per
+  // SYMBOL, because nothing in it depends on the chart range.
+  var cache = {}, quoteCache = {};
 
   // ---- formatting ---------------------------------------------------------
   function money(x, cur) {
@@ -334,20 +341,44 @@
   function load() {
     var sym = el("ticker").value.trim().toUpperCase();
     if (!sym) { say("Enter a ticker to begin."); return; }
-    if (state.busy) return;
+    var key = sym + "|" + state.range;
+
+    if (cache[key]) { state.symbol = sym; show(cache[key]); return; }
+
+    // A click while a request is in flight is remembered, not dropped — the
+    // previous version silently ignored it, so a fast second click did nothing.
+    if (state.busy) { state.pending = key; return; }
     state.busy = true;
     el("go").disabled = true;
     say("Loading " + sym + "…");
+
+    var needQuote = !quoteCache[sym];
     fetch("/api/quote?symbol=" + encodeURIComponent(sym) +
-          "&range=" + encodeURIComponent(state.range))
+          "&range=" + encodeURIComponent(state.range) +
+          (needQuote ? "" : "&quote=0"))
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (!res.ok) { say(res.j.error || "Something went wrong.", true); return; }
+        var d = res.j;
+        if (d.quote) quoteCache[sym] = d.quote;
+        else if (quoteCache[sym]) d.quote = quoteCache[sym];
+        cache[key] = d;
         state.symbol = sym;
-        show(res.j);
+        show(d);
       })
       .catch(function () { say("Could not reach the server.", true); })
-      .then(function () { state.busy = false; el("go").disabled = false; });
+      .then(function () {
+        state.busy = false;
+        el("go").disabled = false;
+        var q = state.pending;
+        state.pending = null;
+        if (q && q !== key) {                 // honour the click made while busy
+          var parts = q.split("|");
+          el("ticker").value = parts[0];
+          state.range = parts[1];
+          load();
+        }
+      });
   }
 
   el("form").addEventListener("submit", function (e) { e.preventDefault(); load(); });

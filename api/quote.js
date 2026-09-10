@@ -48,25 +48,48 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Unknown range "${range}".` });
   }
 
+  // The quote endpoint costs a second credit. The client only asks for it when
+  // the SYMBOL changes, because none of its fields depend on the chart range.
+  const wantQuote = String(req.query.quote || "1") !== "0";
+
   const series = `${PROVIDER}/time_series?symbol=${encodeURIComponent(symbol)}`
     + `&interval=${spec.interval}&outputsize=${spec.outputsize}`
     + `&apikey=${key}`;
   const quote = `${PROVIDER}/quote?symbol=${encodeURIComponent(symbol)}&apikey=${key}`;
 
   try {
-    const [sRes, qRes] = await Promise.all([fetch(series), fetch(quote)]);
-    const [sJson, qJson] = await Promise.all([sRes.json(), qRes.json()]);
+    const calls = wantQuote ? [fetch(series), fetch(quote)] : [fetch(series)];
+    const done = await Promise.all(calls);
+    const parsed = await Promise.all(done.map(r => r.json()));
+    const sJson = parsed[0];
+    const qJson = wantQuote ? parsed[1] : null;
 
     // The provider answers 200 with a body describing the problem, so status
     // alone is not enough to tell success from failure.
     if (sJson.status === "error" || !Array.isArray(sJson.values)) {
-      const msg = String(sJson.message || "No data for that symbol.");
-      const rate = /credit|limit|quota/i.test(msg);
-      return res.status(rate ? 429 : 404).json({
-        error: rate
-          ? "Data limit reached for today. It resets tomorrow."
-          : `No data for ${symbol} over the ${spec.label}.`,
-      });
+      // Never let the key reach the client, even inside a provider message.
+      const raw = String(sJson.message || "").split(key).join("***");
+      const perMinute = /minute/i.test(raw);
+      const perDay = /day|daily/i.test(raw);
+      const isLimit = perMinute || perDay || /credit|quota|limit/i.test(raw);
+      let error;
+      if (perMinute) {
+        // The free plan allows 8 credits a minute. This clears on its own in
+        // under a minute, which is a completely different situation from
+        // exhausting the daily allowance — so say so.
+        error = "Too many requests in the last minute. Wait about 60 seconds "
+              + "and try again.";
+      } else if (perDay) {
+        error = "The daily data allowance is used up. It resets at midnight UTC.";
+      } else if (isLimit) {
+        error = "The data provider is rate limiting us. Wait a moment, then retry.";
+      } else if (/api ?key|apikey|unauthor|invalid/i.test(raw)) {
+        error = "The server's API key was rejected. Check TWELVE_DATA_KEY in "
+              + "the Vercel settings, then redeploy.";
+      } else {
+        error = `No data for ${symbol} over the ${spec.label}.`;
+      }
+      return res.status(isLimit ? 429 : 404).json({ error, detail: raw || null });
     }
 
     // Provider returns newest-first; charts read left to right.
@@ -94,6 +117,8 @@ export default async function handler(req, res) {
       exchange: sJson.meta?.exchange || "",
       name: qJson?.name || symbol,
       points,
+      // A failed quote is not fatal: the chart and every computed statistic
+      // come from the series, so the page degrades rather than erroring.
       quote: qJson && qJson.status !== "error" ? {
         close: Number(qJson.close),
         previous_close: Number(qJson.previous_close),

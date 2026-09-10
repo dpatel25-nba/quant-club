@@ -61,13 +61,32 @@ vercel dev            # then open the URL it prints
 Set the key locally first, either with `vercel env pull` or a `.env` file
 containing `TWELVE_DATA_KEY=...`. **Do not commit that file.**
 
-## Free-tier budget
+## Free-tier budget — and the limit that actually bites
 
-800 requests/day, and each lookup costs 2 (one for the price series, one for the
-quote). So roughly **400 lookups a day**, shared across everyone using the site,
-before it starts returning "Data limit reached". Caching means repeats are free,
-so real-world capacity is higher. If the club outgrows it, the paid tier is
-about $12/month, or add a second provider and fall back.
+There are TWO limits, and the one you will hit is not the daily one:
+
+| limit | size | clears |
+|---|---|---|
+| per minute | **8 credits** | ~60 seconds |
+| per day | 800 credits | midnight UTC |
+
+Eight a minute is easy to trip by clicking through the range buttons, so the
+page is built to spend as few credits as possible:
+
+- **Changing the range costs 1 credit**, not 2 — the quote block does not depend
+  on the range, so it is fetched once per symbol and reused.
+- **Revisiting a range costs 0** — results are cached per symbol+range for the
+  life of the page. 1Y, then 5Y, then back to 1Y is two credits, not three.
+- **Vercel caches at the edge too**, so a second person looking up the same
+  ticker shortly after the first may cost nothing at all.
+
+If you do see a limit message, the page now tells you which one: a per-minute
+trip says wait about 60 seconds, a daily exhaustion says it resets at midnight
+UTC. They need completely different responses, which is why they are separate
+messages.
+
+Roughly 400+ fresh lookups a day. If the club outgrows that, the paid tier is
+about $12/month, or add a second provider as a fallback.
 
 ## What the numbers mean
 
