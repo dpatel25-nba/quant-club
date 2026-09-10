@@ -26,8 +26,12 @@ export default async function handler(req, res) {
       reading: "what the data provider reports for the key this server is using",
       key_tail: "..." + String(key).slice(-4),   // enough to tell two keys apart
       provider: clean,
-      hint: "plan_limit is credits per MINUTE. Free is 8. If this still says 8 "
-          + "after upgrading, the plan has not been applied to this key.",
+      // plan_category is the definitive field: it names the tier outright.
+      // plan_limit is credits per MINUTE, so a small number there means a
+      // small plan regardless of what the billing page says.
+      hint: "Read plan_category first — it names the tier. plan_limit is credits "
+          + "per MINUTE. If plan_category is not the tier you paid for, the "
+          + "upgrade has not reached THIS key.",
     });
   } catch (e) {
     return res.status(502).json({ error: "Could not reach the data provider." });
