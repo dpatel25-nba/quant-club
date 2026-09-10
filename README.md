@@ -85,8 +85,20 @@ trip says wait about 60 seconds, a daily exhaustion says it resets at midnight
 UTC. They need completely different responses, which is why they are separate
 messages.
 
-Roughly 400+ fresh lookups a day. If the club outgrows that, the paid tier is
-about $12/month, or add a second provider as a fallback.
+Roughly 400+ fresh lookups a day, and far more once the edge cache is warm.
+
+**Before paying for a tier, check whether you actually need one.** The minute
+cap is only reached by many COLD lookups at once — twenty people each typing a
+different ticker during a meeting. Ordinary browsing does not approach it. A
+free trick for the demo case: open the site an hour beforehand and click through
+the tickers you plan to show, which fills the shared edge cache so the room
+reads from it for nothing.
+
+Paying is genuinely right when live intraday becomes routine (1-minute bars
+cannot be cached for long by definition), or when a feature fans out — comparing
+several tickers on one page multiplies credits per view. Check current pricing
+at <https://twelvedata.com/pricing>; do not trust a figure written here, since
+plans change.
 
 ## What the numbers mean
 
