@@ -110,6 +110,40 @@
   .stat .v { font-size: 17px; font-weight: 650; margin-top: 3px;
              font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
   .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; }
+
+  .tabs { display: flex; gap: 4px; margin: 0 0 20px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 16px; font: inherit; font-size: 14px; font-weight: 600;
+         cursor: pointer; background: none; border: none; color: var(--muted);
+         border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab:hover { color: var(--text); }
+  .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .view { display: none; } .view.on { display: block; }
+
+  .hrow { display: grid; grid-template-columns: 1fr 110px 34px; gap: 8px;
+          align-items: center; margin-bottom: 8px; }
+  .hrow input { padding: 10px 12px; font-size: 15px; background: var(--panel-2);
+                color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+                font-family: ui-monospace, Menlo, monospace; min-width: 0; }
+  .hrow input.tk { text-transform: uppercase; letter-spacing: .06em; }
+  .hrow .x { background: none; border: 1px solid var(--border); border-radius: 8px;
+             color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1;
+             padding: 9px 0; }
+  .hrow .x:hover { color: var(--bad); border-color: var(--bad); }
+  .ghost { background: none; color: var(--accent); border: 1px dashed var(--border); }
+  .ghost:hover { background: var(--accent-soft); }
+  .wsum { font-size: 12.5px; color: var(--muted); margin: 4px 0 14px; }
+  .wsum.bad { color: var(--bad); }
+
+  table.mx { border-collapse: collapse; font-size: 13px; width: 100%;
+             font-family: ui-monospace, Menlo, monospace; }
+  table.mx th, table.mx td { padding: 7px 9px; text-align: right;
+                             border-bottom: 1px solid var(--border); }
+  table.mx th { color: var(--muted); font-weight: 700; font-size: 11px;
+                text-transform: uppercase; letter-spacing: .08em; }
+  table.mx th.l, table.mx td.l { text-align: left; }
+  .h2 { font-size: 15px; font-weight: 700; margin: 26px 0 10px;
+        letter-spacing: .02em; }
+  .bar { height: 7px; border-radius: 4px; background: var(--accent); display: block; }
   .msg { padding: 26px 4px; color: var(--muted); }
   .msg.err { color: var(--bad); }
   #panel { margin-top: 18px; }
@@ -128,6 +162,12 @@
       listed security, computed over the window you select.</div>
   </header>
 
+  <nav class="tabs" role="tablist">
+    <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
+    <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
+  </nav>
+
+  <section class="view on" id="v-lookup">
   <div class="panel">
     <form class="search" id="form">
       <input id="ticker" placeholder="AAPL" autocomplete="off"
@@ -162,6 +202,31 @@
       <div class="note" id="note"></div>
     </div>
   </div>
+  </section>
+
+  <section class="view" id="v-portfolio">
+    <div class="panel">
+      <div class="eyebrow">Holdings</div>
+      <div id="rows" style="margin-top:10px"></div>
+      <button class="btn ghost" id="addRow" type="button"
+              style="padding:9px 14px;font-size:13px">+ Add holding</button>
+      <div class="wsum" id="wsum"></div>
+      <div class="search" style="margin-top:4px">
+        <button class="btn" id="build" type="button">Analyse portfolio</button>
+        <select id="pRange" aria-label="Range"
+                style="padding:11px 12px;border-radius:10px;background:var(--panel-2);
+                       color:var(--text);border:1px solid var(--border);font:inherit">
+          <option value="1y">1 year</option>
+          <option value="5y" selected>5 years</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:18px">
+      <div class="msg" id="pMsg">Add holdings and click Analyse.</div>
+      <div id="pOut" hidden></div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -380,6 +445,247 @@
         }
       });
   }
+
+
+  // ======================= PORTFOLIO BUILDER ==============================
+
+  // Align several price series onto the dates they SHARE.
+  //
+  // This is the step that decides whether everything downstream is meaningful.
+  // Two tickers rarely have identical histories — a 2021 listing, a different
+  // exchange calendar, a trading halt — so lining the arrays up by position
+  // would silently pair Monday's move in one name with Thursday's in another.
+  // The covariance matrix would still compute, still look plausible, and be
+  // worthless. Intersecting on the date string is the only safe join.
+  function align(series) {
+    var maps = series.map(function (s) {
+      var m = {};
+      s.points.forEach(function (p) { if (isFinite(p.c)) m[p.t] = p.c; });
+      return m;
+    });
+    var dates = Object.keys(maps[0]).filter(function (d) {
+      return maps.every(function (m) { return m[d] != null; });
+    }).sort();
+    return { dates: dates, cols: maps.map(function (m) {
+      return dates.map(function (d) { return m[d]; }); }) };
+  }
+
+  function retsOf(col) {
+    var r = [];
+    for (var i = 1; i < col.length; i++) {
+      if (col[i - 1] > 0) r.push(col[i] / col[i - 1] - 1);
+    }
+    return r;
+  }
+
+  function covMatrix(rets, ann) {
+    var n = rets.length, T = rets[0].length;
+    var mu = rets.map(function (r) {
+      return r.reduce(function (a, b) { return a + b; }, 0) / (r.length || 1);
+    });
+    var C = [];
+    for (var i = 0; i < n; i++) {
+      C.push([]);
+      for (var j = 0; j < n; j++) {
+        var s = 0;
+        for (var t = 0; t < T; t++) s += (rets[i][t] - mu[i]) * (rets[j][t] - mu[j]);
+        C[i].push((s / ((T - 1) || 1)) * ann);   // annualised covariance
+      }
+    }
+    return { C: C, mu: mu };
+  }
+
+  // Risk contribution. The point of showing it is that WEIGHT IS NOT RISK:
+  //   marginal contribution  MCR_i = (Sigma w)_i / sigma_p
+  //   risk contribution      RC_i  = w_i * MCR_i,  and these sum to sigma_p
+  // A 20% position in something volatile and correlated can easily be 40% of
+  // the portfolio's risk, which is the single most useful thing this page says.
+  function riskContrib(C, w) {
+    var n = w.length, Sw = [], i, j;
+    for (i = 0; i < n; i++) {
+      var s = 0;
+      for (j = 0; j < n; j++) s += C[i][j] * w[j];
+      Sw.push(s);
+    }
+    var varp = 0;
+    for (i = 0; i < n; i++) varp += w[i] * Sw[i];
+    var sig = Math.sqrt(Math.max(varp, 0));
+    return { sigma: sig, rc: w.map(function (wi, k) {
+      return sig > 0 ? wi * Sw[k] / sig : 0; }) };
+  }
+
+  function maxDD(curve) {
+    var peak = -Infinity, dd = 0;
+    for (var i = 0; i < curve.length; i++) {
+      if (curve[i] > peak) peak = curve[i];
+      var d = curve[i] / peak - 1;
+      if (d < dd) dd = d;
+    }
+    return dd;
+  }
+
+  function pRows() {
+    return Array.prototype.map.call(document.querySelectorAll("#rows .hrow"),
+      function (r) {
+        return { sym: r.querySelector(".tk").value.trim().toUpperCase(),
+                 w: parseFloat(r.querySelector(".wt").value) };
+      }).filter(function (h) { return h.sym && isFinite(h.w); });
+  }
+
+  function addRow(sym, w) {
+    var d = document.createElement("div");
+    d.className = "hrow";
+    d.innerHTML = '<input class="tk" placeholder="TICKER" value="' + (sym || "") +
+      '" spellcheck="false"><input class="wt" type="number" step="any" ' +
+      'placeholder="weight %" value="' + (w == null ? "" : w) +
+      '"><button class="x" type="button" aria-label="Remove">&times;</button>';
+    d.querySelector(".x").addEventListener("click", function () {
+      d.remove(); sumW();
+    });
+    d.querySelector(".wt").addEventListener("input", sumW);
+    el("rows").appendChild(d);
+    sumW();
+  }
+
+  function sumW() {
+    var hs = pRows();
+    var t = hs.reduce(function (a, h) { return a + h.w; }, 0);
+    var e = el("wsum");
+    if (!hs.length) { e.textContent = ""; return; }
+    var off = Math.abs(t - 100) > 0.5;
+    e.className = "wsum" + (off ? " bad" : "");
+    e.textContent = "Weights total " + t.toFixed(1) + "%" +
+      (off ? " — they will be rescaled to 100% for the analysis." : ".");
+  }
+
+  function pSay(t, err) {
+    el("pMsg").textContent = t;
+    el("pMsg").className = "msg" + (err ? " err" : "");
+    el("pMsg").hidden = false;
+    el("pOut").hidden = true;
+  }
+
+  function analysePortfolio() {
+    var hs = pRows();
+    if (hs.length < 2) { pSay("Add at least two holdings.", true); return; }
+    if (hs.length > 12) { pSay("Twelve holdings maximum.", true); return; }
+    var tot = hs.reduce(function (a, h) { return a + h.w; }, 0);
+    if (!(tot > 0)) { pSay("Weights must add to something positive.", true); return; }
+    var range = el("pRange").value;
+    pSay("Fetching " + hs.length + " holdings…");
+
+    // quote=0: the portfolio maths needs only the price series, so this costs
+    // one credit per holding rather than two.
+    Promise.all(hs.map(function (h) {
+      var k = h.sym + "|" + range;
+      if (cache[k]) return Promise.resolve(cache[k]);
+      return fetch("/api/quote?symbol=" + encodeURIComponent(h.sym) +
+                   "&range=" + encodeURIComponent(range) + "&quote=0")
+        .then(function (r) {
+          return r.json().then(function (j) {
+            if (!r.ok) throw new Error(h.sym + ": " + (j.error || "failed"));
+            cache[k] = j; return j;
+          });
+        });
+    })).then(function (series) {
+      var w = hs.map(function (h) { return h.w / tot; });      // rescale to 1
+      var al = align(series);
+      if (al.dates.length < 30) {
+        pSay("Only " + al.dates.length + " dates are common to all holdings — "
+           + "too few to measure risk. Try a longer range or drop the newest "
+           + "listing.", true);
+        return;
+      }
+      var rets = al.cols.map(retsOf);
+      var perYear = { "1y": 252, "5y": 52, "all": 12 }[range] || 252;
+      var cm = covMatrix(rets, perYear);
+      var rk = riskContrib(cm.C, w);
+
+      // portfolio path, rebalanced to target weights each period
+      var curve = [100], i, t;
+      for (t = 0; t < rets[0].length; t++) {
+        var r = 0;
+        for (i = 0; i < w.length; i++) r += w[i] * rets[i][t];
+        curve.push(curve[curve.length - 1] * (1 + r));
+      }
+      var totRet = curve[curve.length - 1] / 100 - 1;
+      var years = rets[0].length / perYear;
+      var cagr = years > 0 ? Math.pow(1 + totRet, 1 / years) - 1 : NaN;
+
+      var sd = cm.C.map(function (row, k) { return Math.sqrt(Math.max(row[k], 0)); });
+      var wavg = w.reduce(function (a, x, k) { return a + x * sd[k]; }, 0);
+
+      var html = '<div class="stats">' + [
+        ["Return", (totRet >= 0 ? "+" : "") + pct(totRet)],
+        ["CAGR", (cagr >= 0 ? "+" : "") + pct(cagr)],
+        ["Volatility (ann.)", pct(rk.sigma)],
+        ["Return / risk", rk.sigma > 0 ? (cagr / rk.sigma).toFixed(2) : "—"],
+        ["Max drawdown", pct(maxDD(curve))],
+        ["Diversification", wavg > 0 ? (1 - rk.sigma / wavg > 0
+            ? "−" + pct(1 - rk.sigma / wavg).replace("-", "") : "none") : "—"],
+        ["Common dates", String(al.dates.length)],
+        ["From", al.dates[0]]
+      ].map(function (r2) {
+        return '<div class="stat"><div class="k">' + r2[0] + '</div><div class="v">'
+             + r2[1] + '</div></div>';
+      }).join("") + '</div>';
+
+      html += '<div class="h2">Risk contribution</div>';
+      html += '<table class="mx"><tr><th class="l">Holding</th><th>Weight</th>'
+            + '<th>Vol</th><th>Risk share</th><th class="l"></th></tr>';
+      for (i = 0; i < hs.length; i++) {
+        var share = rk.sigma > 0 ? rk.rc[i] / rk.sigma : 0;
+        html += '<tr><td class="l">' + hs[i].sym + '</td><td>' + pct(w[i]) +
+          '</td><td>' + pct(sd[i]) + '</td><td>' + pct(share) +
+          '</td><td class="l" style="width:34%"><span class="bar" style="width:' +
+          Math.max(0, Math.min(100, share * 100)).toFixed(1) + '%"></span></td></tr>';
+      }
+      html += '</table>';
+      html += '<div class="note">Risk share sums to 100% and is what each holding '
+           + 'actually contributes to portfolio volatility — not the same as its '
+           + 'weight. A position can be a fifth of the money and a third of the risk.'
+           + '</div>';
+
+      html += '<div class="h2">Correlation</div><table class="mx"><tr><th></th>';
+      for (i = 0; i < hs.length; i++) html += '<th>' + hs[i].sym + '</th>';
+      html += '</tr>';
+      for (i = 0; i < hs.length; i++) {
+        html += '<tr><th class="l">' + hs[i].sym + '</th>';
+        for (var j = 0; j < hs.length; j++) {
+          var c = cm.C[i][j] / ((sd[i] * sd[j]) || 1);
+          var a = Math.min(Math.abs(c), 1) * 0.30;
+          var col = c >= 0 ? "var(--bad)" : "var(--good)";
+          html += '<td style="background:' + (i === j ? "transparent" :
+            "color-mix(in srgb, " + col + " " + (a * 100).toFixed(0) + "%, transparent)") +
+            '">' + c.toFixed(2) + '</td>';
+        }
+        html += '</tr>';
+      }
+      html += '</table><div class="note">Correlations are measured over the '
+           + al.dates.length + ' dates all holdings share, so every pair is '
+           + 'computed on the same window. Shaded red where holdings move '
+           + 'together — that is where diversification is weakest.</div>';
+
+      el("pOut").innerHTML = html;
+      el("pOut").hidden = false;
+      el("pMsg").hidden = true;
+    }).catch(function (e) {
+      pSay(String(e.message || e), true);
+    });
+  }
+
+  el("addRow").addEventListener("click", function () { addRow("", ""); });
+  el("build").addEventListener("click", analysePortfolio);
+  ["AAPL", "MSFT", "JNJ", "XOM"].forEach(function (t, i) { addRow(t, [40, 30, 20, 10][i]); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) {
+    b.addEventListener("click", function () {
+      Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (x) {
+        x.classList.toggle("on", x === b); });
+      Array.prototype.forEach.call(document.querySelectorAll(".view"), function (v) {
+        v.classList.toggle("on", v.id === "v-" + b.dataset.v); });
+    });
+  });
 
   el("form").addEventListener("submit", function (e) { e.preventDefault(); load(); });
   Array.prototype.forEach.call(document.querySelectorAll(".range"), function (b) {
