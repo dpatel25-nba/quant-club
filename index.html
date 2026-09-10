@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quant Division — Ticker Lookup</title>
+<style>
+  :root {
+    --bg: #EEF1F6; --panel: #FFFFFF; --panel-2: #F6F8FB; --border: #DBE1EA;
+    --text: #12161C; --muted: #59636F; --accent: #1E5F8C; --accent-2: #2A76AA;
+    --accent-soft: rgba(30,95,140,.10);
+    --grid: rgba(15,20,28,.05);
+    --shadow: 0 1px 2px rgba(15,20,28,.06), 0 8px 24px rgba(15,20,28,.05);
+    --good: #2E7D52; --bad: #B23A3A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1116; --panel: #161B22; --panel-2: #1B212B; --border: #262E39;
+      --text: #E7ECF3; --muted: #8A97A8; --accent: #5B93D6; --accent-2: #74A6E0;
+      --accent-soft: rgba(91,147,214,.15);
+      --grid: rgba(255,255,255,.05);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+      --good: #4FB07E; --bad: #E0685F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1116; --panel: #161B22; --panel-2: #1B212B; --border: #262E39;
+    --text: #E7ECF3; --muted: #8A97A8; --accent: #5B93D6; --accent-2: #74A6E0;
+    --accent-soft: rgba(91,147,214,.15);
+    --grid: rgba(255,255,255,.05);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+    --good: #4FB07E; --bad: #E0685F;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+          font-variant-numeric: tabular-nums; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 11px;
+             font-weight: 700; color: var(--muted); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  header { border-bottom: 1px solid var(--border); margin-bottom: 26px; padding-bottom: 18px; }
+  header h1 { margin: 4px 0 2px; font-size: 26px; letter-spacing: -.02em; }
+  header .sub { color: var(--muted); font-size: 14px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--border);
+           border-radius: 14px; box-shadow: var(--shadow); padding: 20px; }
+
+  .search { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  #ticker {
+    flex: 1 1 220px; min-width: 0; padding: 12px 14px; font-size: 17px;
+    font-family: ui-monospace, Menlo, monospace; text-transform: uppercase;
+    letter-spacing: .08em; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+  #ticker:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn {
+    padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; border: 1px solid transparent;
+    border-radius: 10px;
+  }
+  .btn:hover { background: var(--accent-2); }
+  .btn[disabled] { opacity: .55; cursor: default; }
+
+  .ranges { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 6px; }
+  .range {
+    padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  .range:hover { color: var(--text); background: var(--panel-2); }
+  .range.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  .head { display: flex; flex-wrap: wrap; gap: 16px; align-items: baseline;
+          justify-content: space-between; margin-bottom: 2px; }
+  .name { font-size: 20px; font-weight: 650; letter-spacing: -.01em; }
+  .price { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+  .chg { font-size: 16px; font-weight: 650; }
+  .up { color: var(--good); } .down { color: var(--bad); }
+
+  #chart { width: 100%; height: 320px; display: block; }
+  .gridline { stroke: var(--grid); stroke-width: 1; }
+  .axis { fill: var(--muted); font-size: 11px;
+          font-family: ui-monospace, Menlo, monospace; }
+
+  .stats { display: grid; gap: 1px; background: var(--border);
+           border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+           grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); margin-top: 22px; }
+  .stat { background: var(--panel); padding: 13px 15px; }
+  .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+             color: var(--muted); font-weight: 700; }
+  .stat .v { font-size: 17px; font-weight: 650; margin-top: 3px;
+             font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; }
+  .msg { padding: 26px 4px; color: var(--muted); }
+  .msg.err { color: var(--bad); }
+  #panel { margin-top: 18px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Quant Division</div>
+    <h1>Ticker Lookup</h1>
+    <div class="sub">Price history and summary statistics for any listed security.</div>
+  </header>
+
+  <div class="panel">
+    <form class="search" id="form">
+      <input id="ticker" placeholder="AAPL" autocomplete="off"
+             spellcheck="false" aria-label="Stock ticker" value="AAPL">
+      <button class="btn" id="go" type="submit">Look up</button>
+    </form>
+    <div class="ranges" id="ranges" role="group" aria-label="Time range">
+      <button class="range" data-r="1h">1H</button>
+      <button class="range" data-r="1d">1D</button>
+      <button class="range" data-r="1m">1M</button>
+      <button class="range on" data-r="1y">1Y</button>
+      <button class="range" data-r="5y">5Y</button>
+      <button class="range" data-r="all">ALL</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="msg" id="msg">Enter a ticker to begin.</div>
+    <div id="result" hidden>
+      <div class="head">
+        <div>
+          <div class="name" id="name"></div>
+          <div class="eyebrow" id="meta"></div>
+        </div>
+        <div style="text-align:right">
+          <div class="price mono" id="price"></div>
+          <div class="chg mono" id="chg"></div>
+        </div>
+      </div>
+      <svg id="chart" role="img" aria-label="Price history"></svg>
+      <div class="stats" id="stats"></div>
+      <div class="note" id="note"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var el = function (id) { return document.getElementById(id); };
+  var state = { range: "1y", symbol: "", busy: false };
+
+  // ---- formatting ---------------------------------------------------------
+  function money(x, cur) {
+    if (!isFinite(x)) return "—";
+    var d = Math.abs(x) < 1 ? 4 : 2;
+    return (cur === "USD" ? "$" : "") + x.toLocaleString(undefined, {
+      minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function pct(x) { return (isFinite(x) ? (x * 100).toFixed(2) + "%" : "—"); }
+  function big(x) {
+    if (!isFinite(x) || x === 0) return "—";
+    var u = [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]];
+    for (var i = 0; i < u.length; i++) {
+      if (Math.abs(x) >= u[i][0]) return (x / u[i][0]).toFixed(2) + u[i][1];
+    }
+    return String(Math.round(x));
+  }
+
+  // ---- statistics ---------------------------------------------------------
+  // Computed from the returned series rather than read off a quote, so they
+  // always describe the range actually on screen. A "1Y volatility" that
+  // silently came from a different window would be worse than showing nothing.
+  function analyse(points, range) {
+    var c = points.map(function (p) { return p.c; });
+    var rets = [];
+    for (var i = 1; i < c.length; i++) {
+      if (c[i - 1] > 0) rets.push(c[i] / c[i - 1] - 1);
+    }
+    var mean = rets.reduce(function (a, b) { return a + b; }, 0) / (rets.length || 1);
+    var varr = rets.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0)
+             / ((rets.length - 1) || 1);
+    // Annualisation factor depends on how far apart the observations are.
+    var perYear = { "1h": 252 * 390, "1d": 252 * 78, "1m": 252,
+                    "1y": 252, "5y": 52, "all": 12 }[range] || 252;
+    var vol = Math.sqrt(varr) * Math.sqrt(perYear);
+
+    var peak = -Infinity, dd = 0;
+    for (var j = 0; j < c.length; j++) {
+      if (c[j] > peak) peak = c[j];
+      var d = c[j] / peak - 1;
+      if (d < dd) dd = d;
+    }
+    return {
+      ret: c.length > 1 ? c[c.length - 1] / c[0] - 1 : NaN,
+      vol: vol, maxdd: dd,
+      hi: Math.max.apply(null, c), lo: Math.min.apply(null, c),
+      best: rets.length ? Math.max.apply(null, rets) : NaN,
+      worst: rets.length ? Math.min.apply(null, rets) : NaN,
+      n: c.length
+    };
+  }
+
+  // ---- chart --------------------------------------------------------------
+  // Hand-drawn SVG: no charting library, so there is nothing to load from a CDN
+  // and nothing to break when a version changes.
+  function draw(points, up) {
+    var svg = el("chart");
+    var W = svg.clientWidth || 880, H = 320;
+    var padL = 52, padR = 12, padT = 14, padB = 26;
+    var c = points.map(function (p) { return p.c; });
+    var lo = Math.min.apply(null, c), hi = Math.max.apply(null, c);
+    if (hi === lo) { hi += 1; lo -= 1; }
+    var padY = (hi - lo) * 0.08; hi += padY; lo -= padY;
+    var x = function (i) {
+      return padL + (i / (points.length - 1)) * (W - padL - padR);
+    };
+    var y = function (v) {
+      return padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+    };
+
+    var parts = [], i;
+    for (i = 0; i <= 4; i++) {
+      var gv = lo + (hi - lo) * (i / 4), gy = y(gv);
+      parts.push('<line class="gridline" x1="' + padL + '" y1="' + gy.toFixed(1) +
+                 '" x2="' + (W - padR) + '" y2="' + gy.toFixed(1) + '"/>');
+      parts.push('<text class="axis" x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) +
+                 '" text-anchor="end">' + gv.toFixed(gv < 10 ? 2 : 0) + '</text>');
+    }
+    var d = "";
+    for (i = 0; i < points.length; i++) {
+      d += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(c[i]).toFixed(1) + " ";
+    }
+    var area = d + "L" + x(points.length - 1).toFixed(1) + " " + (H - padB) +
+               " L" + padL + " " + (H - padB) + " Z";
+    var col = up ? "var(--good)" : "var(--bad)";
+    parts.push('<defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1">' +
+      '<stop offset="0%" stop-color="' + col + '" stop-opacity=".22"/>' +
+      '<stop offset="100%" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>');
+    parts.push('<path d="' + area + '" fill="url(#g)"/>');
+    parts.push('<path d="' + d + '" fill="none" stroke="' + col +
+               '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+
+    var first = points[0].t, last = points[points.length - 1].t;
+    parts.push('<text class="axis" x="' + padL + '" y="' + (H - 6) + '">' +
+               first.slice(0, 10) + '</text>');
+    parts.push('<text class="axis" x="' + (W - padR) + '" y="' + (H - 6) +
+               '" text-anchor="end">' + last.slice(0, 10) + '</text>');
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.innerHTML = parts.join("");
+  }
+
+  // ---- render -------------------------------------------------------------
+  function show(data) {
+    var p = data.points, cur = data.currency;
+    var last = p[p.length - 1].c, first = p[0].c;
+    var chg = last - first, up = chg >= 0;
+    var s = analyse(p, data.range);
+    var q = data.quote;
+
+    el("name").textContent = data.name;
+    el("meta").textContent = [data.symbol, data.exchange].filter(Boolean).join(" · ");
+    el("price").textContent = money(last, cur);
+    el("chg").textContent = (up ? "+" : "") + money(chg, cur) +
+                            "  (" + (up ? "+" : "") + pct(chg / first) + ") " + data.label;
+    el("chg").className = "chg mono " + (up ? "up" : "down");
+
+    var rows = [
+      ["Return", (s.ret >= 0 ? "+" : "") + pct(s.ret)],
+      ["Volatility (ann.)", pct(s.vol)],
+      ["Max drawdown", pct(s.maxdd)],
+      ["Range high", money(s.hi, cur)],
+      ["Range low", money(s.lo, cur)],
+      ["Best period", (s.best >= 0 ? "+" : "") + pct(s.best)],
+      ["Worst period", pct(s.worst)],
+      ["Observations", String(s.n)]
+    ];
+    if (q) {
+      rows.push(["Previous close", money(q.previous_close, cur)]);
+      rows.push(["Day range", isFinite(q.low) && isFinite(q.high)
+        ? money(q.low, cur) + " – " + money(q.high, cur) : "—"]);
+      rows.push(["Volume", big(q.volume)]);
+      rows.push(["Avg volume", big(q.average_volume)]);
+      if (q.fifty_two_week) {
+        rows.push(["52-week range",
+          money(Number(q.fifty_two_week.low), cur) + " – " +
+          money(Number(q.fifty_two_week.high), cur)]);
+      }
+    }
+    el("stats").innerHTML = rows.map(function (r) {
+      return '<div class="stat"><div class="k">' + r[0] +
+             '</div><div class="v">' + r[1] + '</div></div>';
+    }).join("");
+
+    // Say plainly what the numbers are and are not, so nobody quotes a
+    // price return as a total return in a pitch.
+    el("note").textContent =
+      "Return and drawdown are price-only: they exclude dividends, so a paying "
+      + "stock's total return is higher than shown. Volatility is the standard "
+      + "deviation of returns over this range, annualised. Prices may be delayed.";
+
+    draw(p, up);
+    el("result").hidden = false;
+    el("msg").hidden = true;
+  }
+
+  function say(text, isErr) {
+    el("msg").textContent = text;
+    el("msg").className = "msg" + (isErr ? " err" : "");
+    el("msg").hidden = false;
+    el("result").hidden = true;
+  }
+
+  function load() {
+    var sym = el("ticker").value.trim().toUpperCase();
+    if (!sym) { say("Enter a ticker to begin."); return; }
+    if (state.busy) return;
+    state.busy = true;
+    el("go").disabled = true;
+    say("Loading " + sym + "…");
+    fetch("/api/quote?symbol=" + encodeURIComponent(sym) +
+          "&range=" + encodeURIComponent(state.range))
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { say(res.j.error || "Something went wrong.", true); return; }
+        state.symbol = sym;
+        show(res.j);
+      })
+      .catch(function () { say("Could not reach the server.", true); })
+      .then(function () { state.busy = false; el("go").disabled = false; });
+  }
+
+  el("form").addEventListener("submit", function (e) { e.preventDefault(); load(); });
+  Array.prototype.forEach.call(document.querySelectorAll(".range"), function (b) {
+    b.addEventListener("click", function () {
+      Array.prototype.forEach.call(document.querySelectorAll(".range"), function (x) {
+        x.classList.toggle("on", x === b);
+      });
+      state.range = b.dataset.r;
+      if (state.symbol || el("ticker").value.trim()) load();
+    });
+  });
+  window.addEventListener("resize", function () {
+    if (!el("result").hidden && state.symbol) { /* redraw at new width */ }
+  });
+  load();
+})();
+</script>
+</body>
+</html>
