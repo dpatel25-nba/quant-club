@@ -1,4 +1,6 @@
-# Quant Division — Ticker Lookup
+# Systematic Portfolio Management — Ticker Lookup
+
+Goizueta Portfolio Management Club
 
 A static page plus one serverless function. Type a ticker, pick a range, get a
 chart and summary statistics.
