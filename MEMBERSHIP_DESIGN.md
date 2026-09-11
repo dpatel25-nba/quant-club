@@ -34,6 +34,13 @@ placeholder photography. Public sections have shareable fragment URLs;
 Back/forward navigation and the existing Style Rotation link are supported.
 There are no additional runtime dependencies, fonts or image requests.
 
+Small original line drawings fill the unused space below the introductory
+section text: portfolio components on Overview and a research notebook on
+Membership. Four team symbols, a restrained masthead rule and a small square
+footer mark repeat the same visual language. These SVGs are decorative and
+hidden from assistive technology; their figures have descriptive labels.
+The drawings do not represent investment results or allocation advice.
+
 ## Verification
 
 The existing CSS, page execution and Style Rotation checks continue to run.
