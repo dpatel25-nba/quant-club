@@ -115,8 +115,11 @@
   .shot-cap { font-size: 13px; color: var(--muted); margin: 0 0 72px; }
 
   /* --- stat strip: numbers on open ground, no boxes --- */
-  .strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-           gap: 40px 28px; padding: 56px 0; border-top: 1px solid var(--border); }
+  /* Four facts across, halving rather than reflowing into an odd row. */
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr);
+           gap: 36px 28px; padding: 52px 0; border-top: 1px solid var(--border); }
+  @media (max-width: 900px) { .strip { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .strip { grid-template-columns: 1fr; } }
   .strip .n { font-size: 26px; font-weight: 700; letter-spacing: -.02em;
               line-height: 1.2; }
   .strip .l { font-size: 14.5px; color: var(--muted); margin-top: 10px;
@@ -135,9 +138,13 @@
                               .hero { padding: 64px 0 48px; } }
 
   /* --- units: hairline separation, no cards --- */
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-           gap: 0; margin-top: 44px; border-top: 1px solid var(--border); }
-  .card { padding: 32px 28px 32px 0; border-bottom: 1px solid var(--border); }
+  /* Four teams, so TWO columns — stated rather than left to auto-fit, which
+     fitted three at this width and left the fourth stranded on its own row. */
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr);
+           column-gap: 52px; margin-top: 40px;
+           border-top: 1px solid var(--border); }
+  .card { padding: 30px 0; border-bottom: 1px solid var(--border); }
+  @media (max-width: 720px) { .cards { grid-template-columns: 1fr; column-gap: 0; } }
   .card .num { font-size: 11.5px; font-weight: 700; letter-spacing: .14em;
                color: var(--accent); text-transform: uppercase; }
   .card h3 { font-size: 20px; margin: 12px 0 10px; font-weight: 650;
@@ -152,6 +159,17 @@
                font-weight: 700; margin: 0 0 16px; max-width: 24ch; }
   .closer p { font-size: 18px; color: var(--muted); max-width: 54ch;
               margin: 0 0 32px; line-height: 1.65; }
+
+  /* A first heading should not push itself away from the top of its section.
+     This was being corrected with style="margin-top:0" at each site, which is
+     the markup apologising for the stylesheet. */
+  .prose > h2:first-child, .band > h2:first-child,
+  .two > div > h2:first-child, .closer > h2:first-child { margin-top: 0; }
+
+  /* Sub-page heroes are shorter than the home one and end on their lede. */
+  .hero.sub { padding: 56px 0 38px; }
+  .hero.sub .lede { margin-bottom: 0; }
+  .closer .cta-row { margin-top: 24px; }
 
   .prose { max-width: 68ch; }
   .prose h2 { font-size: clamp(24px, 3vw, 32px); margin: 72px 0 18px;
@@ -295,7 +313,7 @@
         <div class="bs">Emory University</div>
       </div>
     </div>
-    <nav class="navlinks mtabs" role="tablist" style="margin:0">
+    <nav class="navlinks mtabs" role="tablist">
       <button class="mtab on" data-m="overview" role="tab">Overview</button>
       <button class="mtab" data-m="membership" role="tab">Membership</button>
       <button class="mtab" data-m="tools" role="tab">Research Tools</button>
@@ -358,7 +376,7 @@
           <div class="shot tall">Club photo</div>
         </div>
         <div>
-          <h2 style="margin-top:0">What We Do</h2>
+          <h2>What We Do</h2>
       <p>Members work through portfolio-management concepts and apply them to
         portfolios built around different investor goals and risk profiles. You
         will learn to calculate expected return, volatility, correlation,
@@ -412,21 +430,21 @@
       <h2>Join the Club</h2>
       <p>Membership is open to all full-time Emory students, with no dues and no
         prior experience required. Applications are reviewed blind.</p>
-      <div class="cta-row" style="margin-top:22px">
+      <div class="cta-row">
         <button class="cta" data-m="apply">View application details</button>
       </div>
     </div>
   </section>
 
   <section class="mview" id="m-membership">
-    <div class="hero" style="padding:48px 0 34px">
+    <div class="hero sub">
       <div class="kicker">Membership</div>
       <h1>Membership</h1>
-      <p class="lede" style="margin-bottom:0">Open to all full-time Emory
+      <p class="lede">Open to all full-time Emory
         students. There are no dues, and no prior experience is required.</p>
     </div>
     <div class="prose">
-      <h2 style="margin-top:0">Member Benefits</h2>
+      <h2>Member Benefits</h2>
       <ul>
         <li><b>Skill development</b> — hands-on experience building and
           evaluating portfolios through quantitative and fundamental asset
@@ -469,22 +487,22 @@
       <h2>How to Join</h2>
       <p>Members are selected by the Executive Board through a process set at the
         beginning of each semester. The process may vary between teams.</p>
-      <div class="cta-row" style="margin-top:22px">
+      <div class="cta-row">
         <button class="cta" data-m="apply">View application details</button>
       </div>
     </div>
   </section>
 
   <section class="mview" id="m-apply">
-    <div class="hero" style="padding:48px 0 34px">
+    <div class="hero sub">
       <div class="kicker">Apply</div>
       <h1>Apply to Join</h1>
-      <p class="lede" style="margin-bottom:0">Applications are reviewed blind.
+      <p class="lede">Applications are reviewed blind.
         Applicants are evaluated on their reasoning and interest, not on prior
         experience or connections.</p>
     </div>
     <div class="prose">
-      <h2 style="margin-top:0">Application Process</h2>
+      <h2>Application Process</h2>
       <p>Applications are reviewed blind. You will be asked for your year, Emory
         NetID, phone number, and major, but not your name. Any use of your name
         on the application results in automatic rejection.</p>
@@ -511,10 +529,10 @@
   </section>
 
   <section class="mview" id="m-tools">
-    <div class="hero" style="padding:48px 0 30px">
+    <div class="hero sub">
       <div class="kicker">Systematic Portfolio Management</div>
       <h1 style="font-size:clamp(26px,4vw,38px)">Research tools</h1>
-      <p class="lede" style="margin-bottom:0">Price history and statistics for any
+      <p class="lede">Price history and statistics for any
         listed security, portfolio risk and return attribution, correlation across
         asset classes, and Fama-French factor exposures.</p>
     </div>
