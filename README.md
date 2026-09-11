@@ -118,6 +118,30 @@ positive. That is a wrong answer rather than an imprecise one, so bond funds are
 detected by name and carry a warning in red. Price and volatility are still
 sound; the RETURN is not a total return. Quote performance from the factsheet.
 
+## Factors
+
+The Factors tab regresses a security's excess return on the four Fama-French
+factors — market, size, value, momentum — and reports loadings, t-statistics,
+alpha and R squared, alongside how each factor itself performed over the window.
+
+**Why the academic factors and not factor ETFs.** Proxying momentum with MTUM
+and value with VLUE would be easier, but those are long-only funds: each carries
+the market inside it, so a regression against them measures market beta several
+times over and the loadings become unstable. The Fama-French factors are
+long-short and market-neutral by construction, which is what makes a loading
+mean anything. They also publish the risk-free rate, so excess returns stop
+needing a hand-waved zero.
+
+`api/factors.js` fetches the library and unpacks the ZIP by hand — a local file
+header is a fixed 30 bytes, then name, then extra, then a raw deflate stream
+Node's zlib inflates directly — so there are no npm dependencies. Cached for a
+day; the response carries its own last date.
+
+**Two limits worth knowing.** The library is rebuilt monthly from CRSP, so it
+lags by several weeks and the most recent days are missing. And it is DAILY, so
+weekly or monthly price series will not line up — the tab says so rather than
+quietly regressing mismatched frequencies.
+
 ## What the numbers mean
 
 - **Return** and **max drawdown** are **price-only** — they exclude dividends,

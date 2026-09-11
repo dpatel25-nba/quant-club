@@ -197,6 +197,7 @@
     <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
     <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
     <button class="tab" data-v="compare" role="tab">Compare</button>
+    <button class="tab" data-v="factors" role="tab">Factors</button>
   </nav>
 
   <section class="view on" id="v-lookup">
@@ -315,6 +316,34 @@
     <div class="panel" style="margin-top:18px">
       <div class="msg" id="cMsg">Enter two tickers and compare.</div>
       <div id="cOut" hidden></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-factors">
+    <div class="panel">
+      <div class="search">
+        <input id="fTicker" placeholder="AAPL" spellcheck="false" value="AAPL"
+               aria-label="Ticker"
+               style="flex:1 1 200px;padding:12px 14px;font-size:16px;
+                      font-family:ui-monospace,Menlo,monospace;text-transform:uppercase;
+                      background:var(--panel-2);color:var(--text);
+                      border:1px solid var(--border);border-radius:10px;min-width:0">
+        <select id="fRange" aria-label="Window"
+                style="padding:11px 12px;border-radius:10px;background:var(--panel-2);
+                       color:var(--text);border:1px solid var(--border);font:inherit">
+          <option value="1y">1 year</option>
+          <option value="5y" selected>5 years</option>
+        </select>
+        <button class="btn" id="fGo" type="button">Run regression</button>
+      </div>
+      <div class="note" style="margin-top:10px">Regresses the security's excess
+        return on the four Fama-French factors. These are <b>long-short</b> and
+        market-neutral by construction, unlike factor ETFs, which carry the
+        market inside them.</div>
+    </div>
+    <div class="panel" style="margin-top:18px">
+      <div class="msg" id="fMsg">Enter a ticker to measure its factor exposures.</div>
+      <div id="fOut" hidden></div>
     </div>
   </section>
 
@@ -1092,6 +1121,193 @@
     el("cMsg").className = "msg" + (err ? " err" : "");
     el("cMsg").hidden = false; el("cOut").hidden = true;
   }
+
+
+  // ======================= FACTORS =========================================
+
+  // Ordinary least squares with several regressors, solved through the normal
+  // equations. Standard errors come from the same inverse, because a loading
+  // without a t-statistic is not a finding: on five years of daily data a beta
+  // of 0.1 can be solid and a beta of 0.4 can be noise, and only the t tells
+  // them apart.
+  function ols(y, X) {
+    var n = y.length, k = X[0].length, i, j, t;
+    var XtX = [], Xty = [];
+    for (i = 0; i < k; i++) {
+      XtX.push(new Array(k).fill(0));
+      Xty.push(0);
+    }
+    for (t = 0; t < n; t++) {
+      for (i = 0; i < k; i++) {
+        Xty[i] += X[t][i] * y[t];
+        for (j = 0; j < k; j++) XtX[i][j] += X[t][i] * X[t][j];
+      }
+    }
+    // Gauss-Jordan on [XtX | I] gives both the solution and the inverse, whose
+    // diagonal the standard errors need.
+    var A = XtX.map(function (row, r) {
+      return row.concat(Array.from({ length: k }, function (_, c) {
+        return r === c ? 1 : 0; }));
+    });
+    for (i = 0; i < k; i++) {
+      var piv = i;
+      for (j = i; j < k; j++) if (Math.abs(A[j][i]) > Math.abs(A[piv][i])) piv = j;
+      if (Math.abs(A[piv][i]) < 1e-14) return null;      // singular: collinear
+      var tmp = A[i]; A[i] = A[piv]; A[piv] = tmp;
+      var d = A[i][i];
+      for (j = 0; j < 2 * k; j++) A[i][j] /= d;
+      for (var r2 = 0; r2 < k; r2++) {
+        if (r2 === i) continue;
+        var f = A[r2][i];
+        for (j = 0; j < 2 * k; j++) A[r2][j] -= f * A[i][j];
+      }
+    }
+    var inv = A.map(function (row) { return row.slice(k); });
+    var beta = [];
+    for (i = 0; i < k; i++) {
+      var sum = 0;
+      for (j = 0; j < k; j++) sum += inv[i][j] * Xty[j];
+      beta.push(sum);
+    }
+    var rss = 0, tss = 0;
+    var ybar = y.reduce(function (a, b) { return a + b; }, 0) / n;
+    for (t = 0; t < n; t++) {
+      var fit = 0;
+      for (i = 0; i < k; i++) fit += X[t][i] * beta[i];
+      rss += (y[t] - fit) * (y[t] - fit);
+      tss += (y[t] - ybar) * (y[t] - ybar);
+    }
+    var s2 = rss / Math.max(n - k, 1);
+    var se = beta.map(function (_, i2) { return Math.sqrt(Math.max(s2 * inv[i2][i2], 0)); });
+    return { beta: beta, se: se, t: beta.map(function (b, i2) {
+      return se[i2] > 0 ? b / se[i2] : 0; }),
+      r2: tss > 0 ? 1 - rss / tss : 0, n: n, k: k };
+  }
+
+  var FACTORS = null;
+  var FNAMES = [["mkt", "Market", "the market minus cash"],
+                ["smb", "Size", "small companies minus large"],
+                ["hml", "Value", "cheap minus expensive"],
+                ["mom", "Momentum", "recent winners minus losers"]];
+
+  function runFactors() {
+    var sym = el("fTicker").value.trim().toUpperCase();
+    if (!sym) { fSay("Enter a ticker.", true); return; }
+    var range = el("fRange").value;
+    fSay("Loading " + sym + " and the factor library…");
+    var fp = FACTORS ? Promise.resolve(FACTORS)
+      : fetch("/api/factors").then(function (r) {
+          return r.json().then(function (j) {
+            if (!r.ok) throw new Error(j.detail || j.error || "factor load failed");
+            FACTORS = j; return j; }); });
+    var k2 = sym + "|" + range;
+    var sp = cache[k2] ? Promise.resolve(cache[k2])
+      : fetch("/api/quote?symbol=" + encodeURIComponent(sym) +
+              "&range=" + encodeURIComponent(range) + "&quote=0")
+          .then(function (r) { return r.json().then(function (j) {
+            if (!r.ok) throw new Error(j.error || "failed");
+            cache[k2] = j; return j; }); });
+
+    Promise.all([fp, sp]).then(function (out) {
+      var F = out[0], P = out[1];
+      var fmap = {};
+      F.rows.forEach(function (r) { fmap[r.t] = r; });
+      // The factor library is daily, so a weekly or monthly price series cannot
+      // be regressed against it. Only same-frequency data is comparable.
+      var pts = P.points.filter(function (q) { return fmap[q.t]; });
+      if (pts.length < 60) {
+        fSay("Only " + pts.length + " days line up with the factor library. It "
+           + "is daily and lags by a few weeks (it ends " + F.last + "), so a "
+           + "weekly or monthly series will not match. Try the 1-year window.",
+           true);
+        return;
+      }
+      var y = [], X = [], i;
+      for (i = 1; i < pts.length; i++) {
+        var f = fmap[pts[i].t];
+        var r = pts[i].c / pts[i - 1].c - 1;
+        y.push(r - f.rf);                       // EXCESS return, over cash
+        X.push([1, f.mkt, f.smb, f.hml, f.mom]);
+      }
+      var m = ols(y, X);
+      if (!m) { fSay("The regression is singular — the factors are collinear "
+                   + "over this window.", true); return; }
+
+      var ann = 252;
+      var alpha = m.beta[0] * ann;              // daily intercept, annualised
+      var labels = ["Alpha"].concat(FNAMES.map(function (f2) { return f2[1]; }));
+      var h = '<div class="stats">' + [
+        ["Alpha (ann.)", (alpha >= 0 ? "+" : "") + pct(alpha)],
+        ["Alpha t-stat", m.t[0].toFixed(2)],
+        ["R squared", m.r2.toFixed(3)],
+        ["Observations", String(m.n)]
+      ].map(function (r2) {
+        return '<div class="stat"><div class="k">' + r2[0] + '</div><div class="v">'
+             + r2[1] + '</div></div>'; }).join("") + '</div>';
+
+      h += '<div class="h2">Factor loadings</div><table class="mx">'
+         + '<tr><th class="l">Factor</th><th>Loading</th><th>t-stat</th>'
+         + '<th class="l">Reading</th></tr>';
+      for (i = 1; i <= 4; i++) {
+        var b = m.beta[i], tt = m.t[i];
+        // |t| > 2 is the usual bar for calling a loading real at all.
+        var real = Math.abs(tt) >= 2;
+        var lean = !real ? "no reliable tilt"
+          : (b > 0 ? "tilted toward " : "tilted away from ") + FNAMES[i - 1][2];
+        h += '<tr><td class="l">' + FNAMES[i - 1][1] + '</td><td>' + b.toFixed(3)
+          + '</td><td style="color:' + (real ? "var(--text)" : "var(--muted)") + '">'
+          + tt.toFixed(2) + '</td><td class="l" style="color:'
+          + (real ? "var(--text)" : "var(--muted)") + '">' + lean + '</td></tr>';
+      }
+      h += '</table>';
+      h += '<div class="note"><b>How to read this.</b> A loading is how much of '
+        + 'this security\'s move a factor explains, holding the others fixed. The '
+        + 't-stat says whether to believe it: below about 2 in absolute value, '
+        + 'treat the loading as noise however large it looks. <b>Alpha</b> is '
+        + 'the return left over once all four factors are accounted for — the '
+        + 'part not explained by simply taking those exposures — and its own '
+        + 't-stat matters just as much, because most alphas do not survive it. '
+        + '<b>R squared</b> of ' + m.r2.toFixed(2) + ' means the factors explain '
+        + (m.r2 * 100).toFixed(0) + '% of the variation.</div>';
+
+      // factor performance over the same window, so the loadings have context
+      var fr = {}, keys = FNAMES.map(function (f2) { return f2[0]; });
+      keys.forEach(function (kk) { fr[kk] = []; });
+      for (i = 1; i < pts.length; i++) {
+        keys.forEach(function (kk) { fr[kk].push(fmap[pts[i].t][kk]); });
+      }
+      h += '<div class="h2">How the factors themselves did</div><table class="mx">'
+        + '<tr><th class="l">Factor</th><th>Cumulative</th><th>Ann. vol</th>'
+        + '<th>Return / risk</th></tr>';
+      keys.forEach(function (kk, idx) {
+        var a = fr[kk], cum = 1, mu = 0;
+        a.forEach(function (v) { cum *= 1 + v; mu += v; });
+        mu /= a.length;
+        var sdv = Math.sqrt(a.reduce(function (u, v) {
+          return u + (v - mu) * (v - mu); }, 0) / (a.length - 1)) * Math.sqrt(ann);
+        var cr = cum - 1;
+        h += '<tr><td class="l">' + FNAMES[idx][1] + '</td><td style="color:'
+          + (cr >= 0 ? "var(--good)" : "var(--bad)") + '">' + (cr >= 0 ? "+" : "")
+          + pct(cr) + '</td><td>' + pct(sdv) + '</td><td>'
+          + (sdv > 0 ? ((mu * ann) / sdv).toFixed(2) : "—") + '</td></tr>';
+      });
+      h += '</table><div class="note">These are the factor returns over the same '
+        + 'window, so a loading can be read against what the factor actually paid. '
+        + 'A positive tilt to a factor that lost money cost you. Source: '
+        + F.source + ', through ' + F.last + '.</div>';
+
+      el("fOut").innerHTML = h;
+      el("fOut").hidden = false; el("fMsg").hidden = true;
+    }).catch(function (e) { fSay(String(e.message || e), true); });
+  }
+
+  function fSay(t, err) {
+    el("fMsg").textContent = t;
+    el("fMsg").className = "msg" + (err ? " err" : "");
+    el("fMsg").hidden = false; el("fOut").hidden = true;
+  }
+
+  el("fGo").addEventListener("click", runFactors);
 
   el("cGo").addEventListener("click", compare);
 
