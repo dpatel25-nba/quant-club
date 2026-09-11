@@ -1,6 +1,8 @@
-# Systematic Portfolio Management — Ticker Lookup
+# Goizueta Portfolio Management Club
 
-Goizueta Portfolio Management Club
+Emory University. Club site with the research tools built by the Systematic Portfolio Management unit.
+
+Four top-level sections: **Overview**, **Membership**, **Apply**, and **Research Tools** — the last containing Ticker Lookup, Portfolio Builder, Compare and Factors.
 
 A static page plus one serverless function. Type a ticker, pick a range, get a
 chart and summary statistics.

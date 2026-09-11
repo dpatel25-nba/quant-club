@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Systematic Portfolio Management — Ticker Lookup</title>
+<title>Goizueta Portfolio Management Club</title>
 <style>
   :root {
     --bg: #EEF1F6; --panel: #FFFFFF; --panel-2: #F6F8FB; --border: #DBE1EA;
@@ -48,7 +48,7 @@
   header { border-bottom: 2px solid var(--accent); margin-bottom: 26px;
            padding-bottom: 16px; }
   .club { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .mark { width: 26px; height: 26px; flex: none; border-radius: 5px;
+  .mark { width: 46px; height: 26px; flex: none; border-radius: 5px;
           background: var(--accent); color: #fff; display: grid; place-items: center;
           font-size: 11px; font-weight: 700; letter-spacing: .04em; }
   .club-name { font-size: 12px; font-weight: 700; letter-spacing: .13em;
@@ -142,6 +142,23 @@
              font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
   .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; }
 
+  .mtabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 24px; }
+  .mtab { padding: 9px 16px; font: inherit; font-size: 14px; font-weight: 600;
+          cursor: pointer; background: transparent; color: var(--muted);
+          border: 1px solid var(--border); border-radius: 999px; }
+  .mtab:hover { color: var(--text); background: var(--panel-2); }
+  .mtab.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .mview { display: none; } .mview.on { display: block; }
+  .prose { max-width: 70ch; }
+  .prose h2 { font-size: 19px; margin: 26px 0 8px; font-weight: 600;
+              font-family: "Iowan Old Style", Palatino, Georgia, serif; }
+  .prose p { margin: 0 0 12px; }
+  .prose ul { margin: 0 0 12px; padding-left: 20px; }
+  .prose li { margin-bottom: 8px; }
+  .unit { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px;
+          margin: 0 0 16px; }
+  .unit b { display: block; font-size: 15px; margin-bottom: 2px; }
+  .unit span { color: var(--muted); font-size: 14px; }
   .tabs { display: flex; gap: 4px; margin: 0 0 20px; border-bottom: 1px solid var(--border); }
   .tab { padding: 10px 16px; font: inherit; font-size: 14px; font-weight: 600;
          cursor: pointer; background: none; border: none; color: var(--muted);
@@ -185,14 +202,151 @@
 <div class="wrap">
   <header>
     <div class="club">
-      <div class="mark">SPM</div>
-      <div class="club-name">Goizueta Portfolio Management Club</div>
+      <div class="mark">GPMC</div>
+      <div class="club-name">Emory University &middot; Atlanta Campus</div>
     </div>
-    <h1 class="serif">Systematic Portfolio Management</h1>
-    <div class="sub">Ticker research — price history and summary statistics for any
-      listed security, computed over the window you select.</div>
+    <h1 class="serif">Goizueta Portfolio Management Club</h1>
+    <div class="sub">How investments are combined and managed as a complete
+      portfolio — asset allocation, diversification, risk, and risk-adjusted
+      performance across asset classes.</div>
   </header>
 
+  <nav class="mtabs" role="tablist">
+    <button class="mtab on" data-m="overview" role="tab">Overview</button>
+    <button class="mtab" data-m="membership" role="tab">Membership</button>
+    <button class="mtab" data-m="apply" role="tab">Apply</button>
+    <button class="mtab" data-m="tools" role="tab">Research Tools</button>
+  </nav>
+
+  <section class="mview on" id="m-overview">
+    <div class="panel prose">
+      <div class="eyebrow">About</div>
+      <h2 style="margin-top:10px">What the club is</h2>
+      <p>The Goizueta Portfolio Management Club gives students hands-on exposure
+        to how investment portfolios are built, analyzed, and managed. We focus
+        on asset allocation, diversification, risk management, portfolio
+        construction, and evaluating performance across different asset
+        classes.</p>
+
+      <h2>What we do</h2>
+      <p>Members work through portfolio-management concepts and apply them to
+        hypothetical portfolios built around different investor goals and risk
+        profiles. You will learn to calculate expected return, volatility,
+        correlation, portfolio risk and Sharpe ratios; evaluate asset allocation
+        decisions; and understand how different investments interact inside a
+        portfolio.</p>
+      <p>Members may also take part in portfolio competitions, case studies,
+        market discussions, and presentations where they defend their investment
+        strategy and construction decisions.</p>
+
+      <h2>How we are different</h2>
+      <p>We focus on how investments are <b>combined and managed as a complete
+        portfolio</b>, rather than on individual security selection or a single
+        asset class. That portfolio-level perspective complements the existing
+        organizations built around stock research, quantitative strategies,
+        venture capital, or alternative investments.</p>
+
+      <h2>The four units</h2>
+      <div class="unit"><b>Systematic Portfolio Management</b><span>Quantitative
+        models, data, and rules-based approaches — how systematic strategies are
+        built, tested, and applied within a portfolio. The research tools on
+        this site come from this unit.</span></div>
+      <div class="unit"><b>Fundamental Portfolio Management</b><span>Fundamental
+        analysis across companies, sectors and asset classes, comparing
+        opportunities to decide where capital is best allocated.</span></div>
+      <div class="unit"><b>Asset Allocation and Risk</b><span>How capital is
+        distributed across asset classes and how overall portfolio risk is
+        measured and managed — diversification, volatility, correlation and
+        concentration.</span></div>
+      <div class="unit"><b>Investor Relations</b><span>Outreach to alumni,
+        industry professionals, faculty and sponsors; coordinating speakers,
+        partnerships and external opportunities for members.</span></div>
+    </div>
+  </section>
+
+  <section class="mview" id="m-membership">
+    <div class="panel prose">
+      <div class="eyebrow">Membership</div>
+      <h2 style="margin-top:10px">What members get</h2>
+      <ul>
+        <li><b>Skill development</b> — hands-on experience building and
+          evaluating portfolios through quantitative and fundamental asset
+          allocation, risk analysis, performance measurement and investment
+          research.</li>
+        <li><b>Publication and recognition</b> — opportunities to present
+          portfolio strategies, market outlooks and performance reports to the
+          club and potentially the broader Goizueta community.</li>
+        <li><b>Leadership</b> — roles such as Portfolio Team Lead, Project
+          Manager, or Executive Board, with real experience leading teams and
+          making investment decisions.</li>
+        <li><b>Networking</b> — connections with students interested in asset
+          and wealth management, along with faculty and industry
+          professionals.</li>
+        <li><b>Portfolio building</b> — tangible work such as investment policy
+          statements, asset allocation models, portfolio reports and performance
+          analyses, to discuss in interviews and put on a resume.</li>
+        <li><b>Community</b> — a collaborative environment where students learn
+          portfolio management together regardless of prior experience.</li>
+      </ul>
+
+      <h2>Who can join</h2>
+      <p>Membership is open to full-time, enrolled students of Emory University.
+        <b>There are no dues.</b> Members are selected by the Executive Board
+        through a process set at the beginning of each semester, and the process
+        may vary between units.</p>
+
+      <h2>Non-discrimination</h2>
+      <p>The club, as a representative of Emory University, is dedicated to
+        providing equal opportunities and equal access to all individuals
+        regardless of race, color, religion, ethnic or national origin, gender,
+        genetic information, age, disability, sexual orientation, gender
+        identity, gender expression, and veteran&rsquo;s status. The club does
+        not condone or participate in hazing of any kind.</p>
+      <p class="note">The full constitution, including officer duties, elections
+        and amendment procedures, is maintained separately and available on
+        request.</p>
+    </div>
+  </section>
+
+  <section class="mview" id="m-apply">
+    <div class="panel prose">
+      <div class="eyebrow">Apply</div>
+      <h2 style="margin-top:10px">Blind application</h2>
+      <p>Applications are read blind. You will be asked for your year, Emory
+        NetID, phone number and major — <b>but not your name</b>. Any use of
+        your name on the application results in automatic rejection.</p>
+
+      <h2>What you will be asked</h2>
+      <ul>
+        <li>Which unit interests you most — Systematic, Fundamental, Asset
+          Allocation and Risk, or Investor Relations. You may select more than
+          one.</li>
+        <li>Why you are interested in joining the club. <span class="mono">250
+          words max</span></li>
+        <li>What you think is the most important factor in portfolio management,
+          and why. <span class="mono">250 words max</span></li>
+        <li>Anything you find interesting and are knowledgeable on.
+          <span class="mono">500 words max</span></li>
+      </ul>
+
+      <h2>Interviews</h2>
+      <p>Selected applicants interview with the unit they applied to. Questions
+        vary by year and are set by the head of each unit, but expect to be
+        asked about your reasoning rather than your credentials — how you would
+        approach a problem, and how you would defend a decision.</p>
+      <p class="note">Application form and deadlines to be announced.</p>
+    </div>
+  </section>
+
+  <section class="mview" id="m-tools">
+    <div class="panel prose" style="margin-bottom:18px">
+      <div class="eyebrow">Systematic Portfolio Management</div>
+      <h2 style="margin-top:8px">Research tools</h2>
+      <p style="margin-bottom:0">Built and maintained by the Systematic unit.
+        Price history and statistics for any listed security, portfolio risk and
+        return attribution, pairwise correlation across asset classes, and
+        Fama-French factor exposures.</p>
+    </div>
   <nav class="tabs" role="tablist">
     <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
     <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
@@ -347,8 +501,10 @@
     </div>
   </section>
 
+  </section>
+
   <footer>
-    <div>Goizueta Portfolio Management Club &middot; Systematic Portfolio Management</div>
+    <div>Goizueta Portfolio Management Club &middot; Emory University</div>
     <div>Market data via Twelve Data &middot; prices may be delayed</div>
   </footer>
 </div>
@@ -1314,6 +1470,19 @@
   el("addRow").addEventListener("click", function () { addRow("", ""); });
   el("build").addEventListener("click", analysePortfolio);
   ["AAPL", "MSFT", "JNJ", "XOM"].forEach(function (t, i) { addRow(t, [40, 30, 20, 10][i]); });
+
+  // Outer navigation. Kept separate from the inner tool tabs so the two
+  // levels cannot interfere: the club sections switch .mview, the research
+  // tools switch .view, and neither selector matches the other's elements.
+  Array.prototype.forEach.call(document.querySelectorAll(".mtab"), function (b) {
+    b.addEventListener("click", function () {
+      Array.prototype.forEach.call(document.querySelectorAll(".mtab"), function (x) {
+        x.classList.toggle("on", x === b); });
+      Array.prototype.forEach.call(document.querySelectorAll(".mview"), function (v) {
+        v.classList.toggle("on", v.id === "m-" + b.dataset.m); });
+      window.scrollTo(0, 0);
+    });
+  });
 
   Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) {
     b.addEventListener("click", function () {
