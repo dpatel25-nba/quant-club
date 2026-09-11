@@ -165,6 +165,8 @@
   <nav class="tabs" role="tablist">
     <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
     <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
+    <button class="tab" data-v="monthly" role="tab">Monthly</button>
+    <button class="tab" data-v="compare" role="tab">Compare</button>
   </nav>
 
   <section class="view on" id="v-lookup">
@@ -227,6 +229,64 @@
       <div id="pOut" hidden></div>
     </div>
   </section>
+
+  <section class="view" id="v-monthly">
+    <div class="panel">
+      <div class="search">
+        <input id="mTicker" placeholder="AAPL" spellcheck="false" value="AAPL"
+               aria-label="Ticker"
+               style="flex:1 1 220px;padding:12px 14px;font-size:17px;
+                      font-family:ui-monospace,Menlo,monospace;text-transform:uppercase;
+                      letter-spacing:.08em;background:var(--panel-2);color:var(--text);
+                      border:1px solid var(--border);border-radius:10px;min-width:0">
+        <button class="btn" id="mGo" type="button">Load history</button>
+      </div>
+      <div class="note" style="margin-top:10px">Every month since listing, newest
+        first. Click <b>inspect</b> on any month to measure what happened inside it.</div>
+    </div>
+    <div class="panel" style="margin-top:18px">
+      <div class="msg" id="mMsg">Enter a ticker and load its history.</div>
+      <div id="mOut" hidden></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-compare">
+    <div class="panel">
+      <div class="search">
+        <input id="cA" placeholder="AAPL" spellcheck="false" value="AAPL"
+               aria-label="First ticker"
+               style="flex:1 1 140px;padding:12px 14px;font-size:16px;
+                      font-family:ui-monospace,Menlo,monospace;text-transform:uppercase;
+                      background:var(--panel-2);color:var(--text);
+                      border:1px solid var(--border);border-radius:10px;min-width:0">
+        <input id="cB" placeholder="MSFT" spellcheck="false" value="MSFT"
+               aria-label="Second ticker"
+               style="flex:1 1 140px;padding:12px 14px;font-size:16px;
+                      font-family:ui-monospace,Menlo,monospace;text-transform:uppercase;
+                      background:var(--panel-2);color:var(--text);
+                      border:1px solid var(--border);border-radius:10px;min-width:0">
+        <select id="cRange" aria-label="Range"
+                style="padding:11px 12px;border-radius:10px;background:var(--panel-2);
+                       color:var(--text);border:1px solid var(--border);font:inherit">
+          <option value="1y">1 year</option>
+          <option value="5y" selected>5 years</option>
+          <option value="all">All time</option>
+        </select>
+        <button class="btn" id="cGo" type="button">Compare</button>
+      </div>
+      <div class="note" style="margin-top:10px">Works across asset classes — try
+        <b>BTC/USD</b> against <b>SPY</b>, or <b>EUR/USD</b> against a stock.</div>
+    </div>
+    <div class="panel" style="margin-top:18px">
+      <div class="msg" id="cMsg">Enter two tickers and compare.</div>
+      <div id="cOut" hidden></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Goizueta Portfolio Management Club &middot; Systematic Portfolio Management</div>
+    <div>Market data via Twelve Data &middot; prices may be delayed</div>
+  </footer>
 </div>
 
 <script>
@@ -673,6 +733,204 @@
       pSay(String(e.message || e), true);
     });
   }
+
+
+  // ---- how many periods make a year, by what is being traded ----------------
+  // Crypto trades every calendar day; equities about 252; forex about 260.
+  // Annualising Bitcoin's daily volatility on a 252-day year understates it by
+  // roughly a fifth, so the asset type has to reach this calculation.
+  function annFactor(type, interval) {
+    var crypto = /digital|crypto/i.test(type || "");
+    var fx = /physical currency|forex/i.test(type || "");
+    var perDay = crypto ? 365 : (fx ? 260 : 252);
+    if (interval === "1month") return 12;
+    if (interval === "1week") return crypto ? 52 : 52;
+    return perDay;
+  }
+
+  // ======================= MONTHLY =========================================
+  function monthly() {
+    var sym = el("mTicker").value.trim().toUpperCase();
+    if (!sym) { mSay("Enter a ticker.", true); return; }
+    mSay("Loading " + sym + "…");
+    fetch("/api/quote?symbol=" + encodeURIComponent(sym) + "&range=all&quote=0")
+      .then(function (r) { return r.json().then(function (j) {
+        if (!r.ok) throw new Error(j.error || "failed"); return j; }); })
+      .then(function (d) {
+        var p = d.points;
+        if (p.length < 2) throw new Error("Not enough history.");
+        var rows = [];
+        for (var i = p.length - 1; i > 0; i--) {
+          rows.push({ m: p[i].t.slice(0, 7), r: p[i].c / p[i - 1].c - 1, c: p[i].c });
+        }
+        var rs = rows.map(function (x) { return x.r; });
+        var up = rs.filter(function (x) { return x > 0; }).length;
+        var mu = rs.reduce(function (a, b) { return a + b; }, 0) / rs.length;
+        var sd = Math.sqrt(rs.reduce(function (a, b) {
+          return a + (b - mu) * (b - mu); }, 0) / ((rs.length - 1) || 1));
+
+        var h = '<div class="stats">' + [
+          ["Months", String(rows.length)],
+          ["Positive", up + " (" + pct(up / rows.length) + ")"],
+          ["Average month", (mu >= 0 ? "+" : "") + pct(mu)],
+          ["Monthly vol", pct(sd)],
+          ["Annualised vol", pct(sd * Math.sqrt(12))],
+          ["Best month", "+" + pct(Math.max.apply(null, rs))],
+          ["Worst month", pct(Math.min.apply(null, rs))],
+          ["Type", d.type || "Equity"]
+        ].map(function (r2) {
+          return '<div class="stat"><div class="k">' + r2[0] + '</div><div class="v">'
+               + r2[1] + '</div></div>'; }).join("") + '</div>';
+
+        h += '<div class="h2">Month by month</div><table class="mx">'
+           + '<tr><th class="l">Month</th><th>Close</th><th>Return</th>'
+           + '<th class="l"></th><th></th></tr>';
+        var worst = Math.max.apply(null, rs.map(Math.abs)) || 1;
+        rows.forEach(function (x) {
+          var w = Math.abs(x.r) / worst * 100;
+          h += '<tr><td class="l">' + x.m + '</td><td>' + x.c.toFixed(2) + '</td>'
+            + '<td style="color:' + (x.r >= 0 ? "var(--good)" : "var(--bad)") + '">'
+            + (x.r >= 0 ? "+" : "") + pct(x.r) + '</td>'
+            + '<td class="l" style="width:30%"><span class="bar" style="width:'
+            + w.toFixed(1) + '%;background:' + (x.r >= 0 ? "var(--good)" : "var(--bad)")
+            + '"></span></td>'
+            + '<td><button class="range" data-m="' + x.m + '" data-s="' + sym
+            + '" style="padding:3px 9px;font-size:12px">inspect</button></td></tr>';
+        });
+        h += '</table>';
+        el("mOut").innerHTML = h;
+        el("mOut").hidden = false; el("mMsg").hidden = true;
+
+        Array.prototype.forEach.call(el("mOut").querySelectorAll("[data-m]"),
+          function (b) {
+            b.addEventListener("click", function () {
+              inspectMonth(b.dataset.s, b.dataset.m, d.type);
+            });
+          });
+      })
+      .catch(function (e) { mSay(String(e.message || e), true); });
+  }
+
+  // Drill into ONE calendar month using its daily bars, which is the only way
+  // to say anything about what happened *inside* the month — a monthly close
+  // series cannot tell you whether a flat month was calm or violent.
+  function inspectMonth(sym, m, type) {
+    mSay("Loading " + sym + " " + m + "…");
+    fetch("/api/quote?symbol=" + encodeURIComponent(sym) + "&month=" + m + "&quote=0")
+      .then(function (r) { return r.json().then(function (j) {
+        if (!r.ok) throw new Error(j.error || "failed"); return j; }); })
+      .then(function (d) {
+        var c = d.points.map(function (x) { return x.c; });
+        if (c.length < 2) throw new Error("No daily data for " + m + ".");
+        var rets = [];
+        for (var i = 1; i < c.length; i++) rets.push(c[i] / c[i - 1] - 1);
+        var mu = rets.reduce(function (a, b) { return a + b; }, 0) / rets.length;
+        var sd = Math.sqrt(rets.reduce(function (a, b) {
+          return a + (b - mu) * (b - mu); }, 0) / ((rets.length - 1) || 1));
+        var ann = annFactor(type, "1day");
+        var up = rets.filter(function (x) { return x > 0; }).length;
+
+        var h = '<div class="h2">' + sym + " — " + m + '</div><div class="stats">' + [
+          ["Month return", (c[c.length - 1] / c[0] - 1 >= 0 ? "+" : "")
+                           + pct(c[c.length - 1] / c[0] - 1)],
+          ["Daily vol", pct(sd)],
+          ["Annualised vol", pct(sd * Math.sqrt(ann))],
+          ["Best day", "+" + pct(Math.max.apply(null, rets))],
+          ["Worst day", pct(Math.min.apply(null, rets))],
+          ["Up days", up + " of " + rets.length],
+          ["High", c.length ? Math.max.apply(null, c).toFixed(2) : "—"],
+          ["Low", c.length ? Math.min.apply(null, c).toFixed(2) : "—"],
+          ["Trading days", String(c.length)],
+          ["Max drawdown", pct(maxDD(c))]
+        ].map(function (r2) {
+          return '<div class="stat"><div class="k">' + r2[0] + '</div><div class="v">'
+               + r2[1] + '</div></div>'; }).join("") + '</div>'
+          + '<div class="note">Volatility here is measured from the daily moves '
+          + 'INSIDE ' + m + ', annualised on a ' + ann + '-period year. A month '
+          + 'that ended flat can still have been a violent one, which a monthly '
+          + 'close series cannot show.</div>'
+          + '<button class="btn ghost" id="mBack" type="button" '
+          + 'style="margin-top:16px;padding:9px 14px;font-size:13px">back to all months</button>';
+        el("mOut").innerHTML = h;
+        el("mOut").hidden = false; el("mMsg").hidden = true;
+        el("mBack").addEventListener("click", monthly);
+      })
+      .catch(function (e) { mSay(String(e.message || e), true); });
+  }
+
+  function mSay(t, err) {
+    el("mMsg").textContent = t;
+    el("mMsg").className = "msg" + (err ? " err" : "");
+    el("mMsg").hidden = false; el("mOut").hidden = true;
+  }
+
+  // ======================= COMPARE =========================================
+  function compare() {
+    var a = el("cA").value.trim().toUpperCase(), b = el("cB").value.trim().toUpperCase();
+    if (!a || !b) { cSay("Enter two tickers.", true); return; }
+    if (a === b) { cSay("Enter two different tickers.", true); return; }
+    var range = el("cRange").value;
+    cSay("Comparing " + a + " and " + b + "…");
+    Promise.all([a, b].map(function (sym) {
+      var k = sym + "|" + range;
+      if (cache[k]) return Promise.resolve(cache[k]);
+      return fetch("/api/quote?symbol=" + encodeURIComponent(sym) +
+                   "&range=" + encodeURIComponent(range) + "&quote=0")
+        .then(function (r) { return r.json().then(function (j) {
+          if (!r.ok) throw new Error(sym + ": " + (j.error || "failed"));
+          cache[k] = j; return j; }); });
+    })).then(function (S) {
+      var al = align(S);
+      if (al.dates.length < 30) {
+        cSay("Only " + al.dates.length + " dates in common — too few to measure. "
+           + "One of these may be newly listed, or they trade on different "
+           + "calendars (crypto trades weekends, stocks do not).", true);
+        return;
+      }
+      var R = al.cols.map(retsOf);
+      var perYear = { "1y": 252, "5y": 52, "all": 12 }[range] || 252;
+      var cm = covMatrix(R, perYear);
+      var sdA = Math.sqrt(cm.C[0][0]), sdB = Math.sqrt(cm.C[1][1]);
+      var corr = cm.C[0][1] / ((sdA * sdB) || 1);
+      var beta = cm.C[0][1] / (cm.C[1][1] || 1);          // A against B
+      var retA = al.cols[0][al.cols[0].length - 1] / al.cols[0][0] - 1;
+      var retB = al.cols[1][al.cols[1].length - 1] / al.cols[1][0] - 1;
+
+      var h = '<div class="stats">' + [
+        ["Correlation", corr.toFixed(3)],
+        ["R squared", (corr * corr).toFixed(3)],
+        ["Beta " + a + " vs " + b, beta.toFixed(3)],
+        [a + " return", (retA >= 0 ? "+" : "") + pct(retA)],
+        [b + " return", (retB >= 0 ? "+" : "") + pct(retB)],
+        [a + " vol", pct(sdA)],
+        [b + " vol", pct(sdB)],
+        ["Shared dates", String(al.dates.length)]
+      ].map(function (r2) {
+        return '<div class="stat"><div class="k">' + r2[0] + '</div><div class="v">'
+             + r2[1] + '</div></div>'; }).join("") + '</div>';
+
+      var plain = Math.abs(corr) < 0.2 ? "almost unrelated — good diversifiers"
+        : Math.abs(corr) < 0.5 ? "loosely related"
+        : Math.abs(corr) < 0.8 ? "clearly related" : "nearly the same bet";
+      h += '<div class="note">Correlation ' + corr.toFixed(2) + ': these are '
+        + plain + '. R squared says ' + (corr * corr * 100).toFixed(0) + '% of '
+        + a + "'s movement is explained by " + b + '. Beta ' + beta.toFixed(2)
+        + ' means a 1% move in ' + b + ' has historically come with a '
+        + beta.toFixed(2) + '% move in ' + a + '. All measured on the '
+        + al.dates.length + ' dates both traded.</div>';
+      el("cOut").innerHTML = h;
+      el("cOut").hidden = false; el("cMsg").hidden = true;
+    }).catch(function (e) { cSay(String(e.message || e), true); });
+  }
+
+  function cSay(t, err) {
+    el("cMsg").textContent = t;
+    el("cMsg").className = "msg" + (err ? " err" : "");
+    el("cMsg").hidden = false; el("cOut").hidden = true;
+  }
+
+  el("mGo").addEventListener("click", monthly);
+  el("cGo").addEventListener("click", compare);
 
   el("addRow").addEventListener("click", function () { addRow("", ""); });
   el("build").addEventListener("click", analysePortfolio);

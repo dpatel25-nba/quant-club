@@ -26,9 +26,20 @@ const RANGES = {
 };
 
 // A symbol is the only thing a visitor controls, so it is validated rather than
-// interpolated. Letters, digits, dot and dash cover US tickers (BRK.B) and most
-// international suffixes; anything else is rejected before a request is made.
-const SYMBOL_OK = /^[A-Za-z0-9.\-]{1,12}$/;
+// interpolated. The SLASH is required: crypto and forex are quoted as pairs
+// (BTC/USD, EUR/USD), and the earlier pattern rejected them, which silently
+// limited this tool to equities. Colon allows exchange-qualified symbols.
+const SYMBOL_OK = /^[A-Za-z0-9.:/\-]{1,16}$/;
+
+// A month drill-down needs a date-bounded request. Only YYYY-MM is accepted and
+// the range is derived here, so no caller-supplied date string reaches the API.
+const MONTH_OK = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+function monthRange(m) {
+  const [y, mo] = m.split("-").map(Number);
+  const last = new Date(Date.UTC(y, mo, 0)).getUTCDate();   // day 0 of next month
+  return { from: `${m}-01`, to: `${m}-${String(last).padStart(2, "0")}` };
+}
 
 export default async function handler(req, res) {
   const key = process.env.TWELVE_DATA_KEY;
@@ -43,9 +54,21 @@ export default async function handler(req, res) {
   if (!SYMBOL_OK.test(symbol)) {
     return res.status(400).json({ error: "That does not look like a ticker symbol." });
   }
-  const spec = RANGES[range];
-  if (!spec) {
-    return res.status(400).json({ error: `Unknown range "${range}".` });
+  // A single calendar month, for the month drill-down.
+  const month = String(req.query.month || "").trim();
+  let spec, dateQ = "";
+  if (month) {
+    if (!MONTH_OK.test(month)) {
+      return res.status(400).json({ error: "Month must look like 2024-03." });
+    }
+    const r = monthRange(month);
+    spec = { interval: "1day", outputsize: 40, label: month };
+    dateQ = `&start_date=${r.from}&end_date=${r.to}`;
+  } else {
+    spec = RANGES[range];
+    if (!spec) {
+      return res.status(400).json({ error: `Unknown range "${range}".` });
+    }
   }
 
   // The quote endpoint costs a second credit. The client only asks for it when
@@ -53,7 +76,7 @@ export default async function handler(req, res) {
   const wantQuote = String(req.query.quote || "1") !== "0";
 
   const series = `${PROVIDER}/time_series?symbol=${encodeURIComponent(symbol)}`
-    + `&interval=${spec.interval}&outputsize=${spec.outputsize}`
+    + `&interval=${spec.interval}&outputsize=${spec.outputsize}${dateQ}`
     + `&apikey=${key}`;
   const quote = `${PROVIDER}/quote?symbol=${encodeURIComponent(symbol)}&apikey=${key}`;
 
@@ -120,7 +143,8 @@ export default async function handler(req, res) {
       "1week":  12 * 3600,
       "1month": 24 * 3600,
     };
-    const ttl = TTL[spec.interval] || 900;
+    // A closed calendar month can never change, so it is cached hard.
+    const ttl = month ? 7 * 24 * 3600 : (TTL[spec.interval] || 900);
     res.setHeader("Cache-Control",
       `public, s-maxage=${ttl}, stale-while-revalidate=${ttl * 4}`);
 
@@ -128,8 +152,12 @@ export default async function handler(req, res) {
       symbol,
       range,
       label: spec.label,
-      currency: sJson.meta?.currency || "USD",
+      currency: sJson.meta?.currency || sJson.meta?.currency_quote || "USD",
       exchange: sJson.meta?.exchange || "",
+      // Asset type drives the annualisation factor downstream: crypto trades
+      // every day of the year, equities about 252 days, forex about 260.
+      // Annualising Bitcoin on a 252-day year understates its volatility.
+      type: sJson.meta?.type || "",
       name: qJson?.name || symbol,
       points,
       // A failed quote is not fatal: the chart and every computed statistic
