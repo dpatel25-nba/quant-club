@@ -41,7 +41,22 @@ function monthRange(m) {
   return { from: `${m}-01`, to: `${m}-${String(last).padStart(2, "0")}` };
 }
 
+// The UI gate is convenience; THIS is the gate. A password living in page
+// JavaScript can be read by anyone with View Source, so the tools are also shut
+// here, where the check cannot be edited away in a browser. Set TOOLS_PASSWORD
+// in Vercel to change it — and do change it if this repository is public, since
+// the fallback below is readable on GitHub.
+function gated(req, res) {
+  const want = process.env.TOOLS_PASSWORD || "mikeyscheese";
+  const got = String(req.query.k || "");
+  if (got === want) return false;
+  res.status(401).json({ error: "This tool is for club members. Enter the "
+                              + "password on the Research Tools tab." });
+  return true;
+}
+
 export default async function handler(req, res) {
+  if (gated(req, res)) return;
   const key = process.env.TWELVE_DATA_KEY;
   if (!key) {
     // Never echo configuration detail beyond the fact that it is missing.

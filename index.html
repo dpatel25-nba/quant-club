@@ -339,6 +339,23 @@
   </section>
 
   <section class="mview" id="m-tools">
+    <div class="panel" id="lock">
+      <div class="eyebrow">Members only</div>
+      <h2 class="serif" style="margin:8px 0 6px;font-size:21px">Research tools</h2>
+      <div class="note" style="margin:0 0 14px">These tools are for club members.
+        Enter the password to continue.</div>
+      <form class="search" id="lockForm">
+        <input id="pw" type="password" placeholder="Password" autocomplete="off"
+               aria-label="Password"
+               style="flex:1 1 220px;padding:12px 14px;font-size:16px;
+                      background:var(--panel-2);color:var(--text);
+                      border:1px solid var(--border);border-radius:10px;min-width:0">
+        <button class="btn" type="submit">Unlock</button>
+      </form>
+      <div class="note err" id="pwMsg" style="color:var(--bad)" hidden></div>
+    </div>
+
+    <div id="toolsWrap" hidden>
     <div class="panel prose" style="margin-bottom:18px">
       <div class="eyebrow">Systematic Portfolio Management</div>
       <h2 style="margin-top:8px">Research tools</h2>
@@ -501,6 +518,7 @@
     </div>
   </section>
 
+    </div>
   </section>
 
   <footer>
@@ -810,7 +828,7 @@
     say("Loading " + sym + "…");
 
     var needQuote = !quoteCache[sym];
-    fetch("/api/quote?symbol=" + encodeURIComponent(sym) +
+    fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + encodeURIComponent(sym) +
           (state.month ? "&month=" + encodeURIComponent(state.month)
                        : "&range=" + encodeURIComponent(state.range)) +
           (needQuote ? "" : "&quote=0"))
@@ -829,7 +847,7 @@
         if (state.bench && sym !== BENCH) {
           var bkey = BENCH + "|" + (state.month ? "M" + state.month : state.range);
           var bp = cache[bkey] ? Promise.resolve(cache[bkey])
-            : fetch("/api/quote?symbol=" + BENCH +
+            : fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + BENCH +
                 (state.month ? "&month=" + encodeURIComponent(state.month)
                              : "&range=" + encodeURIComponent(state.range)) +
                 "&quote=0")
@@ -989,7 +1007,7 @@
       if (cache[k]) return Promise.resolve(cache[k]);
       // quote=1 here only so the instrument NAME comes back, which is how a
       // bond fund is recognised; the extra credit buys the coupon warning.
-      return fetch("/api/quote?symbol=" + encodeURIComponent(h.sym) +
+      return fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + encodeURIComponent(h.sym) +
                    "&range=" + encodeURIComponent(range))
         .then(function (r) {
           return r.json().then(function (j) {
@@ -1188,7 +1206,7 @@
     Promise.all([a, b].map(function (sym) {
       var k = sym + "|" + range;
       if (cache[k]) return Promise.resolve(cache[k]);
-      return fetch("/api/quote?symbol=" + encodeURIComponent(sym) +
+      return fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + encodeURIComponent(sym) +
                    "&range=" + encodeURIComponent(range) + "&quote=0")
         .then(function (r) { return r.json().then(function (j) {
           if (!r.ok) throw new Error(sym + ": " + (j.error || "failed"));
@@ -1352,13 +1370,13 @@
     var range = el("fRange").value;
     fSay("Loading " + sym + " and the factor library…");
     var fp = FACTORS ? Promise.resolve(FACTORS)
-      : fetch("/api/factors").then(function (r) {
+      : fetch("/api/factors?k=" + encodeURIComponent(pwKey)).then(function (r) {
           return r.json().then(function (j) {
             if (!r.ok) throw new Error(j.detail || j.error || "factor load failed");
             FACTORS = j; return j; }); });
     var k2 = sym + "|" + range;
     var sp = cache[k2] ? Promise.resolve(cache[k2])
-      : fetch("/api/quote?symbol=" + encodeURIComponent(sym) +
+      : fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + encodeURIComponent(sym) +
               "&range=" + encodeURIComponent(range) + "&quote=0")
           .then(function (r) { return r.json().then(function (j) {
             if (!r.ok) throw new Error(j.error || "failed");
@@ -1470,6 +1488,62 @@
   el("addRow").addEventListener("click", function () { addRow("", ""); });
   el("build").addEventListener("click", analysePortfolio);
   ["AAPL", "MSFT", "JNJ", "XOM"].forEach(function (t, i) { addRow(t, [40, 30, 20, 10][i]); });
+
+  // ======================= ACCESS ==========================================
+  //
+  // Two layers, and only one of them is real.
+  //
+  // This one is convenience: it keeps the tools out of sight and avoids
+  // spending API credits on passers-by. The password is stored here as a
+  // SHA-256 hash rather than plaintext so it is not simply readable in View
+  // Source — but anyone determined can still edit the JavaScript in a browser
+  // and walk straight past it. Client-side checks are never security.
+  //
+  // The gate that counts is in api/quote.js and api/factors.js, which refuse to
+  // return data without the password. Bypassing this screen therefore gets an
+  // empty tool rather than free data.
+  var PW_HASH = "336ad1d0b5bb4d9ff433f7b9271fa2b9c0e0a243366ddbadde6629c0efc4e4fd";
+  var pwKey = "";
+
+  function sha256Hex(txt) {
+    var buf = new TextEncoder().encode(txt);
+    return crypto.subtle.digest("SHA-256", buf).then(function (h) {
+      return Array.prototype.map.call(new Uint8Array(h), function (b) {
+        return b.toString(16).padStart(2, "0"); }).join("");
+    });
+  }
+
+  function unlock(pw) {
+    pwKey = pw;
+    // Held for the tab only, not localStorage: a shared library machine should
+    // not stay unlocked for whoever sits down next.
+    try { sessionStorage.setItem("gpmc", pw); } catch (e) {}
+    el("lock").hidden = true;
+    el("toolsWrap").hidden = false;
+    if (!state.symbol) load();
+  }
+
+  el("lockForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var v = el("pw").value;
+    sha256Hex(v).then(function (h) {
+      if (h === PW_HASH) {
+        el("pwMsg").hidden = true;
+        unlock(v);
+      } else {
+        el("pwMsg").textContent = "That password is not right.";
+        el("pwMsg").hidden = false;
+        el("pw").value = "";
+      }
+    });
+  });
+
+  try {
+    var saved = sessionStorage.getItem("gpmc");
+    if (saved) {
+      sha256Hex(saved).then(function (h) { if (h === PW_HASH) unlock(saved); });
+    }
+  } catch (e) {}
 
   // Outer navigation. Kept separate from the inner tool tabs so the two
   // levels cannot interfere: the club sections switch .mview, the research
@@ -1585,7 +1659,7 @@
       }
     }, 150);
   });
-  load();
+  // no automatic first load: the tools stay dark until the gate is passed
 })();
 </script>
 </body>

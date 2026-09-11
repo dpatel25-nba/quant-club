@@ -102,6 +102,36 @@ several tickers on one page multiplies credits per view. Check current pricing
 at <https://twelvedata.com/pricing>; do not trust a figure written here, since
 plans change.
 
+## Access
+
+Research Tools sit behind a password. **Two layers, and only one is real.**
+
+The page asks for a password and stores it as a SHA-256 hash, so the plaintext
+is not sitting in View Source. That layer is CONVENIENCE — it keeps the tools
+out of sight and stops passers-by spending API credits. Anyone determined can
+edit the JavaScript in a browser and walk past it, because a client-side check
+is never security.
+
+The layer that counts is in `api/quote.js` and `api/factors.js`: both refuse to
+return anything without the password, so bypassing the screen gets an empty tool
+rather than free data.
+
+**Change the password** by setting `TOOLS_PASSWORD` in Vercel (Settings →
+Environment Variables → then redeploy) and updating `PW_HASH` in `index.html` to
+the SHA-256 of the new one:
+
+```
+python3 -c "import hashlib; print(hashlib.sha256(b'NEWPASSWORD').hexdigest())"
+```
+
+**If this repository is public, change it now.** The server falls back to a
+default written in `api/quote.js`, which is readable on GitHub. Setting
+`TOOLS_PASSWORD` overrides it.
+
+This is a shared club password, not per-member accounts: anyone who has it can
+pass it on, and there is no way to revoke it for one person. That is usually the
+right trade for a club, but it is worth knowing what it is.
+
 ## Asset coverage
 
 | class | works | how |

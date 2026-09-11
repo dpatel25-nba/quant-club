@@ -58,7 +58,22 @@ function parseTable(csv) {
   return { header, rows: out };
 }
 
+// The UI gate is convenience; THIS is the gate. A password living in page
+// JavaScript can be read by anyone with View Source, so the tools are also shut
+// here, where the check cannot be edited away in a browser. Set TOOLS_PASSWORD
+// in Vercel to change it — and do change it if this repository is public, since
+// the fallback below is readable on GitHub.
+function gated(req, res) {
+  const want = process.env.TOOLS_PASSWORD || "mikeyscheese";
+  const got = String(req.query.k || "");
+  if (got === want) return false;
+  res.status(401).json({ error: "This tool is for club members. Enter the "
+                              + "password on the Research Tools tab." });
+  return true;
+}
+
 export default async function handler(req, res) {
+  if (gated(req, res)) return;
   try {
     const [ffBuf, momBuf] = await Promise.all(
       Object.values(FILES).map(f =>
