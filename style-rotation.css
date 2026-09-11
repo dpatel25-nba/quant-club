@@ -37,6 +37,15 @@
 .sr-note { border-left: 3px solid var(--accent); padding: 10px 16px; background: var(--panel-2); font-size: 13px; color: var(--muted); }
 #sr-status { padding: 18px 0; }
 #sr-document { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.65; padding: 20px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; }
+.sr-models { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin: 18px 0; }
+.sr-model { border: 1px solid var(--border); padding: 14px; border-radius: 8px; font-size: 12px; }
+.sr-model strong { display: block; font-size: 23px; }
+.sr-bar { height: 5px; margin-top: 8px; background: var(--border); }
+.sr-bar span { display: block; height: 100%; background: var(--accent); }
+.sr-heatmap th, .sr-heatmap td { padding: 7px; font-size: 11px; min-width: 43px; }
+.sr-research { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px; }
+.sr-research > summary { font-size: 22px; font-weight: 650; color: var(--accent); cursor: pointer; }
+@media (max-width: 760px) { .sr-models { grid-template-columns: repeat(2,1fr); } }
 @media (max-width: 640px) {
   .sr-hero { padding: 20px; }
   .sr-findings, .sr-docs, .sr-kpis { grid-template-columns: 1fr; }

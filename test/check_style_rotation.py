@@ -24,9 +24,9 @@ def main():
     api = (ROOT/'api/style-rotation.js').read_text()
     payload = api.split('const SNAPSHOT = ', 1)[1].rstrip().removesuffix(';')
     snapshot = json.loads(payload)
-    assert len(snapshot['tables']) == 19 and len(snapshot['reports']) == 12
+    assert len(snapshot['tables']) == 23 and len(snapshot['reports']) == 13
     assert len(payload.encode()) < 4_000_000
-    assert len(snapshot['provenance']) == 19
+    assert len(snapshot['provenance']) == 23
     html = (ROOT/'index.html').read_text()
     ids = re.findall(r'\bid="([^"]+)"', re.sub(r'<script>.*?</script>', '', html, flags=re.S))
     assert len(ids) == len(set(ids)), 'duplicate HTML IDs'
@@ -56,6 +56,8 @@ function fetch(url, options){ calls.push({url:url,options:options}); if(fetchMod
     setup = "var SNAPSHOT = "+payload+";\n"+r'''
 document.getElementById('sr-panel').value='raw'; document.getElementById('sr-delay').value='0';
 document.getElementById('sr-period').value='post_2000'; document.getElementById('sr-cost').value='10';
+document.getElementById('sr-out-panel').value='raw'; document.getElementById('sr-out-delay').value='1';
+document.getElementById('sr-horizon').value='1'; document.getElementById('sr-corr-window').value='36';
 '''
     # Capture chart inputs while executing the real SVG builder and readouts.
     frontend = frontend.replace('function chart(id, dates, series, unit) {', 'function chart(id, dates, series, unit) { chartCalls.push({id:id,dates:dates,series:series,unit:unit});')
@@ -80,6 +82,24 @@ var cases=0;
  assert(document.getElementById('sr-pnl-chart').innerHTML.indexOf('NaN')<0,'invalid svg'); cases++;
 });});});});
 assert(cases===216,'scenario coverage'); assert(calls.length===1,'controls fetched data again');
+var outlookCases=0;
+['raw','hedged'].forEach(function(panel){[0,1,2].forEach(function(delay){[1,6,12].forEach(function(horizon){[12,36,60].forEach(function(lookback){
+ document.getElementById('sr-out-panel').value=panel;document.getElementById('sr-out-delay').value=String(delay);
+ document.getElementById('sr-horizon').value=String(horizon);document.getElementById('sr-corr-window').value=String(lookback);
+ document.getElementById('sr-horizon').events.change();
+ var latest=window.check.rows('outlook_latest').filter(function(r){return r.panel===panel&&r.delay===delay&&r.horizon===horizon&&r.model==='dma';});
+ latest.sort(function(a,b){return a.rank-b.rank||a.style.localeCompare(b.style);});
+ var ranking=document.getElementById('sr-ranking').innerHTML;
+ assert((ranking.match(/scope="row"/g)||[]).length===15,'ranking universe');
+ assert(ranking.indexOf(latest[0].style+' ·')<ranking.indexOf(latest[14].style+' ·'),'rank ordering');
+ assert(document.getElementById('sr-out-date').textContent.indexOf(latest[0].formation_date.slice(0,10))>=0,'forecast date');
+ var heatmap=document.getElementById('sr-correlation').innerHTML;
+ assert((heatmap.match(/<td /g)||[]).length===225,'correlation cell count');
+ assert(heatmap.indexOf(lookback+' complete monthly returns')>=0,'correlation window');
+ assert(document.getElementById('sr-dma-note').textContent.indexOf('not a confidence interval')>=0,'uncertainty label');
+ outlookCases++;
+});});});});
+assert(outlookCases===54,'outlook coverage'); assert(calls.length===1,'outlooks refetched snapshot');
 document.getElementById('sr-table-choice').value='portfolio_summary'; document.getElementById('sr-csv').events.click();
 document.getElementById('sr-bundle').events.click(); document.getElementById('sr-source').events.click();
 assert(downloads.length===3,'download handlers failed');
@@ -88,6 +108,7 @@ window.check.reset();fetchMode='network';window.StyleRotation.open('test-passwor
 fetchMode='auth';window.StyleRotation.open('test-password');assert(document.getElementById('sr-status').textContent.indexOf('verified')>=0,'auth error missing');
 fetchMode='ok';document.getElementById('sr-retry').events.click();assert(!document.getElementById('sr-content').hidden,'retry failed');
 print('PASS: 216 scenarios, SVG/chart P&L reconciliation, auth headers, caching, downloads and retry');
+print('PASS: 54 outlook/correlation scenarios, rank ordering, dates, DMA labels and heatmap cells');
 '''
     run(stub+setup+frontend+probes)
     # Execute the server handler with deterministic crypto and response adapters.

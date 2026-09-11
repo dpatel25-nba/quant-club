@@ -214,12 +214,20 @@ position returned more than the risk it consumed.
 
 ## Style Rotation research
 
-The Style Rotation tab presents the public-data research project: corrected
+The Style Rotation tab opens with cross-sectional and dynamic model averaging
+rankings for the next 1, 6 or 12 months, plus a 12/36/60-month factor correlation
+heatmap. Forecast formation, source, target and training dates remain visible.
+Scores are relative ranks, not forecast returns; candidate rank ranges show
+model disagreement. DMA uses discounted, horizon-tempered predictive densities
+from archived forecasts, with rolling ridge candidate models. The research
+specification and retrospective validation disclose its limitations.
+
+The expandable Methodology & Findings section presents the public-data research project: corrected
 technical baselines, weighting audit, publication delays, nested selection,
 macro comparison, era robustness, and portfolio interpretation. Panel, delay,
 period and cost controls drive period-specific metrics and interactive charts.
-Study-specific dates and units stay visible. A report library provides twelve
-Markdown reports/specifications, nineteen CSV result tables, and Python source
+Study-specific dates and units stay visible. A report library provides thirteen
+Markdown reports/specifications, twenty-three CSV result tables, and Python source
 and research bundles. Link directly using `/#style-rotation`.
 
 `style-rotation.js` and `style-rotation.css` extend the existing no-build front
@@ -248,9 +256,10 @@ python3 test/run_page.py
 python3 test/check_style_rotation.py
 ```
 
-The Style Rotation check exercises all 216 panel/delay/period/cost combinations
+The Style Rotation check exercises all 216 historical panel/delay/period/cost combinations
 against the shipped snapshot, reconstructs chart endpoints, checks server access
-and error/retry behavior, and verifies export coverage. Deployment continues
+and error/retry behavior, and verifies export coverage. It also checks all 54
+outlook/correlation scenarios. Deployment continues
 through the existing GitHub/Vercel integration; this change adds no new site.
 
 ## Extending the market tools

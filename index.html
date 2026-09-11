@@ -729,14 +729,38 @@
     <div class="sr-hero">
       <div class="eyebrow">Systematic Portfolio Management · Research study</div>
       <h2>Style Rotation</h2>
-      <p>Can public-data signals predict which equity styles perform next month?
-        Follow the evidence from predictor construction and timing tests to
-        explicit style allocations and cost sensitivity.</p>
+      <p>Rank equity factor portfolios over the next 1, 6 or 12 months.
+        Compare cross-sectional forecasts with dynamic model averaging,
+        then inspect the historical relationships between styles.</p>
       <div class="sr-meta"><span id="sr-exported">Research snapshot</span><span>Ken French portfolios · FRED macro inputs</span></div>
     </div>
     <div id="sr-status" role="status" aria-live="polite">Select this tab after unlocking to load the study.</div>
     <button class="sr-download" id="sr-retry" hidden>Retry loading</button>
     <div id="sr-content" hidden>
+      <section class="sr-section" id="sr-outlooks">
+        <h3>Factor portfolio outlook</h3>
+        <p>Horizon-specific models rank cumulative future style-spread P&amp;L.
+          DMA combines four cross-sectional models, updating their weights as completed forecast outcomes arrive.</p>
+        <div class="sr-controls" role="group" aria-label="Factor forecast scenario">
+          <label>Outlook<select id="sr-horizon"><option value="1">1 month</option><option value="6">6 months</option><option value="12">12 months</option></select></label>
+          <label>Factor portfolios<select id="sr-out-panel"><option value="raw">Raw styles</option><option value="hedged">Beta-hedged styles</option></select></label>
+          <label>Publication delay<select id="sr-out-delay"><option value="0">No delay assumption</option><option value="1" selected>One month</option><option value="2">Two months</option></select></label>
+          <button class="sr-download" id="sr-out-csv">Download these rankings</button>
+        </div>
+        <div class="sr-note" id="sr-out-date" aria-live="polite"></div>
+        <div id="sr-ranking" aria-live="polite"></div>
+        <h4>DMA model weights</h4><div class="sr-models" id="sr-dma-weights"></div>
+        <p id="sr-dma-note"></p>
+        <details><summary>How have these horizon-specific models scored historically?</summary><div id="sr-out-validation"></div></details>
+      </section>
+      <section class="sr-section" id="sr-correlation-section">
+        <h3>Factor correlation map</h3>
+        <p>Historical monthly return correlations for the selected portfolio panel and publication scenario.
+          Blue indicates positive correlation; red indicates negative correlation. Each cell shows the coefficient.</p>
+        <div class="sr-controls"><label>Correlation lookback<select id="sr-corr-window"><option value="12">12 months</option><option value="36" selected>36 months</option><option value="60">60 months</option></select></label></div>
+        <div id="sr-correlation"></div>
+      </section>
+      <details class="sr-research" id="sr-methodology"><summary>Methodology &amp; Findings</summary>
       <nav class="sr-jump" aria-label="Style Rotation sections">
         <a href="#sr-evidence">Findings</a><a href="#sr-timing">Timing across eras</a>
         <a href="#sr-portfolio">Portfolio interpretation</a><a href="#sr-studies">Weighting &amp; macro</a>
@@ -805,6 +829,7 @@
         <div id="sr-docs" class="sr-docs"></div>
         <pre id="sr-document" hidden tabindex="0" aria-label="Selected research report"></pre>
       </section>
+      </details>
     </div>
   </section>
 
