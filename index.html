@@ -74,6 +74,20 @@
               font-size: 13px; font-weight: 700; cursor: pointer; }
   .applybtn:hover { background: var(--accent-2); }
 
+  /* --- top-level navigation and view switching ---
+     These were deleted by a careless range replacement during the redesign.
+     Without .mview{display:none} EVERY section renders at once, which stacks
+     the research tools at the foot of the home page, and without .mtab the
+     navigation falls back to unstyled buttons. --- */
+  .mtabs { display: flex; gap: 2px; flex-wrap: wrap; }
+  .mtab { padding: 8px 14px; font: inherit; font-size: 14.5px; font-weight: 500;
+          cursor: pointer; background: transparent; color: var(--muted);
+          border: 0; border-radius: 7px; }
+  .mtab:hover { color: var(--text); background: var(--panel-2); }
+  .mtab.on { color: var(--text); font-weight: 650; }
+  .mview { display: none; }
+  .mview.on { display: block; }
+
   /* --- hero: open, no container, room to breathe --- */
   .hero { padding: 104px 0 72px; }
   .hero .kicker { font-size: 12px; font-weight: 700; letter-spacing: .18em;
@@ -186,6 +200,89 @@
   .msg.err { color: var(--bad); }
   #panel { margin-top: 18px; }
   [hidden] { display: none !important; }
+
+  /* ==== research tools ====
+     Restored from 4b52245. A range replacement during the redesign
+     deleted the whole tool stylesheet along with the editorial rules
+     it was meant to replace, leaving every panel, button, input and
+     chart unstyled. The tools are a dashboard and keep their
+     containers; only the club pages were meant to lose theirs. ==== */
+  .panel { background: var(--panel); border: 1px solid var(--border);
+           border-radius: 14px; box-shadow: var(--shadow); padding: 20px; }
+  .search { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  #ticker {
+    flex: 1 1 220px; min-width: 0; padding: 12px 14px; font-size: 17px;
+    font-family: ui-monospace, Menlo, monospace; text-transform: uppercase;
+    letter-spacing: .08em; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+  #ticker:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn {
+    padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; border: 1px solid transparent;
+    border-radius: 10px;
+  }
+  .btn:hover { background: var(--accent-2); }
+  .btn[disabled] { opacity: .55; cursor: default; }
+  .ranges { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 6px; }
+  .ranges { position: relative; }
+  .picker { margin-top: 10px; padding: 14px; background: var(--panel-2);
+            border: 1px solid var(--border); border-radius: 12px; max-width: 330px; }
+  .pk-head { display: flex; align-items: center; justify-content: space-between;
+             margin-bottom: 10px; }
+  .pk-year { font-size: 16px; font-weight: 700; }
+  .pk-nav { background: none; border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text); cursor: pointer; font-size: 17px; line-height: 1;
+            padding: 4px 12px; }
+  .pk-nav:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .pk-nav[disabled] { opacity: .35; cursor: default; }
+  .pk-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .pk-m { padding: 9px 0; font: inherit; font-size: 13px; font-weight: 600;
+          cursor: pointer; background: var(--panel); color: var(--text);
+          border: 1px solid var(--border); border-radius: 8px; }
+  .pk-m:hover { border-color: var(--accent); color: var(--accent); }
+  .pk-m.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pk-m[disabled] { opacity: .3; cursor: default; }
+  .pk-foot { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .range {
+    padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  .range:hover { color: var(--text); background: var(--panel-2); }
+  .range.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .head { display: flex; flex-wrap: wrap; gap: 16px; align-items: baseline;
+          justify-content: space-between; margin-bottom: 2px; }
+  .name { font-size: 21px; font-weight: 600; letter-spacing: -.01em;
+          font-family: "Iowan Old Style", Palatino, Georgia, serif; }
+  .price { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+  .chg { font-size: 16px; font-weight: 650; }
+  .up { color: var(--good); }
+  .down { color: var(--bad); }
+  #chart { width: 100%; height: 320px; display: block; }
+  .gridline { stroke: var(--grid); stroke-width: 1; }
+  .bench { stroke: var(--muted); stroke-width: 1.4; fill: none; opacity: .55;
+           stroke-dasharray: 4 3; }
+  .xhair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .readout { fill: var(--text); font-size: 12px; font-weight: 600;
+             font-family: ui-monospace, Menlo, monospace; }
+  .readout-bg { fill: var(--panel); stroke: var(--border); }
+  #chart { touch-action: none; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted);
+            margin-top: 6px; align-items: center; flex-wrap: wrap; }
+  .swatch { display: inline-block; width: 14px; height: 3px; border-radius: 2px;
+            vertical-align: middle; margin-right: 6px; }
+  .axis { fill: var(--muted); font-size: 11px;
+          font-family: ui-monospace, Menlo, monospace; }
+  .stats { display: grid; gap: 1px; background: var(--border);
+           border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+           grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); margin-top: 22px; }
+  .stat { background: var(--panel); padding: 13px 15px; }
+  .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+             color: var(--muted); font-weight: 700; }
+  .stat .v { font-size: 17px; font-weight: 650; margin-top: 3px;
+             font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; }
 </style>
 </head>
 <body>
