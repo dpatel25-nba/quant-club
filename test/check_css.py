@@ -34,6 +34,8 @@ CRITICAL = {
 def main() -> int:
     s = HTML.read_text()
     css = re.search(r"<style>(.*?)</style>", s, re.S).group(1)
+    for href in re.findall(r'<link[^>]+href="(/[^"]+\.css)"', s):
+        css += '\n' + (HTML.parent / href.lstrip('/')).read_text()
     # Strip <script> blocks before looking for class attributes: the JS builds
     # markup by concatenation, so scanning it yields fragments of expressions
     # rather than class names and drowns the real warnings.

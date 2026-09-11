@@ -11,8 +11,8 @@ reintroducing it makes this fail.
 
 Usage: python3 test/run_page.py
 """
-import re, pathlib, subprocess, sys, json
-S=pathlib.Path('/Users/dylanpatel/Documents/quant-club/index.html').read_text()
+import re, pathlib, subprocess, sys, json, tempfile
+S=(pathlib.Path(__file__).resolve().parents[1] / 'index.html').read_text()
 js="\n".join(re.findall(r'<script>(.*?)</script>', S, re.S))
 
 # A DOM + network stub where promises RESOLVE SYNCHRONOUSLY, so every .then
@@ -24,7 +24,7 @@ var LOG=[], ERRORS=[];
 function Node(id){ this.id=id||""; this.style={}; this.dataset={r:"1y",v:"lookup",m:"2024-03"};
   this.hidden=false; this.value=""; this.disabled=false; this.clientWidth=880;
   this.textContent=""; this.innerHTML=""; this.className="";
-  this.classList={toggle:function(){},add:function(){},remove:function(){}};
+  this.classList={toggle:function(){},add:function(){},remove:function(){},contains:function(){return false;}};
   this.addEventListener=function(ev,fn){ this["on_"+ev]=fn; };
   this.setAttribute=function(){}; this.getAttribute=function(){};
   this.appendChild=function(){}; this.remove=function(){};
@@ -100,7 +100,9 @@ try {
 } catch (e) { ERRORS.push("handler: "+String(e && e.message || e)); }
 '''
 out = stub + js + call + probe
-f=pathlib.Path('/private/tmp/claude-501/-Users-dylanpatel-Documents-nba-data/04d6867c-4213-47cc-8934-2c7455c5b17d/scratchpad/live.js')
-f.write_text(out)
-r=subprocess.run(["/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc",str(f)],capture_output=True,text=True)
+with tempfile.TemporaryDirectory() as directory:
+    f=pathlib.Path(directory)/'page.js'
+    f.write_text(out)
+    r=subprocess.run(["/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc",str(f)],capture_output=True,text=True)
 print(r.stdout.strip() or r.stderr.strip()[:600])
+sys.exit(0 if r.returncode == 0 and 'RESULT: PASS' in r.stdout else 1)

@@ -2,7 +2,7 @@
 
 Emory University. Club site with the research tools built by the Systematic Portfolio Management unit.
 
-Four top-level sections: **Overview**, **Membership**, **Apply**, and **Research Tools** — the last containing Ticker Lookup, Portfolio Builder, Compare and Factors.
+Four top-level sections: **Overview**, **Membership**, **Apply**, and **Research Tools** — the last containing Ticker Lookup, Portfolio Builder, Compare, Factors and **Style Rotation**.
 
 A static page plus one serverless function. Type a ticker, pick a range, get a
 chart and summary statistics.
@@ -212,7 +212,48 @@ position returned more than the risk it consumed.
   always describe the chart you are looking at.
 - Prices from a free tier are typically delayed by 15 minutes.
 
-## Adding things later
+## Style Rotation research
+
+The Style Rotation tab presents the public-data research project: corrected
+technical baselines, weighting audit, publication delays, nested selection,
+macro comparison, era robustness, and portfolio interpretation. Panel, delay,
+period and cost controls drive period-specific metrics and interactive charts.
+Study-specific dates and units stay visible. A report library provides twelve
+Markdown reports/specifications, nineteen CSV result tables, and Python source
+and research bundles. Link directly using `/#style-rotation`.
+
+`style-rotation.js` and `style-rotation.css` extend the existing no-build front
+end. `/api/style-rotation` serves an embedded snapshot after validating the
+existing `TOOLS_PASSWORD`, supplied in a request header. Responses use
+`private, no-store`; research data is not copied into public static files.
+The fallback accepts the same password digest as the existing client gate.
+No new environment variable, data-provider credit or external library is needed.
+
+The generated API file is updated from the separate research project:
+
+```
+venv/bin/python scripts/16_export_website.py --website /path/to/quant-club
+```
+
+Run that command from the style-rotation project after regenerating its research
+artifacts. It includes source-file hashes and sample metadata and refuses a
+payload exceeding 4 MB. The API template lives in
+`scripts/style-rotation-api.template.js` in this website repository.
+
+Checks (Python and macOS JavaScriptCore, no npm dependencies):
+
+```
+python3 test/check_css.py
+python3 test/run_page.py
+python3 test/check_style_rotation.py
+```
+
+The Style Rotation check exercises all 216 panel/delay/period/cost combinations
+against the shipped snapshot, reconstructs chart endpoints, checks server access
+and error/retry behavior, and verifies export coverage. Deployment continues
+through the existing GitHub/Vercel integration; this change adds no new site.
+
+## Extending the market tools
 
 `api/quote.js` returns the raw series, so new statistics are a front-end change
 only — no API work. Beta against an index, correlation between two tickers, and

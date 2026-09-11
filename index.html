@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Goizueta Portfolio Management Club</title>
+<link rel="stylesheet" href="/style-rotation.css">
 <style>
   :root {
     /* White-dominant with a single accent, used sparingly. The previous palette
@@ -574,6 +575,7 @@
     <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
     <button class="tab" data-v="compare" role="tab">Compare</button>
     <button class="tab" data-v="factors" role="tab">Factors</button>
+    <button class="tab" data-v="style-rotation" role="tab" aria-controls="v-style-rotation">Style Rotation</button>
   </nav>
 
   <section class="view on" id="v-lookup">
@@ -720,6 +722,89 @@
     <div class="panel" style="margin-top:18px">
       <div class="msg" id="fMsg">Enter a ticker to measure its factor exposures.</div>
       <div id="fOut" hidden></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-style-rotation" aria-label="Style Rotation research">
+    <div class="sr-hero">
+      <div class="eyebrow">Systematic Portfolio Management · Research study</div>
+      <h2>Style Rotation</h2>
+      <p>Can public-data signals predict which equity styles perform next month?
+        Follow the evidence from predictor construction and timing tests to
+        explicit style allocations and cost sensitivity.</p>
+      <div class="sr-meta"><span id="sr-exported">Research snapshot</span><span>Ken French portfolios · FRED macro inputs</span></div>
+    </div>
+    <div id="sr-status" role="status" aria-live="polite">Select this tab after unlocking to load the study.</div>
+    <button class="sr-download" id="sr-retry" hidden>Retry loading</button>
+    <div id="sr-content" hidden>
+      <nav class="sr-jump" aria-label="Style Rotation sections">
+        <a href="#sr-evidence">Findings</a><a href="#sr-timing">Timing across eras</a>
+        <a href="#sr-portfolio">Portfolio interpretation</a><a href="#sr-studies">Weighting &amp; macro</a>
+        <a href="#sr-library">Reports &amp; data</a>
+      </nav>
+      <section class="sr-section" id="sr-evidence">
+        <h3>What the research establishes</h3>
+        <p>Independent public-data tests of the summer style-rotation hypotheses. All experiments are retrospective.</p>
+        <div class="sr-findings">
+          <article class="sr-finding"><span class="sr-badge">Baseline corrected</span><h4>One formation date, one next-month target</h4><p>Raw and hedged features have separate files. Calendar alignment, source identity, delayed feedback and future-data mutation are checked before scoring.</p></article>
+          <article class="sr-finding"><span class="sr-badge">Weighting audited</span><h4>Equal weighting is a demanding reference</h4><p>Full covariance weighting underperforms equal weighting in the primary audit. Removing exact opposite predictors repairs covariance rank but does not repair GK scores.</p></article>
+          <article class="sr-finding"><span class="sr-badge">Timing qualified</span><h4>Long-history timing is stronger than recent timing</h4><p>Era and publication-delay checks weaken the case for a stable recent edge. Wide intervals prevent a firm claim that timing declined after 2000.</p></article>
+          <article class="sr-finding"><span class="sr-badge">No established improvement</span><h4>Selection, macro and portfolio hurdles remain</h4><p>Nested selection and the fixed macro blend do not establish improvements over their references. The portfolio comparison does not establish an advantage over a frozen allocation.</p></article>
+        </div>
+      </section>
+      <div class="sr-controls" role="group" aria-label="Research scenario">
+        <label>Return panel<select id="sr-panel"><option value="raw">Raw styles</option><option value="hedged">Beta-hedged styles</option></select></label>
+        <label>Publication delay<select id="sr-delay"><option value="0">No delay</option><option value="1">One month</option><option value="2">Two months</option></select></label>
+        <label>Evaluation period<select id="sr-period"><option value="post_2000">2000 onward</option><option value="full">Full history</option><option value="pre_2000">Before 2000</option><option value="macro_overlap">April 1995 onward</option><option value="through_1989">Through 1989</option><option value="1990s">1990–1999</option><option value="2000s">2000–2009</option><option value="2010s">2010–2019</option><option value="2020_onward">2020 onward</option></select></label>
+        <label>Cost per turnover unit<select id="sr-cost"><option value="0">0 bps</option><option value="5">5 bps</option><option value="10" selected>10 bps</option><option value="25">25 bps</option></select></label>
+      </div>
+      <div id="sr-sample" class="note" aria-live="polite"></div>
+      <div id="sr-kpis" class="sr-kpis"></div>
+      <section class="sr-section" id="sr-timing">
+        <h3>Timing across eras</h3>
+        <p>Headline Rank IC combines persistent style preferences with date-matched timing.
+          Static IC is the all-month-pairing expectation; dynamic IC subtracts it.
+          IC × 100 is a ranking score, not a return.</p>
+        <h4>Trailing ten-year IC</h4>
+        <div id="sr-timing-chart"></div>
+        <p>Window end dates fall in the selected period; each point uses the preceding 120 target months,
+          including earlier dates where needed. Windows overlap and are descriptive. Static IC is
+          recomputed within each window.</p>
+        <div id="sr-era-table"></div>
+      </section>
+      <section class="sr-section" id="sr-portfolio">
+        <h3>Portfolio interpretation</h3>
+        <p>Centered technical ranks become gross-one style-spread allocations. The frozen reference uses
+          60 pre-evaluation allocation months, then holds fixed. Equal style holds +1/15 of every signed spread.</p>
+        <div id="sr-pnl-table"></div><h4>Cumulative P&amp;L on fixed reference capital</h4>
+        <div id="sr-pnl-chart"></div>
+        <div class="sr-note">Profits are not reinvested. These are additive research P&amp;L streams,
+          not compounded account returns. Costs apply to changes in style allocations; stock-level
+          turnover, financing, borrowing and internal hedge maintenance are unmodeled.
+          Period slices inherit the original trading path.</div>
+        <p id="sr-primary"></p>
+      </section>
+      <section class="sr-section" id="sr-studies">
+        <h3>Weighting, selection and macro evidence</h3>
+        <p>These studies have their own fixed samples. The panel control applies throughout; publication
+          delay applies to selection and macro. Evaluation period and cost controls apply to timing and P&amp;L.</p>
+        <div id="sr-weighting"></div><div id="sr-selection"></div><div id="sr-macro"></div>
+        <details><summary>Inspect all 18 technical predictors</summary><div id="sr-predictors"></div></details>
+        <div class="sr-note">Marginal confidence intervals are not simultaneous. Primary p-values use the
+          adjustment family specified in each report. Publication delays are scenarios on existing index
+          data, not historical holdings or release vintages. Full specifications and limitations are below.</div>
+      </section>
+      <section class="sr-section" id="sr-library">
+        <h3>Reports, specifications and data</h3>
+        <p>The complete research narrative, experiment definitions, Python source and exported result tables.
+          Downloads use the same authenticated snapshot as the dashboard.</p>
+        <div class="sr-controls"><label>Result table<select id="sr-table-choice"></select></label>
+          <button class="sr-download" id="sr-csv">Download CSV</button>
+          <button class="sr-download" id="sr-bundle">Download research bundle</button>
+          <button class="sr-download" id="sr-source">Download Python source bundle</button></div>
+        <div id="sr-docs" class="sr-docs"></div>
+        <pre id="sr-document" hidden tabindex="0" aria-label="Selected research report"></pre>
+      </section>
     </div>
   </section>
 
@@ -1744,6 +1829,7 @@
     try { sessionStorage.setItem("gpmc", pw); } catch (e) {}
     el("lock").hidden = true;
     el("toolsWrap").hidden = false;
+    if (el("v-style-rotation").classList.contains("on") && window.StyleRotation) window.StyleRotation.open(pwKey);
     if (!state.symbol) load();
   }
 
@@ -1790,9 +1876,10 @@
   Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) {
     b.addEventListener("click", function () {
       Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (x) {
-        x.classList.toggle("on", x === b); });
+        x.classList.toggle("on", x === b); x.setAttribute("aria-selected", x === b ? "true" : "false"); });
       Array.prototype.forEach.call(document.querySelectorAll(".view"), function (v) {
         v.classList.toggle("on", v.id === "v-" + b.dataset.v); });
+      if (b.dataset.v === "style-rotation" && window.StyleRotation) window.StyleRotation.open(pwKey);
     });
   });
 
@@ -1891,5 +1978,6 @@
   // no automatic first load: the tools stay dark until the gate is passed
 })();
 </script>
+<script src="/style-rotation.js"></script>
 </body>
 </html>
