@@ -80,6 +80,26 @@
   .btn[disabled] { opacity: .55; cursor: default; }
 
   .ranges { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 6px; }
+  .ranges { position: relative; }
+  #chooseBtn.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .picker { margin-top: 10px; padding: 14px; background: var(--panel-2);
+            border: 1px solid var(--border); border-radius: 12px; max-width: 330px; }
+  .pk-head { display: flex; align-items: center; justify-content: space-between;
+             margin-bottom: 10px; }
+  .pk-year { font-size: 16px; font-weight: 700; }
+  .pk-nav { background: none; border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text); cursor: pointer; font-size: 17px; line-height: 1;
+            padding: 4px 12px; }
+  .pk-nav:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .pk-nav[disabled] { opacity: .35; cursor: default; }
+  .pk-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .pk-m { padding: 9px 0; font: inherit; font-size: 13px; font-weight: 600;
+          cursor: pointer; background: var(--panel); color: var(--text);
+          border: 1px solid var(--border); border-radius: 8px; }
+  .pk-m:hover { border-color: var(--accent); color: var(--accent); }
+  .pk-m.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pk-m[disabled] { opacity: .3; cursor: default; }
+  .pk-foot { margin-top: 10px; font-size: 12px; color: var(--muted); }
   .range {
     padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 600;
     cursor: pointer; background: transparent; color: var(--muted);
@@ -165,7 +185,6 @@
   <nav class="tabs" role="tablist">
     <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
     <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
-    <button class="tab" data-v="monthly" role="tab">Monthly</button>
     <button class="tab" data-v="compare" role="tab">Compare</button>
   </nav>
 
@@ -176,6 +195,9 @@
              spellcheck="false" aria-label="Stock ticker" value="AAPL">
       <button class="btn" id="go" type="submit">Look up</button>
     </form>
+    <div class="note" style="margin-top:8px">Stocks, ETFs and indices by symbol
+      (<b>AAPL</b>, <b>SPY</b>). Crypto and currencies are pairs
+      (<b>BTC/USD</b>, <b>EUR/USD</b>).</div>
     <div class="ranges" id="ranges" role="group" aria-label="Time range">
       <button class="range" data-r="1h">1H</button>
       <button class="range" data-r="1d">1D</button>
@@ -183,6 +205,17 @@
       <button class="range on" data-r="1y">1Y</button>
       <button class="range" data-r="5y">5Y</button>
       <button class="range" data-r="all">ALL</button>
+      <button class="range" id="chooseBtn" type="button"
+              aria-haspopup="dialog" aria-expanded="false">Choose month ▾</button>
+    </div>
+    <div class="picker" id="picker" role="dialog" aria-label="Choose a month" hidden>
+      <div class="pk-head">
+        <button class="pk-nav" id="yPrev" type="button" aria-label="Previous year">‹</button>
+        <span class="pk-year mono" id="yLabel">2025</span>
+        <button class="pk-nav" id="yNext" type="button" aria-label="Next year">›</button>
+      </div>
+      <div class="pk-grid" id="pkGrid"></div>
+      <div class="pk-foot">Pick a month to see only that month, day by day.</div>
     </div>
   </div>
 
@@ -230,26 +263,6 @@
     </div>
   </section>
 
-  <section class="view" id="v-monthly">
-    <div class="panel">
-      <div class="search">
-        <input id="mTicker" placeholder="AAPL" spellcheck="false" value="AAPL"
-               aria-label="Ticker"
-               style="flex:1 1 220px;padding:12px 14px;font-size:17px;
-                      font-family:ui-monospace,Menlo,monospace;text-transform:uppercase;
-                      letter-spacing:.08em;background:var(--panel-2);color:var(--text);
-                      border:1px solid var(--border);border-radius:10px;min-width:0">
-        <button class="btn" id="mGo" type="button">Load history</button>
-      </div>
-      <div class="note" style="margin-top:10px">Every month since listing, newest
-        first. Click <b>inspect</b> on any month to measure what happened inside it.</div>
-    </div>
-    <div class="panel" style="margin-top:18px">
-      <div class="msg" id="mMsg">Enter a ticker and load its history.</div>
-      <div id="mOut" hidden></div>
-    </div>
-  </section>
-
   <section class="view" id="v-compare">
     <div class="panel">
       <div class="search">
@@ -293,7 +306,7 @@
 (function () {
   "use strict";
   var el = function (id) { return document.getElementById(id); };
-  var state = { range: "1y", symbol: "", busy: false, pending: null };
+  var state = { range: "1y", symbol: "", busy: false, pending: null, month: "" };
 
   // Every request costs an API credit and the free plan allows 8 a minute, so
   // the cheapest request is the one never made. Results are kept per
@@ -323,7 +336,7 @@
   // Computed from the returned series rather than read off a quote, so they
   // always describe the range actually on screen. A "1Y volatility" that
   // silently came from a different window would be worse than showing nothing.
-  function analyse(points, range) {
+  function analyse(points, range, type) {
     var c = points.map(function (p) { return p.c; });
     var rets = [];
     for (var i = 1; i < c.length; i++) {
@@ -332,9 +345,13 @@
     var mean = rets.reduce(function (a, b) { return a + b; }, 0) / (rets.length || 1);
     var varr = rets.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0)
              / ((rets.length - 1) || 1);
-    // Annualisation factor depends on how far apart the observations are.
-    var perYear = { "1h": 252 * 390, "1d": 252 * 78, "1m": 252,
-                    "1y": 252, "5y": 52, "all": 12 }[range] || 252;
+    // Annualisation depends on how far apart the observations are AND on what
+    // is being traded: crypto runs 365 days a year, equities about 252. Using
+    // an equity calendar for Bitcoin understates its volatility by about a
+    // fifth, so the asset type has to reach this line.
+    var d1 = annFactor(type, "1day");
+    var perYear = { "1h": d1 * 390, "1d": d1 * 78, "1m": d1, "1y": d1,
+                    "5y": 52, "all": 12, "month": d1 }[range] || d1;
     var vol = Math.sqrt(varr) * Math.sqrt(perYear);
 
     var peak = -Infinity, dd = 0;
@@ -407,7 +424,7 @@
     var p = data.points, cur = data.currency;
     var last = p[p.length - 1].c, first = p[0].c;
     var chg = last - first, up = chg >= 0;
-    var s = analyse(p, data.range);
+    var s = analyse(p, data.month ? "month" : data.range, data.type);
     var q = data.quote;
 
     el("name").textContent = data.name;
@@ -466,7 +483,7 @@
   function load() {
     var sym = el("ticker").value.trim().toUpperCase();
     if (!sym) { say("Enter a ticker to begin."); return; }
-    var key = sym + "|" + state.range;
+    var key = sym + "|" + (state.month ? "M" + state.month : state.range);
 
     if (cache[key]) { state.symbol = sym; show(cache[key]); return; }
 
@@ -479,7 +496,8 @@
 
     var needQuote = !quoteCache[sym];
     fetch("/api/quote?symbol=" + encodeURIComponent(sym) +
-          "&range=" + encodeURIComponent(state.range) +
+          (state.month ? "&month=" + encodeURIComponent(state.month)
+                       : "&range=" + encodeURIComponent(state.range)) +
           (needQuote ? "" : "&quote=0"))
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
@@ -749,120 +767,11 @@
   }
 
   // ======================= MONTHLY =========================================
-  function monthly() {
-    var sym = el("mTicker").value.trim().toUpperCase();
-    if (!sym) { mSay("Enter a ticker.", true); return; }
-    mSay("Loading " + sym + "…");
-    fetch("/api/quote?symbol=" + encodeURIComponent(sym) + "&range=all&quote=0")
-      .then(function (r) { return r.json().then(function (j) {
-        if (!r.ok) throw new Error(j.error || "failed"); return j; }); })
-      .then(function (d) {
-        var p = d.points;
-        if (p.length < 2) throw new Error("Not enough history.");
-        var rows = [];
-        for (var i = p.length - 1; i > 0; i--) {
-          rows.push({ m: p[i].t.slice(0, 7), r: p[i].c / p[i - 1].c - 1, c: p[i].c });
-        }
-        var rs = rows.map(function (x) { return x.r; });
-        var up = rs.filter(function (x) { return x > 0; }).length;
-        var mu = rs.reduce(function (a, b) { return a + b; }, 0) / rs.length;
-        var sd = Math.sqrt(rs.reduce(function (a, b) {
-          return a + (b - mu) * (b - mu); }, 0) / ((rs.length - 1) || 1));
-
-        var h = '<div class="stats">' + [
-          ["Months", String(rows.length)],
-          ["Positive", up + " (" + pct(up / rows.length) + ")"],
-          ["Average month", (mu >= 0 ? "+" : "") + pct(mu)],
-          ["Monthly vol", pct(sd)],
-          ["Annualised vol", pct(sd * Math.sqrt(12))],
-          ["Best month", "+" + pct(Math.max.apply(null, rs))],
-          ["Worst month", pct(Math.min.apply(null, rs))],
-          ["Type", d.type || "Equity"]
-        ].map(function (r2) {
-          return '<div class="stat"><div class="k">' + r2[0] + '</div><div class="v">'
-               + r2[1] + '</div></div>'; }).join("") + '</div>';
-
-        h += '<div class="h2">Month by month</div><table class="mx">'
-           + '<tr><th class="l">Month</th><th>Close</th><th>Return</th>'
-           + '<th class="l"></th><th></th></tr>';
-        var worst = Math.max.apply(null, rs.map(Math.abs)) || 1;
-        rows.forEach(function (x) {
-          var w = Math.abs(x.r) / worst * 100;
-          h += '<tr><td class="l">' + x.m + '</td><td>' + x.c.toFixed(2) + '</td>'
-            + '<td style="color:' + (x.r >= 0 ? "var(--good)" : "var(--bad)") + '">'
-            + (x.r >= 0 ? "+" : "") + pct(x.r) + '</td>'
-            + '<td class="l" style="width:30%"><span class="bar" style="width:'
-            + w.toFixed(1) + '%;background:' + (x.r >= 0 ? "var(--good)" : "var(--bad)")
-            + '"></span></td>'
-            + '<td><button class="range" data-m="' + x.m + '" data-s="' + sym
-            + '" style="padding:3px 9px;font-size:12px">inspect</button></td></tr>';
-        });
-        h += '</table>';
-        el("mOut").innerHTML = h;
-        el("mOut").hidden = false; el("mMsg").hidden = true;
-
-        Array.prototype.forEach.call(el("mOut").querySelectorAll("[data-m]"),
-          function (b) {
-            b.addEventListener("click", function () {
-              inspectMonth(b.dataset.s, b.dataset.m, d.type);
-            });
-          });
-      })
-      .catch(function (e) { mSay(String(e.message || e), true); });
-  }
 
   // Drill into ONE calendar month using its daily bars, which is the only way
   // to say anything about what happened *inside* the month — a monthly close
   // series cannot tell you whether a flat month was calm or violent.
-  function inspectMonth(sym, m, type) {
-    mSay("Loading " + sym + " " + m + "…");
-    fetch("/api/quote?symbol=" + encodeURIComponent(sym) + "&month=" + m + "&quote=0")
-      .then(function (r) { return r.json().then(function (j) {
-        if (!r.ok) throw new Error(j.error || "failed"); return j; }); })
-      .then(function (d) {
-        var c = d.points.map(function (x) { return x.c; });
-        if (c.length < 2) throw new Error("No daily data for " + m + ".");
-        var rets = [];
-        for (var i = 1; i < c.length; i++) rets.push(c[i] / c[i - 1] - 1);
-        var mu = rets.reduce(function (a, b) { return a + b; }, 0) / rets.length;
-        var sd = Math.sqrt(rets.reduce(function (a, b) {
-          return a + (b - mu) * (b - mu); }, 0) / ((rets.length - 1) || 1));
-        var ann = annFactor(type, "1day");
-        var up = rets.filter(function (x) { return x > 0; }).length;
 
-        var h = '<div class="h2">' + sym + " — " + m + '</div><div class="stats">' + [
-          ["Month return", (c[c.length - 1] / c[0] - 1 >= 0 ? "+" : "")
-                           + pct(c[c.length - 1] / c[0] - 1)],
-          ["Daily vol", pct(sd)],
-          ["Annualised vol", pct(sd * Math.sqrt(ann))],
-          ["Best day", "+" + pct(Math.max.apply(null, rets))],
-          ["Worst day", pct(Math.min.apply(null, rets))],
-          ["Up days", up + " of " + rets.length],
-          ["High", c.length ? Math.max.apply(null, c).toFixed(2) : "—"],
-          ["Low", c.length ? Math.min.apply(null, c).toFixed(2) : "—"],
-          ["Trading days", String(c.length)],
-          ["Max drawdown", pct(maxDD(c))]
-        ].map(function (r2) {
-          return '<div class="stat"><div class="k">' + r2[0] + '</div><div class="v">'
-               + r2[1] + '</div></div>'; }).join("") + '</div>'
-          + '<div class="note">Volatility here is measured from the daily moves '
-          + 'INSIDE ' + m + ', annualised on a ' + ann + '-period year. A month '
-          + 'that ended flat can still have been a violent one, which a monthly '
-          + 'close series cannot show.</div>'
-          + '<button class="btn ghost" id="mBack" type="button" '
-          + 'style="margin-top:16px;padding:9px 14px;font-size:13px">back to all months</button>';
-        el("mOut").innerHTML = h;
-        el("mOut").hidden = false; el("mMsg").hidden = true;
-        el("mBack").addEventListener("click", monthly);
-      })
-      .catch(function (e) { mSay(String(e.message || e), true); });
-  }
-
-  function mSay(t, err) {
-    el("mMsg").textContent = t;
-    el("mMsg").className = "msg" + (err ? " err" : "");
-    el("mMsg").hidden = false; el("mOut").hidden = true;
-  }
 
   // ======================= COMPARE =========================================
   function compare() {
@@ -929,7 +838,6 @@
     el("cMsg").hidden = false; el("cOut").hidden = true;
   }
 
-  el("mGo").addEventListener("click", monthly);
   el("cGo").addEventListener("click", compare);
 
   el("addRow").addEventListener("click", function () { addRow("", ""); });
@@ -945,13 +853,77 @@
     });
   });
 
+
+  // ======================= MONTH PICKER ====================================
+  // Sits beside the range buttons rather than in its own tab: choosing a month
+  // is just another way of framing the same chart, not a different question.
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun",
+                "Jul","Aug","Sep","Oct","Nov","Dec"];
+  var pkYear = new Date().getFullYear();
+
+  function drawPicker() {
+    el("yLabel").textContent = String(pkYear);
+    var now = new Date(), thisY = now.getFullYear(), thisM = now.getMonth();
+    el("yNext").disabled = pkYear >= thisY;
+    var g = "";
+    for (var m = 0; m < 12; m++) {
+      // A month that has not happened yet cannot be inspected.
+      var future = pkYear > thisY || (pkYear === thisY && m > thisM);
+      var key = pkYear + "-" + String(m + 1).padStart(2, "0");
+      g += '<button class="pk-m' + (state.month === key ? " on" : "") + '" data-m="'
+         + key + '" type="button"' + (future ? " disabled" : "") + '>'
+         + MONTHS[m] + '</button>';
+    }
+    el("pkGrid").innerHTML = g;
+    Array.prototype.forEach.call(el("pkGrid").querySelectorAll("[data-m]"),
+      function (b) {
+        if (b.disabled) return;
+        b.addEventListener("click", function () { pickMonth(b.dataset.m); });
+      });
+  }
+
+  function openPicker(on) {
+    el("picker").hidden = !on;
+    el("chooseBtn").setAttribute("aria-expanded", on ? "true" : "false");
+    if (on) drawPicker();
+  }
+
+  function pickMonth(key) {
+    state.month = key;
+    state.range = "";
+    Array.prototype.forEach.call(document.querySelectorAll(".range"), function (x) {
+      if (x.id !== "chooseBtn") x.classList.remove("on");
+    });
+    el("chooseBtn").classList.add("on");
+    el("chooseBtn").textContent = key + " ▾";
+    drawPicker();
+    openPicker(false);
+    load();
+  }
+
+  function clearMonth() {
+    state.month = "";
+    el("chooseBtn").classList.remove("on");
+    el("chooseBtn").textContent = "Choose month ▾";
+  }
+
+  el("chooseBtn").addEventListener("click", function () {
+    openPicker(el("picker").hidden);
+  });
+  el("yPrev").addEventListener("click", function () { pkYear--; drawPicker(); });
+  el("yNext").addEventListener("click", function () {
+    if (pkYear < new Date().getFullYear()) { pkYear++; drawPicker(); }
+  });
+
   el("form").addEventListener("submit", function (e) { e.preventDefault(); load(); });
   Array.prototype.forEach.call(document.querySelectorAll(".range"), function (b) {
+    if (b.id === "chooseBtn") return;    // the picker is not a range
     b.addEventListener("click", function () {
       Array.prototype.forEach.call(document.querySelectorAll(".range"), function (x) {
-        x.classList.toggle("on", x === b);
+        if (x.id !== "chooseBtn") x.classList.toggle("on", x === b);
       });
       state.range = b.dataset.r;
+      clearMonth();                      // a range and a month are alternatives
       if (state.symbol || el("ticker").value.trim()) load();
     });
   });
