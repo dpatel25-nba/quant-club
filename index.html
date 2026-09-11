@@ -1202,6 +1202,17 @@
     if (hs.length > 12) { pSay("Twelve holdings maximum.", true); return; }
     var tot = hs.reduce(function (a, h) { return a + h.w; }, 0);
     if (!(tot > 0)) { pSay("Weights must add to something positive.", true); return; }
+    // A short position breaks the arithmetic behind several of these figures:
+    // risk contributions can go negative, and the diversification measure stops
+    // being bounded at zero because sigma_p is no longer below the weighted
+    // average of the parts. Refuse rather than print numbers that do not mean
+    // what their labels say.
+    if (hs.some(function (h) { return h.w < 0; })) {
+      pSay("Negative weights are not supported. Risk contribution and "
+         + "diversification assume long-only positions; with a short holding "
+         + "those figures stop meaning what they say.", true);
+      return;
+    }
     var range = el("pRange").value;
     pSay("Fetching " + hs.length + " holdings…");
 
@@ -1274,8 +1285,16 @@
         ["Volatility (ann.)", pct(rk.sigma)],
         ["Return / risk", rk.sigma > 0 ? (cagr / rk.sigma).toFixed(2) : "—"],
         ["Max drawdown", pct(maxDD(curve))],
-        ["Diversification", wavg > 0 ? (1 - rk.sigma / wavg > 0
-            ? "−" + pct(1 - rk.sigma / wavg).replace("-", "") : "none") : "—"],
+        // 1 - sigma_p / sum(w_i sigma_i): how far below the weighted average of
+        // the holdings' own volatilities the portfolio landed. The denominator
+        // is what the risk would have been had everything moved in lockstep,
+        // so the gap is what NOT moving together bought. Shown as "x% lower"
+        // rather than with a minus sign, which read as though diversification
+        // were negative.
+        ["Diversification", wavg > 0
+            ? (1 - rk.sigma / wavg > 0.0005
+                ? pct(1 - rk.sigma / wavg) + " lower vol" : "none")
+            : "—"],
         ["Method", mode === "hold" ? "Buy & hold" : "Rebalanced"],
         ["Common dates", String(al.dates.length)],
         ["From", al.dates[0]]

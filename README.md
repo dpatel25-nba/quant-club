@@ -174,6 +174,31 @@ lags by several weeks and the most recent days are missing. And it is DAILY, so
 weekly or monthly price series will not line up — the tab says so rather than
 quietly regressing mismatched frequencies.
 
+## The portfolio statistics
+
+**Diversification** is `1 − σₚ / Σ wᵢσᵢ`, displayed as "x% lower vol".
+
+The denominator is the weighted average of the holdings' own volatilities —
+what the portfolio's risk would have been if everything moved in perfect
+lockstep. The numerator is what it actually was. The gap is what NOT moving
+together bought you. Read 8% as: this combination produced 8% less volatility
+than owning the same things in isolation.
+
+It is the complement of the diversification ratio, `DR = Σwᵢσᵢ / σₚ`, expressed
+as a reduction rather than a multiple. For long-only weights it can never be
+negative — portfolio volatility cannot exceed the weighted average of its parts
+— which is why short positions are refused rather than shown: with a negative
+weight that guarantee fails, and risk contributions can go negative too, so
+several figures would stop meaning what their labels say.
+
+**Risk share** is `RCᵢ = wᵢ(Σw)ᵢ / σₚ`, which sums to 100% by Euler's theorem.
+It is what each holding contributes to portfolio volatility, which is not the
+same as its weight.
+
+**Return share** is each holding's weighted contribution to the portfolio's
+gain. The final column is return share minus risk share: positive means the
+position returned more than the risk it consumed.
+
 ## What the numbers mean
 
 - **Return** and **max drawdown** are **price-only** — they exclude dividends,
