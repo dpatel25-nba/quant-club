@@ -1095,7 +1095,7 @@
           (edge >= 0 ? "+" : "") + pct(edge) + '</td></tr>';
       }
       html += '</table>';
-      var anyFI = S.some(function (d2) {
+      var anyFI = series.some(function (d2) {
         return /bond|treasury|yield|aggregate|municipal/i.test(
           (d2.name || "") + " " + (d2.type || "")); });
       if (anyFI) {
