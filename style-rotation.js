@@ -103,7 +103,7 @@
   function renderOutlook() {
     var panel=el('sr-out-panel').value, delay=Number(el('sr-out-delay').value), horizon=Number(el('sr-horizon').value);
     var selected=rows('outlook_latest').filter(function(r){return r.panel===panel&&r.delay===delay&&r.horizon===horizon;});
-    var modelLabels={cross_sectional:'CSM',dma:'DMA',trm:'TRM',ecm:'ECM'};
+    var modelLabels={composite:'Composite',cross_sectional:'CSM',dma:'DMA',trm:'TRM',ecm:'ECM'};
     var order=el('sr-rank-order').value;
     var byModel={};
     selected.forEach(function(r){if(!byModel[r.model])byModel[r.model]={};byModel[r.model][r.style]=r;});
@@ -111,16 +111,21 @@
     var meta=ranked[0];
     el('sr-out-date').textContent='Forecast as of '+meta.formation_date.slice(0,10)+' · style inputs through '+meta.source_end.slice(0,10)+' · outlook '+meta.target_start.slice(0,10)+' to '+meta.target_end.slice(0,10)+'. Latest training outcome: '+meta.training_target_end.slice(0,10)+'. ECM macro state: '+meta.formation_date.slice(0,10)+'.';
     var delta=function(v){return v==null?'—':(v>0?'+':'')+num(v,Number.isInteger(v)?0:1);};
-    el('sr-ranking').innerHTML=table('Ordered by '+modelLabels[order]+'. Rank 1 = strongest relative outlook. Score and Δ refer to '+modelLabels[order]+'. Scores are not percentage returns; Δ is rank improvement since the preceding forecast month.',
-      ['Factor portfolio','CSM rank','DMA rank','TRM rank','ECM rank',modelLabels[order]+' score',modelLabels[order]+' Δ','DMA candidate rank range'],ranked.map(function(r){
-        var entries=[r.style+' · '+styleNames[r.style]];
+    var rankingHeaders=['Composite rank','Factor portfolio','Composite / 100','CSM rank','DMA rank','TRM rank','ECM rank',modelLabels[order]+' Δ'];
+    if(order!=='composite')rankingHeaders.push(modelLabels[order]+' raw score');
+    el('sr-ranking').innerHTML=table('Ordered by '+modelLabels[order]+'. Rank 1 = strongest relative outlook. Δ refers to '+modelLabels[order]+' rank improvement since the preceding forecast month. Composite scores use equal model rank weights; ties share a rank.',
+      rankingHeaders,ranked.map(function(r){
+        var c=byModel.composite[r.style];
+        var entries=[num(c.rank,Number.isInteger(c.rank)?0:1),r.style+' · '+styleNames[r.style],num(c.score,1)];
         ['cross_sectional','dma','trm','ecm'].forEach(function(m){var value=byModel[m][r.style].rank;entries.push(num(value,Number.isInteger(value)?0:1));});
-        var d=byModel.dma[r.style];return entries.concat([num(r.score,3),delta(r.rank_change),num(d.candidate_rank_min,1)+'–'+num(d.candidate_rank_max,1)]);
+        entries.push(delta(r.rank_change));
+        if(order!=='composite')entries.push(num(r.score,3));
+        return entries;
       }));
     var weights=rows('outlook_weights').filter(function(r){return r.panel===panel&&r.delay===delay&&r.horizon===horizon;});
     var candidateNames={trend:'Trend model',risk_shape:'Risk & shape model',all:'All signals',all_strong:'All signals · stronger shrinkage'};
     el('sr-dma-weights').innerHTML=weights.map(function(r){return '<div class="sr-model"><span>'+esc(candidateNames[r.candidate])+'</span><strong>'+pct(r.weight)+'</strong><div class="sr-bar"><span style="width:'+num(100*r.weight,3)+'%"></span></div></div>';}).join('');
-    el('sr-dma-note').textContent='DMA updates from completed, published outcomes only. Latest feedback ends '+weights[0].feedback_target_end.slice(0,10)+'. Candidate rank range shows model disagreement, not a confidence interval. This first specification has not established an investable edge.';
+    el('sr-dma-note').textContent='These are DMA’s internal weights, separate from the composite’s fixed 25% model weights. Latest DMA feedback ends '+weights[0].feedback_target_end.slice(0,10)+'. Model agreement is not a confidence interval. The composite has not been separately performance-tested and has not established an investable edge.';
     var validation=rows('outlook_validation').filter(function(r){return r.panel===panel&&r.delay===delay&&r.horizon===horizon&&r.period==='post_2000';});
     el('sr-out-validation').innerHTML=table('Retrospective validation from 2000 onward · '+horizon+'-month outcomes overlap when the horizon exceeds one month. No significance claim.', ['Model','Mean realized Rank IC × 100','Forecasts','First target','Last target'],validation.map(function(r){return [modelLabels[r.model],num(r.rank_ic),r.n,r.target_start.slice(0,10),r.target_end.slice(0,10)];}));
     var window=Number(el('sr-corr-window').value);

@@ -738,7 +738,7 @@
     <button class="sr-download" id="sr-retry" hidden>Retry loading</button>
     <div id="sr-content" hidden>
       <section class="sr-section" id="sr-outlooks">
-        <h3>Factor portfolio outlook</h3>
+        <h3>Composite factor outlook</h3>
         <p>Horizon-specific models rank cumulative future style-spread P&amp;L.
           CSM fits pooled cross-sectional relationships; TRM fits each factor's recent technical history.
           ECM uses macro conditions. DMA retains its original four-model technical blend.</p>
@@ -746,10 +746,14 @@
           <label>Outlook<select id="sr-horizon"><option value="1">1 month</option><option value="6">6 months</option><option value="12">12 months</option></select></label>
           <label>Factor portfolios<select id="sr-out-panel"><option value="raw">Raw styles</option><option value="hedged">Beta-hedged styles</option></select></label>
           <label>Publication delay<select id="sr-out-delay"><option value="0">No delay assumption</option><option value="1" selected>One month</option><option value="2">Two months</option></select></label>
-          <label>Order rankings by<select id="sr-rank-order"><option value="dma">DMA</option><option value="cross_sectional">CSM</option><option value="trm">TRM</option><option value="ecm">ECM</option></select></label>
+          <label>Order rankings by<select id="sr-rank-order"><option value="composite" selected>Composite</option><option value="dma">DMA</option><option value="cross_sectional">CSM</option><option value="trm">TRM</option><option value="ecm">ECM</option></select></label>
           <button class="sr-download" id="sr-out-csv">Download these rankings</button>
         </div>
         <div class="sr-note" id="sr-out-date" aria-live="polite"></div>
+        <p><b>Composite score: 25% CSM + 25% DMA + 25% TRM + 25% ECM.</b>
+          Each model's ranks become a 0–100 score, then are averaged. Higher is stronger relative consensus;
+          100 means unanimous first place. This is not an expected return or confidence probability.
+          The models share information, so their votes are not independent.</p>
         <p>Working definitions: <b>TRM = tactical regression modeling</b>;
           <b>ECM = economic cycle modeling</b>, using market-based macro proxies.
           ECM is a provisional project definition, not an error-correction model.</p>

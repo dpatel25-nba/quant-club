@@ -43,6 +43,8 @@
 .sr-bar { height: 5px; margin-top: 8px; background: var(--border); }
 .sr-bar span { display: block; height: 100%; background: var(--accent); }
 .sr-heatmap th, .sr-heatmap td { padding: 7px; font-size: 11px; min-width: 43px; }
+#sr-ranking td:nth-child(2) { text-align: left; }
+#sr-ranking td:nth-child(3) { font-weight: 700; color: var(--accent); }
 .sr-research { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px; }
 .sr-research > summary { font-size: 22px; font-weight: 650; color: var(--accent); cursor: pointer; }
 @media (max-width: 760px) { .sr-models { grid-template-columns: repeat(2,1fr); } }

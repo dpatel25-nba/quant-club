@@ -214,7 +214,7 @@ position returned more than the risk it consumed.
 
 ## Style Rotation research
 
-The Style Rotation tab opens with CSM, DMA, TRM and ECM
+The Style Rotation tab opens with a composite ranking of CSM, DMA, TRM and ECM
 rankings for the next 1, 6 or 12 months, plus a 12/36/60-month factor correlation
 heatmap. Forecast formation, source, target and training dates remain visible.
 Scores are relative ranks, not forecast returns; candidate rank ranges show
@@ -224,14 +224,18 @@ specification and retrospective validation disclose its limitations. TRM uses
 style-specific tactical regressions; ECM provisionally means economic-cycle
 regressions on the project's macro-condition proxies. This is not an
 error-correction ECM. The ranking table can be ordered by any of the four
-models, while DMA retains its original candidate blend.
+models or the composite, while DMA retains its original candidate blend.
+Composite scores average four 0–100 model rank scores at fixed 25% weights.
+They are relative consensus, not return estimates or confidence probabilities.
+The composite is the default ordering, with constituent ranks visible alongside
+it. Its monthly change compares independently constructed composite rankings.
 
 The expandable Methodology & Findings section presents the public-data research project: corrected
 technical baselines, weighting audit, publication delays, nested selection,
 macro comparison, era robustness, and portfolio interpretation. Panel, delay,
 period and cost controls drive period-specific metrics and interactive charts.
-Study-specific dates and units stay visible. A report library provides fourteen
-Markdown reports/specifications, twenty-six CSV result tables, and Python source
+Study-specific dates and units stay visible. A report library provides fifteen
+Markdown reports/specifications, twenty-seven CSV result tables, and Python source
 and research bundles. Link directly using `/#style-rotation`.
 
 `style-rotation.js` and `style-rotation.css` extend the existing no-build front
