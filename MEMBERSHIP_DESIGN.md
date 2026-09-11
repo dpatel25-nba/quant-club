@@ -26,8 +26,10 @@ The page moves through an introduction, membership facts, practical benefits,
 four expandable teams, joining steps and the club's commitments. Team and
 policy expanders use native keyboard-accessible `details` elements.
 
-`membership.css` applies the palette and responsive header only while the
-Membership section is active. Public sections have shareable fragment URLs;
+`membership.css` shares the palette, typography and responsive header between
+Overview and Membership. Both pages use straightforward club descriptions and
+headings. Overview presents the club's focus, activities and teams without
+placeholder photography. Public sections have shareable fragment URLs;
 `/#membership` opens Membership and `/#membership-teams` opens its team section.
 Back/forward navigation and the existing Style Rotation link are supported.
 There are no additional runtime dependencies, fonts or image requests.
@@ -43,7 +45,7 @@ python -m playwright install chromium
 python test/check_membership_browser.py
 ```
 
-The browser check covers six widths from 320 to 1440 pixels, both OS color
+The browser check covers both public pages at six widths from 320 to 1440 pixels, both OS color
 schemes, keyboard team selection, application buttons, fragment reloads,
 browser history and the research deep link. Desktop and mobile screenshots
 are written to the system temporary directory for visual review.

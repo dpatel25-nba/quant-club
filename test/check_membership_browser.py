@@ -1,4 +1,4 @@
-"""Browser checks for membership layout and public navigation.
+"""Browser checks for the public club pages and navigation.
 
 Requires Playwright and Chromium. Run with the project's Python environment:
 PLAYWRIGHT_BROWSERS_PATH=/tmp/gpmc-browsers ../venv/bin/python test/check_membership_browser.py
@@ -63,12 +63,25 @@ try:
                 expect(page.locator("#m-overview")).to_be_visible()
                 page.go_back()
                 expect(page.locator("#m-membership")).to_be_visible()
+                page.goto(base + "/#overview")
+                expect(page.locator("#m-overview")).to_be_visible()
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), ("overview", width, scheme)
+                if scheme == "light" and width in (390, 1440):
+                    page.screenshot(path=str(screenshots / f"overview-{width}.png"), full_page=True)
+                page.locator("#m-overview [data-m=membership]").click()
+                expect(page.locator("#m-membership")).to_be_visible()
+                page.go_back()
+                for index in range(2):
+                    page.locator("#m-overview [data-m=apply]").nth(index).click()
+                    expect(page.locator("#m-apply")).to_be_visible()
+                    page.go_back()
+                    expect(page.locator("#m-overview")).to_be_visible()
         page.goto(base + "/#style-rotation")
         expect(page.locator("#m-tools")).to_be_visible()
         expect(page.locator(".tab[data-v=style-rotation]")).to_have_class("tab on")
         assert not errors, errors
         browser.close()
-        print("PASS: six viewport widths, both color schemes, keyboard team selection, application links, history and research deep link")
+        print("PASS: Overview and Membership at six widths, both color schemes, keyboard team selection, application links, history and research deep link")
         print(f"Screenshots: {screenshots}")
 finally:
     server.shutdown()
