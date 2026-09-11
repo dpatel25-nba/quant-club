@@ -100,6 +100,24 @@ several tickers on one page multiplies credits per view. Check current pricing
 at <https://twelvedata.com/pricing>; do not trust a figure written here, since
 plans change.
 
+## Asset coverage
+
+| class | works | how |
+|---|---|---|
+| Stocks, ETFs, indices | yes | plain symbol — `AAPL`, `SPY` |
+| Crypto | yes | pair — `BTC/USD` |
+| Currencies | yes | pair — `EUR/USD` |
+| Fixed income | **via funds only** | `TLT`, `AGG`, `LQD`, `HYG`, `TIP` |
+| Individual bonds | no | the provider lists ~179 thin corporate names; there is no CUSIP-level pricing or treasury curve |
+
+**Fixed income needs care, and the site now says so on screen.** Every return
+here is PRICE ONLY. For a stock, excluding dividends costs a point or two a
+year. For a bond fund the coupon is essentially the whole return, so a fund can
+show a badly negative price return over a period when its total return was
+positive. That is a wrong answer rather than an imprecise one, so bond funds are
+detected by name and carry a warning in red. Price and volatility are still
+sound; the RETURN is not a total return. Quote performance from the factsheet.
+
 ## What the numbers mean
 
 - **Return** and **max drawdown** are **price-only** — they exclude dividends,

@@ -208,7 +208,9 @@
     </form>
     <div class="note" style="margin-top:8px">Stocks, ETFs and indices by symbol
       (<b>AAPL</b>, <b>SPY</b>). Crypto and currencies are pairs
-      (<b>BTC/USD</b>, <b>EUR/USD</b>).</div>
+      (<b>BTC/USD</b>, <b>EUR/USD</b>). Fixed income via bond funds
+      (<b>TLT</b>, <b>AGG</b>, <b>LQD</b>, <b>HYG</b>) — individual bonds are
+      not covered.</div>
     <div class="ranges" id="ranges" role="group" aria-label="Time range">
       <button class="range" data-r="1h">1H</button>
       <button class="range" data-r="1d">1D</button>
@@ -532,12 +534,25 @@
              '</div><div class="v">' + r[1] + '</div></div>';
     }).join("");
 
-    // Say plainly what the numbers are and are not, so nobody quotes a
-    // price return as a total return in a pitch.
-    el("note").textContent =
-      "Return and drawdown are price-only: they exclude dividends, so a paying "
-      + "stock's total return is higher than shown. Volatility is the standard "
-      + "deviation of returns over this range, annualised. Prices may be delayed.";
+    // Say plainly what the numbers are and are not, so nobody quotes a price
+    // return as a total return in a pitch. For FIXED INCOME this stops being a
+    // footnote and becomes the whole story: a stock's dividend is a point or
+    // two a year, but a bond's coupon is essentially its entire return, so a
+    // bond fund can show a badly negative price return while its total return
+    // was positive. That is a wrong answer, not an imprecise one, so it gets
+    // said loudly rather than in the small print.
+    var fixedIncome = /bond|treasury|yield|gilt|aggregate|municipal|corporate debt/i
+      .test((data.name || "") + " " + (data.type || ""));
+    el("note").innerHTML = fixedIncome
+      ? '<b style="color:var(--bad)">Fixed income: read the return with care.</b> '
+        + 'These figures are PRICE ONLY and exclude coupons — and for a bond fund '
+        + 'the coupon is most of the return, so the real total return is '
+        + 'materially higher than shown here. Price and volatility are still '
+        + 'sound; the return is not a total return. If you are quoting '
+        + 'performance, take it from the fund factsheet.'
+      : "Return and drawdown are price-only: they exclude dividends, so a paying "
+        + "stock's total return is higher than shown. Volatility is the standard "
+        + "deviation of returns over this range, annualised. Prices may be delayed.";
 
     // Align the benchmark to this security's dates before anything is compared.
     var bcol = null;
@@ -787,8 +802,10 @@
     Promise.all(hs.map(function (h) {
       var k = h.sym + "|" + range;
       if (cache[k]) return Promise.resolve(cache[k]);
+      // quote=1 here only so the instrument NAME comes back, which is how a
+      // bond fund is recognised; the extra credit buys the coupon warning.
       return fetch("/api/quote?symbol=" + encodeURIComponent(h.sym) +
-                   "&range=" + encodeURIComponent(range) + "&quote=0")
+                   "&range=" + encodeURIComponent(range))
         .then(function (r) {
           return r.json().then(function (j) {
             if (!r.ok) throw new Error(h.sym + ": " + (j.error || "failed"));
@@ -875,6 +892,16 @@
           (edge >= 0 ? "+" : "") + pct(edge) + '</td></tr>';
       }
       html += '</table>';
+      var anyFI = S.some(function (d2) {
+        return /bond|treasury|yield|aggregate|municipal/i.test(
+          (d2.name || "") + " " + (d2.type || "")); });
+      if (anyFI) {
+        html += '<div class="note"><b style="color:var(--bad)">This portfolio '
+             + 'holds fixed income.</b> Returns here are price-only and exclude '
+             + 'coupons, which is most of a bond fund\'s return — so its return '
+             + 'share is understated and its contribution looks worse than it '
+             + 'was. Risk and correlation are unaffected.</div>';
+      }
       html += '<div class="note"><b>Risk share</b> is what each holding actually '
            + 'contributes to portfolio volatility, and it sums to 100% — not the '
            + 'same as its weight. <b>Return share</b> is its share of the '
