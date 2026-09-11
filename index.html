@@ -43,6 +43,81 @@
            Georgia, "Times New Roman", serif; }
   .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 11px;
              font-weight: 700; color: var(--muted); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px 72px; }
+
+  /* --- top bar: mark and name left, navigation right, Apply set apart --- */
+  .topbar { position: sticky; top: 0; z-index: 20; background: var(--bg);
+            border-bottom: 1px solid var(--border); }
+  .topbar-in { max-width: 1100px; margin: 0 auto; padding: 12px 20px;
+               display: flex; align-items: center; gap: 18px; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  .brand .mark { width: 46px; height: 26px; flex: none; border-radius: 5px;
+                 background: var(--accent); color: #fff; display: grid;
+                 place-items: center; font-size: 11px; font-weight: 700;
+                 letter-spacing: .04em; }
+  .brand .bn { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+  .brand .bs { font-size: 11px; color: var(--muted); letter-spacing: .08em;
+               text-transform: uppercase; }
+  .navlinks { display: flex; gap: 2px; flex-wrap: wrap; }
+  .applybtn { padding: 9px 18px; border-radius: 999px; background: var(--accent);
+              color: #fff; border: 1px solid var(--accent); font: inherit;
+              font-size: 13px; font-weight: 700; cursor: pointer; }
+  .applybtn:hover { background: var(--accent-2); }
+
+  /* --- hero --- */
+  .hero { padding: 62px 0 46px; border-bottom: 1px solid var(--border); }
+  .hero .kicker { font-size: 12px; font-weight: 700; letter-spacing: .16em;
+                  text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+  .hero h1 { font-family: "Iowan Old Style", Palatino, Georgia, serif;
+             font-size: clamp(30px, 5.2vw, 50px); line-height: 1.1;
+             letter-spacing: -.02em; font-weight: 600; margin: 0 0 18px;
+             max-width: 17ch; }
+  .hero .lede { font-size: clamp(16px, 2vw, 19px); color: var(--muted);
+                max-width: 58ch; margin: 0 0 28px; line-height: 1.6; }
+  .cta-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .cta { padding: 13px 24px; border-radius: 10px; font: inherit; font-size: 15px;
+         font-weight: 650; cursor: pointer; border: 1px solid var(--accent);
+         background: var(--accent); color: #fff; }
+  .cta:hover { background: var(--accent-2); }
+  .cta.alt { background: transparent; color: var(--accent); }
+  .cta.alt:hover { background: var(--accent-soft); }
+
+  /* --- stat strip --- */
+  .strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+           gap: 1px; background: var(--border); border-top: 1px solid var(--border);
+           border-bottom: 1px solid var(--border); }
+  .strip > div { background: var(--bg); padding: 22px 18px; }
+  .strip .n { font-family: "Iowan Old Style", Palatino, Georgia, serif;
+              font-size: 30px; font-weight: 600; letter-spacing: -.02em;
+              line-height: 1.1; }
+  .strip .l { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+
+  /* --- content sections --- */
+  .band { padding: 52px 0; border-bottom: 1px solid var(--border); }
+  .band:last-child { border-bottom: 0; }
+  .band h2 { font-family: "Iowan Old Style", Palatino, Georgia, serif;
+             font-size: clamp(22px, 3vw, 30px); letter-spacing: -.015em;
+             font-weight: 600; margin: 0 0 14px; }
+  .band p { max-width: 66ch; margin: 0 0 14px; font-size: 16px; line-height: 1.65; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  @media (max-width: 760px) { .two { grid-template-columns: 1fr; gap: 24px; } }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+           gap: 16px; margin-top: 26px; }
+  .card { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 14px; padding: 22px; box-shadow: var(--shadow); }
+  .card .num { font-size: 11px; font-weight: 700; letter-spacing: .12em;
+               color: var(--accent); text-transform: uppercase; }
+  .card h3 { font-size: 16.5px; margin: 8px 0 8px; font-weight: 650;
+             letter-spacing: -.01em; }
+  .card p { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.6;
+            max-width: none; }
+
+  .closer { background: var(--panel); border: 1px solid var(--border);
+            border-radius: 16px; padding: 38px; text-align: center;
+            box-shadow: var(--shadow); margin: 52px 0 0; }
+  .closer h2 { margin-top: 0; }
+  .closer p { margin-left: auto; margin-right: auto; }
   .wrap { max-width: 1040px; margin: 0 auto; padding: 28px 20px 64px; }
 
   header { border-bottom: 2px solid var(--accent); margin-bottom: 26px;
@@ -56,7 +131,7 @@
   header h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: -.01em;
               font-weight: 600; }
   header .sub { color: var(--muted); font-size: 14px; max-width: 62ch; }
-  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border);
+  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--border);
            color: var(--muted); font-size: 12.5px; display: flex; gap: 14px;
            flex-wrap: wrap; justify-content: space-between; }
 
@@ -199,75 +274,139 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="club">
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
       <div class="mark">GPMC</div>
-      <div class="club-name">Emory University &middot; Atlanta Campus</div>
+      <div>
+        <div class="bn">Goizueta Portfolio Management Club</div>
+        <div class="bs">Emory University</div>
+      </div>
     </div>
-    <h1 class="serif">Goizueta Portfolio Management Club</h1>
-    <div class="sub">How investments are combined and managed as a complete
-      portfolio — asset allocation, diversification, risk, and risk-adjusted
-      performance across asset classes.</div>
-  </header>
+    <nav class="navlinks mtabs" role="tablist" style="margin:0">
+      <button class="mtab on" data-m="overview" role="tab">Overview</button>
+      <button class="mtab" data-m="membership" role="tab">Membership</button>
+      <button class="mtab" data-m="tools" role="tab">Research Tools</button>
+    </nav>
+    <button class="applybtn" data-m="apply">Apply</button>
+  </div>
+</div>
 
-  <nav class="mtabs" role="tablist">
-    <button class="mtab on" data-m="overview" role="tab">Overview</button>
-    <button class="mtab" data-m="membership" role="tab">Membership</button>
-    <button class="mtab" data-m="apply" role="tab">Apply</button>
-    <button class="mtab" data-m="tools" role="tab">Research Tools</button>
-  </nav>
-
+<div class="wrap">
   <section class="mview on" id="m-overview">
-    <div class="panel prose">
-      <div class="eyebrow">About</div>
-      <h2 style="margin-top:10px">What the club is</h2>
-      <p>The Goizueta Portfolio Management Club gives students hands-on exposure
-        to how investment portfolios are built, analyzed, and managed. We focus
-        on asset allocation, diversification, risk management, portfolio
-        construction, and evaluating performance across different asset
-        classes.</p>
+    <div class="hero">
+      <div class="kicker">Emory University &middot; Goizueta Business School</div>
+      <h1>Portfolios are built, not picked.</h1>
+      <p class="lede">Most investment clubs teach you to choose a stock. We teach
+        you what happens when you hold it alongside eleven others — how capital is
+        allocated, how risk is measured, and how a portfolio is defended.</p>
+      <div class="cta-row">
+        <button class="cta" data-m="apply">Apply to join</button>
+        <button class="cta alt" data-m="tools">Explore the research tools</button>
+      </div>
+    </div>
 
-      <h2>What we do</h2>
+    <div class="strip">
+      <div><div class="n">Four</div><div class="l">units: Systematic, Fundamental,
+        Asset Allocation &amp; Risk, Investor Relations</div></div>
+      <div><div class="n">No dues</div><div class="l">open to all full-time Emory
+        students</div></div>
+      <div><div class="n">Blind</div><div class="l">applications read without
+        names attached</div></div>
+      <div><div class="n">Multi-asset</div><div class="l">equities, fixed income,
+        currencies and digital assets</div></div>
+    </div>
+
+    <div class="band">
+      <div class="two">
+        <div>
+          <h2>Who we are</h2>
+          <p>The Goizueta Portfolio Management Club gives students hands-on
+            exposure to how investment portfolios are built, analyzed and
+            managed — asset allocation, diversification, risk management,
+            portfolio construction, and evaluating performance across different
+            asset classes.</p>
+        </div>
+        <div>
+          <h2>How we are different</h2>
+          <p>We focus on how investments are <b>combined and managed as a
+            complete portfolio</b>, rather than on individual security selection
+            or a single asset class. That portfolio-level perspective
+            complements the organizations built around stock research,
+            quantitative strategies, venture capital and alternatives.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="band">
+      <h2>What members do</h2>
       <p>Members work through portfolio-management concepts and apply them to
-        hypothetical portfolios built around different investor goals and risk
-        profiles. You will learn to calculate expected return, volatility,
-        correlation, portfolio risk and Sharpe ratios; evaluate asset allocation
-        decisions; and understand how different investments interact inside a
-        portfolio.</p>
+        portfolios built around different investor goals and risk profiles. You
+        will learn to calculate expected return, volatility, correlation,
+        portfolio risk and Sharpe ratios; evaluate allocation decisions; and
+        understand how investments interact inside a portfolio.</p>
       <p>Members may also take part in portfolio competitions, case studies,
-        market discussions, and presentations where they defend their investment
-        strategy and construction decisions.</p>
+        market discussions, and presentations where they defend their strategy
+        and construction decisions in front of the room.</p>
+    </div>
 
-      <h2>How we are different</h2>
-      <p>We focus on how investments are <b>combined and managed as a complete
-        portfolio</b>, rather than on individual security selection or a single
-        asset class. That portfolio-level perspective complements the existing
-        organizations built around stock research, quantitative strategies,
-        venture capital, or alternative investments.</p>
+    <div class="band">
+      <h2>Four units</h2>
+      <p>Every member joins one. You may express interest in more than one when
+        you apply.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="num">Unit 01</div>
+          <h3>Systematic Portfolio Management</h3>
+          <p>Quantitative models, data and rules-based approaches — how
+            systematic strategies are built, tested and applied within a
+            portfolio. The research tools on this site are built by this
+            unit.</p>
+        </div>
+        <div class="card">
+          <div class="num">Unit 02</div>
+          <h3>Fundamental Portfolio Management</h3>
+          <p>Fundamental analysis across companies, sectors and asset classes,
+            comparing opportunities to decide where capital is best
+            allocated.</p>
+        </div>
+        <div class="card">
+          <div class="num">Unit 03</div>
+          <h3>Asset Allocation and Risk</h3>
+          <p>How capital is distributed across asset classes and how portfolio
+            risk is measured and managed — diversification, volatility,
+            correlation and concentration.</p>
+        </div>
+        <div class="card">
+          <div class="num">Unit 04</div>
+          <h3>Investor Relations</h3>
+          <p>Outreach to alumni, industry professionals, faculty and sponsors;
+            coordinating speakers, partnerships and external opportunities for
+            members.</p>
+        </div>
+      </div>
+    </div>
 
-      <h2>The four units</h2>
-      <div class="unit"><b>Systematic Portfolio Management</b><span>Quantitative
-        models, data, and rules-based approaches — how systematic strategies are
-        built, tested, and applied within a portfolio. The research tools on
-        this site come from this unit.</span></div>
-      <div class="unit"><b>Fundamental Portfolio Management</b><span>Fundamental
-        analysis across companies, sectors and asset classes, comparing
-        opportunities to decide where capital is best allocated.</span></div>
-      <div class="unit"><b>Asset Allocation and Risk</b><span>How capital is
-        distributed across asset classes and how overall portfolio risk is
-        measured and managed — diversification, volatility, correlation and
-        concentration.</span></div>
-      <div class="unit"><b>Investor Relations</b><span>Outreach to alumni,
-        industry professionals, faculty and sponsors; coordinating speakers,
-        partnerships and external opportunities for members.</span></div>
+    <div class="closer">
+      <h2>Applications are read blind</h2>
+      <p>Your name never appears. What you are judged on is how you reason about
+        allocating capital and defending a decision — not who you know or what
+        you have done before.</p>
+      <div class="cta-row" style="justify-content:center;margin-top:22px">
+        <button class="cta" data-m="apply">Start an application</button>
+      </div>
     </div>
   </section>
 
   <section class="mview" id="m-membership">
-    <div class="panel prose">
-      <div class="eyebrow">Membership</div>
-      <h2 style="margin-top:10px">What members get</h2>
+    <div class="hero" style="padding:48px 0 34px">
+      <div class="kicker">Membership</div>
+      <h1 style="font-size:clamp(26px,4vw,38px)">What you get out of it</h1>
+      <p class="lede" style="margin-bottom:0">Open to every full-time Emory
+        student, with no dues and no prior experience assumed.</p>
+    </div>
+    <div class="band prose">
+      <h2 style="margin-top:0">What members get</h2>
       <ul>
         <li><b>Skill development</b> — hands-on experience building and
           evaluating portfolios through quantitative and fundamental asset
@@ -306,12 +445,25 @@
         and amendment procedures, is maintained separately and available on
         request.</p>
     </div>
+    <div class="closer">
+      <h2>No dues, no prerequisites</h2>
+      <p>Members are selected by the Executive Board through a process set at the
+        start of each semester. The process varies by unit.</p>
+      <div class="cta-row" style="justify-content:center;margin-top:22px">
+        <button class="cta" data-m="apply">Apply now</button>
+      </div>
+    </div>
   </section>
 
   <section class="mview" id="m-apply">
-    <div class="panel prose">
-      <div class="eyebrow">Apply</div>
-      <h2 style="margin-top:10px">Blind application</h2>
+    <div class="hero" style="padding:48px 0 34px">
+      <div class="kicker">Apply</div>
+      <h1 style="font-size:clamp(26px,4vw,38px)">Your name never appears.</h1>
+      <p class="lede" style="margin-bottom:0">Applications are read blind, so what
+        you are judged on is how you reason — not who you know.</p>
+    </div>
+    <div class="band prose">
+      <h2 style="margin-top:0">How it works</h2>
       <p>Applications are read blind. You will be asked for your year, Emory
         NetID, phone number and major — <b>but not your name</b>. Any use of
         your name on the application results in automatic rejection.</p>
@@ -339,6 +491,13 @@
   </section>
 
   <section class="mview" id="m-tools">
+    <div class="hero" style="padding:48px 0 30px">
+      <div class="kicker">Systematic Portfolio Management</div>
+      <h1 style="font-size:clamp(26px,4vw,38px)">Research tools</h1>
+      <p class="lede" style="margin-bottom:0">Price history and statistics for any
+        listed security, portfolio risk and return attribution, correlation across
+        asset classes, and Fama-French factor exposures.</p>
+    </div>
     <div class="panel" id="lock">
       <div class="eyebrow">Members only</div>
       <h2 class="serif" style="margin:8px 0 6px;font-size:21px">Research tools</h2>
@@ -356,14 +515,6 @@
     </div>
 
     <div id="toolsWrap" hidden>
-    <div class="panel prose" style="margin-bottom:18px">
-      <div class="eyebrow">Systematic Portfolio Management</div>
-      <h2 style="margin-top:8px">Research tools</h2>
-      <p style="margin-bottom:0">Built and maintained by the Systematic unit.
-        Price history and statistics for any listed security, portfolio risk and
-        return attribution, pairwise correlation across asset classes, and
-        Fama-French factor exposures.</p>
-    </div>
   <nav class="tabs" role="tablist">
     <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
     <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
@@ -1548,14 +1699,19 @@
   // Outer navigation. Kept separate from the inner tool tabs so the two
   // levels cannot interfere: the club sections switch .mview, the research
   // tools switch .view, and neither selector matches the other's elements.
-  Array.prototype.forEach.call(document.querySelectorAll(".mtab"), function (b) {
-    b.addEventListener("click", function () {
-      Array.prototype.forEach.call(document.querySelectorAll(".mtab"), function (x) {
-        x.classList.toggle("on", x === b); });
-      Array.prototype.forEach.call(document.querySelectorAll(".mview"), function (v) {
-        v.classList.toggle("on", v.id === "m-" + b.dataset.m); });
-      window.scrollTo(0, 0);
-    });
+  // Anything carrying data-m navigates: the nav tabs, the Apply button set
+  // apart at the top right, and the calls to action inside the page. Binding on
+  // the ATTRIBUTE rather than the class means a new button works by existing,
+  // without also having to be registered here.
+  function goto(name) {
+    Array.prototype.forEach.call(document.querySelectorAll(".mtab"), function (x) {
+      x.classList.toggle("on", x.dataset.m === name); });
+    Array.prototype.forEach.call(document.querySelectorAll(".mview"), function (v) {
+      v.classList.toggle("on", v.id === "m-" + name); });
+    window.scrollTo(0, 0);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-m]"), function (b) {
+    b.addEventListener("click", function () { goto(b.dataset.m); });
   });
 
   Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) {
