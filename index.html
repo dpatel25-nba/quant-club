@@ -118,6 +118,17 @@
 
   #chart { width: 100%; height: 320px; display: block; }
   .gridline { stroke: var(--grid); stroke-width: 1; }
+  .bench { stroke: var(--muted); stroke-width: 1.4; fill: none; opacity: .55;
+           stroke-dasharray: 4 3; }
+  .xhair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .readout { fill: var(--text); font-size: 12px; font-weight: 600;
+             font-family: ui-monospace, Menlo, monospace; }
+  .readout-bg { fill: var(--panel); stroke: var(--border); }
+  #chart { touch-action: none; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted);
+            margin-top: 6px; align-items: center; flex-wrap: wrap; }
+  .swatch { display: inline-block; width: 14px; height: 3px; border-radius: 2px;
+            vertical-align: middle; margin-right: 6px; }
   .axis { fill: var(--muted); font-size: 11px;
           font-family: ui-monospace, Menlo, monospace; }
 
@@ -207,6 +218,8 @@
       <button class="range" data-r="all">ALL</button>
       <button class="range" id="chooseBtn" type="button"
               aria-haspopup="dialog" aria-expanded="false">Choose month ▾</button>
+      <button class="range on" id="benchBtn" type="button"
+              aria-pressed="true" title="Compare against SPY">vs SPY</button>
     </div>
     <div class="picker" id="picker" role="dialog" aria-label="Choose a month" hidden>
       <div class="pk-head">
@@ -233,6 +246,7 @@
         </div>
       </div>
       <svg id="chart" role="img" aria-label="Price history"></svg>
+      <div class="legend" id="legend"></div>
       <div class="stats" id="stats"></div>
       <div class="note" id="note"></div>
     </div>
@@ -248,6 +262,12 @@
       <div class="wsum" id="wsum"></div>
       <div class="search" style="margin-top:4px">
         <button class="btn" id="build" type="button">Analyse portfolio</button>
+        <select id="pMode" aria-label="Rebalancing"
+                style="padding:11px 12px;border-radius:10px;background:var(--panel-2);
+                       color:var(--text);border:1px solid var(--border);font:inherit">
+          <option value="rebal" selected>Rebalanced each period</option>
+          <option value="hold">Buy and hold</option>
+        </select>
         <select id="pRange" aria-label="Range"
                 style="padding:11px 12px;border-radius:10px;background:var(--panel-2);
                        color:var(--text);border:1px solid var(--border);font:inherit">
@@ -306,7 +326,9 @@
 (function () {
   "use strict";
   var el = function (id) { return document.getElementById(id); };
-  var state = { range: "1y", symbol: "", busy: false, pending: null, month: "" };
+  var BENCH = "SPY";
+  var state = { range: "1y", symbol: "", busy: false, pending: null,
+                month: "", bench: true };
 
   // Every request costs an API credit and the free plan allows 8 a minute, so
   // the cheapest request is the one never made. Results are kept per
@@ -373,7 +395,13 @@
   // ---- chart --------------------------------------------------------------
   // Hand-drawn SVG: no charting library, so there is nothing to load from a CDN
   // and nothing to break when a version changes.
-  function draw(points, up) {
+  // Remembered so the chart can be redrawn at a new width. The previous version
+  // had an empty resize handler, so rotating a phone left the SVG stretched at
+  // its old viewBox.
+  var lastDraw = null;
+
+  function draw(points, up, bench) {
+    lastDraw = { points: points, up: up, bench: bench };
     var svg = el("chart");
     var W = svg.clientWidth || 880, H = 320;
     var padL = 52, padR = 12, padT = 14, padB = 26;
@@ -381,12 +409,8 @@
     var lo = Math.min.apply(null, c), hi = Math.max.apply(null, c);
     if (hi === lo) { hi += 1; lo -= 1; }
     var padY = (hi - lo) * 0.08; hi += padY; lo -= padY;
-    var x = function (i) {
-      return padL + (i / (points.length - 1)) * (W - padL - padR);
-    };
-    var y = function (v) {
-      return padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
-    };
+    var x = function (i) { return padL + (i / (points.length - 1)) * (W - padL - padR); };
+    var y = function (v) { return padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB); };
 
     var parts = [], i;
     for (i = 0; i <= 4; i++) {
@@ -407,6 +431,18 @@
       '<stop offset="0%" stop-color="' + col + '" stop-opacity=".22"/>' +
       '<stop offset="100%" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>');
     parts.push('<path d="' + area + '" fill="url(#g)"/>');
+
+    // Benchmark, rebased to start at the same value so the SHAPES are
+    // comparable. Plotting raw prices would just show which one costs more.
+    if (bench && bench.length === points.length) {
+      var bd = "", k = c[0] / bench[0];
+      for (i = 0; i < bench.length; i++) {
+        var bv = bench[i] * k;
+        bd += (i ? "L" : "M") + x(i).toFixed(1) + " " +
+              y(Math.max(lo, Math.min(hi, bv))).toFixed(1) + " ";
+      }
+      parts.push('<path class="bench" d="' + bd + '"/>');
+    }
     parts.push('<path d="' + d + '" fill="none" stroke="' + col +
                '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
 
@@ -415,12 +451,47 @@
                first.slice(0, 10) + '</text>');
     parts.push('<text class="axis" x="' + (W - padR) + '" y="' + (H - 6) +
                '" text-anchor="end">' + last.slice(0, 10) + '</text>');
+    parts.push('<g id="hoverG" style="display:none">' +
+      '<line class="xhair" id="hx" y1="' + padT + '" y2="' + (H - padB) + '"/>' +
+      '<circle id="hdot" r="3.5" fill="' + col + '"/>' +
+      '<rect class="readout-bg" id="hbg" rx="5" height="20"/>' +
+      '<text class="readout" id="htx" dy="14"></text></g>');
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     svg.innerHTML = parts.join("");
+
+    // Read a value off the line. Without this you can see the shape but cannot
+    // answer "what was it worth in March", which is the first thing anyone asks.
+    function at(ev) {
+      var r = svg.getBoundingClientRect();
+      var px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+      var sx = px * (W / r.width);
+      var i2 = Math.round((sx - padL) / (W - padL - padR) * (points.length - 1));
+      i2 = Math.max(0, Math.min(points.length - 1, i2));
+      var g = svg.querySelector("#hoverG");
+      if (!g) return;
+      g.style.display = "";
+      svg.querySelector("#hx").setAttribute("x1", x(i2));
+      svg.querySelector("#hx").setAttribute("x2", x(i2));
+      svg.querySelector("#hdot").setAttribute("cx", x(i2));
+      svg.querySelector("#hdot").setAttribute("cy", y(c[i2]));
+      var label = points[i2].t.slice(0, 10) + "   " + c[i2].toFixed(2);
+      var tx = svg.querySelector("#htx"), bg = svg.querySelector("#hbg");
+      var w = label.length * 7.3 + 14;
+      var bx = Math.min(Math.max(x(i2) - w / 2, padL), W - padR - w);
+      tx.setAttribute("x", bx + 7); tx.setAttribute("y", padT - 2);
+      bg.setAttribute("x", bx); bg.setAttribute("y", padT - 2);
+      bg.setAttribute("width", w);
+      tx.textContent = label;
+    }
+    svg.addEventListener("mousemove", at);
+    svg.addEventListener("touchmove", at);
+    svg.addEventListener("mouseleave", function () {
+      var g = svg.querySelector("#hoverG"); if (g) g.style.display = "none";
+    });
   }
 
   // ---- render -------------------------------------------------------------
-  function show(data) {
+  function show(data, bench) {
     var p = data.points, cur = data.currency;
     var last = p[p.length - 1].c, first = p[0].c;
     var chg = last - first, up = chg >= 0;
@@ -468,7 +539,51 @@
       + "stock's total return is higher than shown. Volatility is the standard "
       + "deviation of returns over this range, annualised. Prices may be delayed.";
 
-    draw(p, up);
+    // Align the benchmark to this security's dates before anything is compared.
+    var bcol = null;
+    if (bench && bench.points) {
+      var bm = {};
+      bench.points.forEach(function (q) { bm[q.t] = q.c; });
+      var ok = p.every(function (q) { return bm[q.t] != null; });
+      if (ok) bcol = p.map(function (q) { return bm[q.t]; });
+    }
+    if (bcol) {
+      var bret = bcol[bcol.length - 1] / bcol[0] - 1;
+      var ra = [], rb = [], i2;
+      for (i2 = 1; i2 < p.length; i2++) {
+        ra.push(p[i2].c / p[i2 - 1].c - 1);
+        rb.push(bcol[i2] / bcol[i2 - 1] - 1);
+      }
+      var ma = ra.reduce(function (x, y2) { return x + y2; }, 0) / ra.length;
+      var mb = rb.reduce(function (x, y2) { return x + y2; }, 0) / rb.length;
+      var cov = 0, vb = 0, va = 0;
+      for (i2 = 0; i2 < ra.length; i2++) {
+        cov += (ra[i2] - ma) * (rb[i2] - mb);
+        vb += (rb[i2] - mb) * (rb[i2] - mb);
+        va += (ra[i2] - ma) * (ra[i2] - ma);
+      }
+      var beta = vb > 0 ? cov / vb : NaN;
+      var corr = (va > 0 && vb > 0) ? cov / Math.sqrt(va * vb) : NaN;
+      var ex = (s.ret - bret);
+      el("stats").innerHTML +=
+        '<div class="stat"><div class="k">' + BENCH + ' return</div><div class="v">'
+        + (bret >= 0 ? "+" : "") + pct(bret) + '</div></div>'
+        + '<div class="stat"><div class="k">Excess vs ' + BENCH + '</div>'
+        + '<div class="v" style="color:' + (ex >= 0 ? "var(--good)" : "var(--bad)")
+        + '">' + (ex >= 0 ? "+" : "") + pct(ex) + '</div></div>'
+        + '<div class="stat"><div class="k">Beta vs ' + BENCH + '</div><div class="v">'
+        + (isFinite(beta) ? beta.toFixed(2) : "—") + '</div></div>'
+        + '<div class="stat"><div class="k">Correlation</div><div class="v">'
+        + (isFinite(corr) ? corr.toFixed(2) : "—") + '</div></div>';
+    }
+
+    draw(p, up, bcol);
+    el("legend").innerHTML = bcol
+      ? '<span><span class="swatch" style="background:' + (up ? "var(--good)" : "var(--bad)")
+        + '"></span>' + data.symbol + '</span><span><span class="swatch" '
+        + 'style="background:var(--muted)"></span>' + BENCH
+        + ' (rebased to the same start)</span>'
+      : "";
     el("result").hidden = false;
     el("msg").hidden = true;
   }
@@ -507,7 +622,22 @@
         else if (quoteCache[sym]) d.quote = quoteCache[sym];
         cache[key] = d;
         state.symbol = sym;
-        show(d);
+        // A return means little on its own — "up 12%" is good or bad depending
+        // entirely on what the market did. The benchmark is fetched for the
+        // same window and, being one symbol everyone looks at, is almost always
+        // already cached at the edge, so it rarely costs a credit.
+        if (state.bench && sym !== BENCH) {
+          var bkey = BENCH + "|" + (state.month ? "M" + state.month : state.range);
+          var bp = cache[bkey] ? Promise.resolve(cache[bkey])
+            : fetch("/api/quote?symbol=" + BENCH +
+                (state.month ? "&month=" + encodeURIComponent(state.month)
+                             : "&range=" + encodeURIComponent(state.range)) +
+                "&quote=0")
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (j) { if (j && j.points) cache[bkey] = j; return j; });
+          bp.then(function (b) { show(d, b); })
+            .catch(function () { show(d); });
+        } else { show(d); }
       })
       .catch(function () { say("Could not reach the server.", true); })
       .then(function () {
@@ -679,13 +809,33 @@
       var cm = covMatrix(rets, perYear);
       var rk = riskContrib(cm.C, w);
 
-      // portfolio path, rebalanced to target weights each period
-      var curve = [100], i, t;
-      for (t = 0; t < rets[0].length; t++) {
-        var r = 0;
-        for (i = 0; i < w.length; i++) r += w[i] * rets[i][t];
-        curve.push(curve[curve.length - 1] * (1 + r));
+      // Rebalancing is a real choice, not a detail. Rebalancing sells what rose
+      // and buys what fell; buy-and-hold lets winners grow into the portfolio
+      // until a single position dominates it. Over five years the two can differ
+      // by a lot, so the page asks rather than silently assuming.
+      var mode = el("pMode").value, curve = [100], i, t;
+      if (mode === "hold") {
+        // weights drift with prices: value is the sum of each holding's growth
+        for (t = 0; t < al.cols[0].length; t++) {
+          var v = 0;
+          for (i = 0; i < w.length; i++) v += w[i] * (al.cols[i][t] / al.cols[i][0]);
+          curve[t] = 100 * v;
+        }
+      } else {
+        for (t = 0; t < rets[0].length; t++) {
+          var r = 0;
+          for (i = 0; i < w.length; i++) r += w[i] * rets[i][t];
+          curve.push(curve[curve.length - 1] * (1 + r));
+        }
       }
+
+      // What each holding CONTRIBUTED to the return, to sit beside what it
+      // contributed to the risk. Side by side they answer the question that
+      // matters: did this position pay for the risk it consumed?
+      var contrib = w.map(function (wi, k3) {
+        return wi * (al.cols[k3][al.cols[k3].length - 1] / al.cols[k3][0] - 1);
+      });
+      var contribSum = contrib.reduce(function (a2, b2) { return a2 + b2; }, 0);
       var totRet = curve[curve.length - 1] / 100 - 1;
       var years = rets[0].length / perYear;
       var cagr = years > 0 ? Math.pow(1 + totRet, 1 / years) - 1 : NaN;
@@ -701,6 +851,7 @@
         ["Max drawdown", pct(maxDD(curve))],
         ["Diversification", wavg > 0 ? (1 - rk.sigma / wavg > 0
             ? "−" + pct(1 - rk.sigma / wavg).replace("-", "") : "none") : "—"],
+        ["Method", mode === "hold" ? "Buy & hold" : "Rebalanced"],
         ["Common dates", String(al.dates.length)],
         ["From", al.dates[0]]
       ].map(function (r2) {
@@ -708,21 +859,29 @@
              + r2[1] + '</div></div>';
       }).join("") + '</div>';
 
-      html += '<div class="h2">Risk contribution</div>';
+      html += '<div class="h2">What each holding contributed</div>';
       html += '<table class="mx"><tr><th class="l">Holding</th><th>Weight</th>'
-            + '<th>Vol</th><th>Risk share</th><th class="l"></th></tr>';
+            + '<th>Vol</th><th>Risk share</th><th>Return share</th>'
+            + '<th>Paid off?</th></tr>';
       for (i = 0; i < hs.length; i++) {
         var share = rk.sigma > 0 ? rk.rc[i] / rk.sigma : 0;
+        var rshare = contribSum !== 0 ? contrib[i] / contribSum : 0;
+        // A holding earns its place when it returns more than its share of risk.
+        var edge = rshare - share;
         html += '<tr><td class="l">' + hs[i].sym + '</td><td>' + pct(w[i]) +
           '</td><td>' + pct(sd[i]) + '</td><td>' + pct(share) +
-          '</td><td class="l" style="width:34%"><span class="bar" style="width:' +
-          Math.max(0, Math.min(100, share * 100)).toFixed(1) + '%"></span></td></tr>';
+          '</td><td>' + pct(rshare) + '</td>' +
+          '<td style="color:' + (edge >= 0 ? "var(--good)" : "var(--bad)") + '">' +
+          (edge >= 0 ? "+" : "") + pct(edge) + '</td></tr>';
       }
       html += '</table>';
-      html += '<div class="note">Risk share sums to 100% and is what each holding '
-           + 'actually contributes to portfolio volatility — not the same as its '
-           + 'weight. A position can be a fifth of the money and a third of the risk.'
-           + '</div>';
+      html += '<div class="note"><b>Risk share</b> is what each holding actually '
+           + 'contributes to portfolio volatility, and it sums to 100% — not the '
+           + 'same as its weight. <b>Return share</b> is its share of the '
+           + "portfolio's gain. The last column is the difference: positive means "
+           + 'the position returned more than the risk it consumed. A holding that '
+           + 'is a fifth of the money, a third of the risk and a tenth of the '
+           + 'return is the one to question.</div>';
 
       html += '<div class="h2">Correlation</div><table class="mx"><tr><th></th>';
       for (i = 0; i < hs.length; i++) html += '<th>' + hs[i].sym + '</th>';
@@ -772,6 +931,40 @@
   // to say anything about what happened *inside* the month — a monthly close
   // series cannot tell you whether a flat month was calm or violent.
 
+
+  // A plain line chart for a bounded series, used by rolling correlation.
+  // Zero is drawn explicitly because the sign is the thing that matters: above
+  // the line the pair moves together, below it they hedge each other.
+  function drawRoll(series) {
+    var svg = el("rollChart");
+    if (!svg) return;
+    var W = svg.clientWidth || 880, H = 200;
+    var padL = 40, padR = 10, padT = 12, padB = 22;
+    var lo = Math.min(-0.2, Math.min.apply(null, series.map(function (p) { return p.c; })));
+    var hi = Math.max(1, Math.max.apply(null, series.map(function (p) { return p.c; })));
+    var x = function (i) { return padL + (i / (series.length - 1)) * (W - padL - padR); };
+    var y = function (v) { return padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB); };
+    var out = [], i;
+    [-0.5, 0, 0.5, 1].forEach(function (g) {
+      if (g < lo || g > hi) return;
+      out.push('<line class="gridline" x1="' + padL + '" y1="' + y(g).toFixed(1) +
+        '" x2="' + (W - padR) + '" y2="' + y(g).toFixed(1) +
+        '" ' + (g === 0 ? 'stroke="var(--muted)"' : '') + '/>');
+      out.push('<text class="axis" x="' + (padL - 7) + '" y="' + (y(g) + 4).toFixed(1) +
+        '" text-anchor="end">' + g.toFixed(1) + '</text>');
+    });
+    var d = "";
+    for (i = 0; i < series.length; i++) {
+      d += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(series[i].c).toFixed(1) + " ";
+    }
+    out.push('<path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2"/>');
+    out.push('<text class="axis" x="' + padL + '" y="' + (H - 5) + '">' +
+      series[0].t.slice(0, 10) + '</text>');
+    out.push('<text class="axis" x="' + (W - padR) + '" y="' + (H - 5) +
+      '" text-anchor="end">' + series[series.length - 1].t.slice(0, 10) + '</text>');
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.innerHTML = out.join("");
+  }
 
   // ======================= COMPARE =========================================
   function compare() {
@@ -827,8 +1020,43 @@
         + ' means a 1% move in ' + b + ' has historically come with a '
         + beta.toFixed(2) + '% move in ' + a + '. All measured on the '
         + al.dates.length + ' dates both traded.</div>';
+      // ROLLING CORRELATION — the point of this tab.
+      //
+      // A single correlation is quietly misleading: correlations are not
+      // stable, and they run toward 1 during drawdowns, which is exactly when
+      // diversification was supposed to help. Two assets that look unrelated
+      // on average can be the same bet in a crisis, and only the rolling line
+      // shows it. Costs nothing extra — the aligned series is already here.
+      var win = Math.max(20, Math.min(60, Math.floor(R[0].length / 6)));
+      var roll = [];
+      for (var k2 = win; k2 <= R[0].length; k2++) {
+        var xa = R[0].slice(k2 - win, k2), xb = R[1].slice(k2 - win, k2);
+        var mA = xa.reduce(function (u, v) { return u + v; }, 0) / win;
+        var mB = xb.reduce(function (u, v) { return u + v; }, 0) / win;
+        var cv = 0, va2 = 0, vb2 = 0;
+        for (var t2 = 0; t2 < win; t2++) {
+          cv += (xa[t2] - mA) * (xb[t2] - mB);
+          va2 += (xa[t2] - mA) * (xa[t2] - mA);
+          vb2 += (xb[t2] - mB) * (xb[t2] - mB);
+        }
+        roll.push({ t: al.dates[k2], c: (va2 > 0 && vb2 > 0)
+          ? cv / Math.sqrt(va2 * vb2) : 0 });
+      }
+      if (roll.length > 5) {
+        var lo2 = Math.min.apply(null, roll.map(function (r3) { return r3.c; }));
+        var hi2 = Math.max.apply(null, roll.map(function (r3) { return r3.c; }));
+        h += '<div class="h2">Rolling correlation (' + win + '-period window)</div>'
+          + '<svg id="rollChart" style="width:100%;height:200px;display:block"></svg>'
+          + '<div class="note">Range over this period: <b>' + lo2.toFixed(2)
+          + '</b> to <b>' + hi2.toFixed(2) + '</b>, against an average of <b>'
+          + corr.toFixed(2) + '</b>. A pair can look unrelated on average and '
+          + 'still move together when it matters — correlations tend toward 1 in '
+          + 'drawdowns, which is precisely when diversification is supposed to '
+          + 'be working.</div>';
+      }
       el("cOut").innerHTML = h;
       el("cOut").hidden = false; el("cMsg").hidden = true;
+      if (roll.length > 5) drawRoll(roll);
     }).catch(function (e) { cSay(String(e.message || e), true); });
   }
 
@@ -907,6 +1135,14 @@
     el("chooseBtn").textContent = "Choose month ▾";
   }
 
+  el("benchBtn").addEventListener("click", function () {
+    state.bench = !state.bench;
+    el("benchBtn").classList.toggle("on", state.bench);
+    el("benchBtn").setAttribute("aria-pressed", state.bench ? "true" : "false");
+    if (state.symbol) { delete cache[state.symbol + "|" + (state.month
+      ? "M" + state.month : state.range)]; load(); }
+  });
+
   el("chooseBtn").addEventListener("click", function () {
     openPicker(el("picker").hidden);
   });
@@ -927,8 +1163,15 @@
       if (state.symbol || el("ticker").value.trim()) load();
     });
   });
+  // Actually redraw. Debounced, because a drag fires this continuously.
+  var rzT = null;
   window.addEventListener("resize", function () {
-    if (!el("result").hidden && state.symbol) { /* redraw at new width */ }
+    if (rzT) clearTimeout(rzT);
+    rzT = setTimeout(function () {
+      if (lastDraw && !el("result").hidden) {
+        draw(lastDraw.points, lastDraw.up, lastDraw.bench);
+      }
+    }, 150);
   });
   load();
 })();
