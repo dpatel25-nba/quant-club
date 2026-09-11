@@ -89,14 +89,14 @@
   .mview.on { display: block; }
 
   /* --- hero: open, no container, room to breathe --- */
-  .hero { padding: 104px 0 72px; }
+  .hero { padding: 72px 0 52px; }
   .hero .kicker { font-size: 12px; font-weight: 700; letter-spacing: .18em;
                   text-transform: uppercase; color: var(--accent); margin-bottom: 22px; }
-  .hero h1 { font-size: clamp(38px, 6.6vw, 68px); line-height: 1.04;
-             letter-spacing: -.035em; font-weight: 700; margin: 0 0 24px;
-             max-width: 16ch; }
-  .hero .lede { font-size: clamp(18px, 2.1vw, 21px); color: var(--muted);
-                max-width: 54ch; margin: 0 0 36px; line-height: 1.6; }
+  .hero h1 { font-size: clamp(28px, 3.8vw, 42px); line-height: 1.15;
+             letter-spacing: -.02em; font-weight: 700; margin: 0 0 18px;
+             max-width: 22ch; }
+  .hero .lede { font-size: 18px; color: var(--muted);
+                max-width: 62ch; margin: 0 0 32px; line-height: 1.65; }
   .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
   .cta { padding: 15px 28px; border-radius: 8px; font: inherit; font-size: 16px;
          font-weight: 600; cursor: pointer; border: 1px solid var(--accent);
@@ -117,16 +117,16 @@
   /* --- stat strip: numbers on open ground, no boxes --- */
   .strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
            gap: 40px 28px; padding: 56px 0; border-top: 1px solid var(--border); }
-  .strip .n { font-size: 40px; font-weight: 700; letter-spacing: -.035em;
-              line-height: 1; }
+  .strip .n { font-size: 26px; font-weight: 700; letter-spacing: -.02em;
+              line-height: 1.2; }
   .strip .l { font-size: 14.5px; color: var(--muted); margin-top: 10px;
               line-height: 1.5; max-width: 26ch; }
 
   /* --- sections: whitespace does the separating, not rules --- */
-  .band { padding: 84px 0 0; }
-  .band + .band { padding-top: 84px; }
-  .band h2 { font-size: clamp(26px, 3.4vw, 38px); letter-spacing: -.03em;
-             font-weight: 700; margin: 0 0 20px; max-width: 20ch; }
+  .band { padding: 64px 0 0; }
+  .band + .band { padding-top: 64px; }
+  .band h2 { font-size: clamp(22px, 2.6vw, 28px); letter-spacing: -.02em;
+             font-weight: 700; margin: 0 0 16px; max-width: 24ch; }
   .band p { max-width: 62ch; margin: 0 0 18px; font-size: 17.5px; line-height: 1.7;
             color: var(--muted); }
   .band p b { color: var(--text); font-weight: 600; }
@@ -146,10 +146,10 @@
             max-width: none; }
 
   /* --- closing call to action --- */
-  .closer { padding: 96px 0 24px; border-top: 1px solid var(--border);
+  .closer { padding: 72px 0 24px; border-top: 1px solid var(--border);
             margin-top: 84px; }
-  .closer h2 { font-size: clamp(28px, 4vw, 44px); letter-spacing: -.03em;
-               font-weight: 700; margin: 0 0 18px; max-width: 18ch; }
+  .closer h2 { font-size: clamp(22px, 2.8vw, 30px); letter-spacing: -.02em;
+               font-weight: 700; margin: 0 0 16px; max-width: 24ch; }
   .closer p { font-size: 18px; color: var(--muted); max-width: 54ch;
               margin: 0 0 32px; line-height: 1.65; }
 
@@ -308,36 +308,33 @@
   <section class="mview on" id="m-overview">
     <div class="hero">
       <div class="kicker">Emory University &middot; Goizueta Business School</div>
-      <h1>Portfolios are built, not picked.</h1>
-      <p class="lede">Most investment clubs teach you to choose a stock. We teach
-        you what happens when you hold it alongside eleven others — how capital is
-        allocated, how risk is measured, and how a portfolio is defended.</p>
+      <h1>Goizueta Portfolio Management Club</h1>
+      <p class="lede">A student organization focused on how investment portfolios
+        are built, analyzed, and managed — asset allocation, diversification,
+        risk management, and performance evaluation across asset classes.</p>
       <div class="cta-row">
-        <button class="cta" data-m="apply">Apply to join</button>
-        <button class="cta alt" data-m="tools">Explore the research tools</button>
+        <button class="cta" data-m="apply">Apply</button>
+        <button class="cta alt" data-m="membership">Learn more</button>
       </div>
     </div>
 
-    <div class="shot">Photograph — members at a meeting.<br>Replace with a
-      wide group shot (about 2100&times;900).</div>
-    <div class="shot-cap">Add a real photograph here: it is the single biggest
-      difference between this page and an established club's.</div>
+    <div class="shot">Club photo</div>
 
     <div class="strip">
-      <div><div class="n">Four</div><div class="l">units: Systematic, Fundamental,
-        Asset Allocation &amp; Risk, Investor Relations</div></div>
-      <div><div class="n">No dues</div><div class="l">open to all full-time Emory
+      <div><div class="n">Four teams</div><div class="l">Systematic, Fundamental,
+        Asset Allocation &amp; Risk, and Investor Relations</div></div>
+      <div><div class="n">No dues</div><div class="l">Open to all full-time Emory
         students</div></div>
-      <div><div class="n">Blind</div><div class="l">applications read without
-        names attached</div></div>
-      <div><div class="n">Multi-asset</div><div class="l">equities, fixed income,
-        currencies and digital assets</div></div>
+      <div><div class="n">Blind review</div><div class="l">Applications are read
+        without names attached</div></div>
+      <div><div class="n">Multi-asset</div><div class="l">Equities, fixed income,
+        currencies, and digital assets</div></div>
     </div>
 
     <div class="band">
       <div class="two">
         <div>
-          <h2>Who we are</h2>
+          <h2>About the Club</h2>
           <p>The Goizueta Portfolio Management Club gives students hands-on
             exposure to how investment portfolios are built, analyzed and
             managed — asset allocation, diversification, risk management,
@@ -345,12 +342,12 @@
             asset classes.</p>
         </div>
         <div>
-          <h2>How we are different</h2>
-          <p>We focus on how investments are <b>combined and managed as a
-            complete portfolio</b>, rather than on individual security selection
-            or a single asset class. That portfolio-level perspective
-            complements the organizations built around stock research,
-            quantitative strategies, venture capital and alternatives.</p>
+          <h2>Our Focus</h2>
+          <p>We focus on how investments are combined and managed as a
+            complete portfolio, rather than on individual security selection or
+            a single asset class. This portfolio-level perspective complements
+            other campus organizations focused on stock research, quantitative
+            strategies, venture capital, and alternative investments.</p>
         </div>
       </div>
     </div>
@@ -358,29 +355,29 @@
     <div class="band">
       <div class="two">
         <div>
-          <div class="shot tall">Photograph — a member presenting.</div>
+          <div class="shot tall">Club photo</div>
         </div>
         <div>
-          <h2 style="margin-top:0">What members do</h2>
+          <h2 style="margin-top:0">What We Do</h2>
       <p>Members work through portfolio-management concepts and apply them to
         portfolios built around different investor goals and risk profiles. You
         will learn to calculate expected return, volatility, correlation,
         portfolio risk and Sharpe ratios; evaluate allocation decisions; and
         understand how investments interact inside a portfolio.</p>
-          <p>Members may also take part in portfolio competitions, case
-            studies, market discussions, and presentations where they defend
-            their strategy and construction decisions in front of the room.</p>
+          <p>Members may also participate in portfolio competitions, case
+            studies, market discussions, and presentations where they present
+            and defend their investment strategy and construction decisions.</p>
         </div>
       </div>
     </div>
 
     <div class="band">
-      <h2>Four units</h2>
-      <p>Every member joins one. You may express interest in more than one when
-        you apply.</p>
+      <h2>Our Teams</h2>
+      <p>The club is organized into four teams. Members join one, and may
+        express interest in more than one when applying.</p>
       <div class="cards">
         <div class="card">
-          <div class="num">Unit 01</div>
+          <div class="num">Team</div>
           <h3>Systematic Portfolio Management</h3>
           <p>Quantitative models, data and rules-based approaches — how
             systematic strategies are built, tested and applied within a
@@ -388,21 +385,21 @@
             unit.</p>
         </div>
         <div class="card">
-          <div class="num">Unit 02</div>
+          <div class="num">Team</div>
           <h3>Fundamental Portfolio Management</h3>
           <p>Fundamental analysis across companies, sectors and asset classes,
             comparing opportunities to decide where capital is best
             allocated.</p>
         </div>
         <div class="card">
-          <div class="num">Unit 03</div>
+          <div class="num">Team</div>
           <h3>Asset Allocation and Risk</h3>
           <p>How capital is distributed across asset classes and how portfolio
             risk is measured and managed — diversification, volatility,
             correlation and concentration.</p>
         </div>
         <div class="card">
-          <div class="num">Unit 04</div>
+          <div class="num">Team</div>
           <h3>Investor Relations</h3>
           <p>Outreach to alumni, industry professionals, faculty and sponsors;
             coordinating speakers, partnerships and external opportunities for
@@ -412,12 +409,11 @@
     </div>
 
     <div class="closer">
-      <h2>Applications are read blind</h2>
-      <p>Your name never appears. What you are judged on is how you reason about
-        allocating capital and defending a decision — not who you know or what
-        you have done before.</p>
-      <div class="cta-row" style="justify-content:center;margin-top:22px">
-        <button class="cta" data-m="apply">Start an application</button>
+      <h2>Join the Club</h2>
+      <p>Membership is open to all full-time Emory students, with no dues and no
+        prior experience required. Applications are reviewed blind.</p>
+      <div class="cta-row" style="margin-top:22px">
+        <button class="cta" data-m="apply">View application details</button>
       </div>
     </div>
   </section>
@@ -425,12 +421,12 @@
   <section class="mview" id="m-membership">
     <div class="hero" style="padding:48px 0 34px">
       <div class="kicker">Membership</div>
-      <h1 style="font-size:clamp(26px,4vw,38px)">What you get out of it</h1>
-      <p class="lede" style="margin-bottom:0">Open to every full-time Emory
-        student, with no dues and no prior experience assumed.</p>
+      <h1>Membership</h1>
+      <p class="lede" style="margin-bottom:0">Open to all full-time Emory
+        students. There are no dues, and no prior experience is required.</p>
     </div>
     <div class="prose">
-      <h2 style="margin-top:0">What members get</h2>
+      <h2 style="margin-top:0">Member Benefits</h2>
       <ul>
         <li><b>Skill development</b> — hands-on experience building and
           evaluating portfolios through quantitative and fundamental asset
@@ -452,13 +448,13 @@
           portfolio management together regardless of prior experience.</li>
       </ul>
 
-      <h2>Who can join</h2>
+      <h2>Eligibility</h2>
       <p>Membership is open to full-time, enrolled students of Emory University.
         <b>There are no dues.</b> Members are selected by the Executive Board
         through a process set at the beginning of each semester, and the process
         may vary between units.</p>
 
-      <h2>Non-discrimination</h2>
+      <h2>Non-Discrimination Policy</h2>
       <p>The club, as a representative of Emory University, is dedicated to
         providing equal opportunities and equal access to all individuals
         regardless of race, color, religion, ethnic or national origin, gender,
@@ -470,11 +466,11 @@
         request.</p>
     </div>
     <div class="closer">
-      <h2>No dues, no prerequisites</h2>
+      <h2>How to Join</h2>
       <p>Members are selected by the Executive Board through a process set at the
-        start of each semester. The process varies by unit.</p>
-      <div class="cta-row" style="justify-content:center;margin-top:22px">
-        <button class="cta" data-m="apply">Apply now</button>
+        beginning of each semester. The process may vary between teams.</p>
+      <div class="cta-row" style="margin-top:22px">
+        <button class="cta" data-m="apply">View application details</button>
       </div>
     </div>
   </section>
@@ -482,19 +478,20 @@
   <section class="mview" id="m-apply">
     <div class="hero" style="padding:48px 0 34px">
       <div class="kicker">Apply</div>
-      <h1 style="font-size:clamp(26px,4vw,38px)">Your name never appears.</h1>
-      <p class="lede" style="margin-bottom:0">Applications are read blind, so what
-        you are judged on is how you reason — not who you know.</p>
+      <h1>Apply to Join</h1>
+      <p class="lede" style="margin-bottom:0">Applications are reviewed blind.
+        Applicants are evaluated on their reasoning and interest, not on prior
+        experience or connections.</p>
     </div>
     <div class="prose">
-      <h2 style="margin-top:0">How it works</h2>
-      <p>Applications are read blind. You will be asked for your year, Emory
-        NetID, phone number and major — <b>but not your name</b>. Any use of
-        your name on the application results in automatic rejection.</p>
+      <h2 style="margin-top:0">Application Process</h2>
+      <p>Applications are reviewed blind. You will be asked for your year, Emory
+        NetID, phone number, and major, but not your name. Any use of your name
+        on the application results in automatic rejection.</p>
 
-      <h2>What you will be asked</h2>
+      <h2>Application Questions</h2>
       <ul>
-        <li>Which unit interests you most — Systematic, Fundamental, Asset
+        <li>Which team interests you most — Systematic, Fundamental, Asset
           Allocation and Risk, or Investor Relations. You may select more than
           one.</li>
         <li>Why you are interested in joining the club. <span class="mono">250
@@ -506,10 +503,9 @@
       </ul>
 
       <h2>Interviews</h2>
-      <p>Selected applicants interview with the unit they applied to. Questions
-        vary by year and are set by the head of each unit, but expect to be
-        asked about your reasoning rather than your credentials — how you would
-        approach a problem, and how you would defend a decision.</p>
+      <p>Selected applicants interview with the team they applied to. Questions
+        vary by year and are set by the head of each team. Interviews focus on
+        how applicants approach a problem and support a decision.</p>
       <p class="note">Application form and deadlines to be announced.</p>
     </div>
   </section>
