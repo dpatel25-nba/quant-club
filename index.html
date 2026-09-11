@@ -171,6 +171,22 @@
   .hero.sub .lede { margin-bottom: 0; }
   .closer .cta-row { margin-top: 24px; }
 
+  /* --- Membership is centred. Anything with a max-width needs auto margins
+     as well as text-align, or it stays hard against the left edge with its
+     text merely centred inside it. The benefits list drops its bullets: a
+     centred list with hanging markers reads as ragged on both sides. --- */
+  #m-membership { text-align: center; }
+  #m-membership .hero h1,
+  #m-membership .hero .lede,
+  #m-membership .prose,
+  #m-membership .prose p,
+  #m-membership .prose li,
+  #m-membership .closer h2,
+  #m-membership .closer p { margin-left: auto; margin-right: auto; }
+  #m-membership .prose ul { list-style: none; padding-left: 0; }
+  #m-membership .prose li { max-width: 60ch; }
+  #m-membership .cta-row { justify-content: center; }
+
   .prose { max-width: 68ch; }
   .prose h2 { font-size: clamp(24px, 3vw, 32px); margin: 72px 0 18px;
               font-weight: 700; letter-spacing: -.025em; }
