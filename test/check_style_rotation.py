@@ -24,9 +24,9 @@ def main():
     api = (ROOT/'api/style-rotation.js').read_text()
     payload = api.split('const SNAPSHOT = ', 1)[1].rstrip().removesuffix(';')
     snapshot = json.loads(payload)
-    assert len(snapshot['tables']) == 23 and len(snapshot['reports']) == 13
+    assert len(snapshot['tables']) == 26 and len(snapshot['reports']) == 14
     assert len(payload.encode()) < 4_000_000
-    assert len(snapshot['provenance']) == 23
+    assert len(snapshot['provenance']) == 26
     html = (ROOT/'index.html').read_text()
     ids = re.findall(r'\bid="([^"]+)"', re.sub(r'<script>.*?</script>', '', html, flags=re.S))
     assert len(ids) == len(set(ids)), 'duplicate HTML IDs'
@@ -58,6 +58,7 @@ document.getElementById('sr-panel').value='raw'; document.getElementById('sr-del
 document.getElementById('sr-period').value='post_2000'; document.getElementById('sr-cost').value='10';
 document.getElementById('sr-out-panel').value='raw'; document.getElementById('sr-out-delay').value='1';
 document.getElementById('sr-horizon').value='1'; document.getElementById('sr-corr-window').value='36';
+document.getElementById('sr-rank-order').value='dma';
 '''
     # Capture chart inputs while executing the real SVG builder and readouts.
     frontend = frontend.replace('function chart(id, dates, series, unit) {', 'function chart(id, dates, series, unit) { chartCalls.push({id:id,dates:dates,series:series,unit:unit});')
@@ -97,6 +98,16 @@ var outlookCases=0;
  assert((heatmap.match(/<td /g)||[]).length===225,'correlation cell count');
  assert(heatmap.indexOf(lookback+' complete monthly returns')>=0,'correlation window');
  assert(document.getElementById('sr-dma-note').textContent.indexOf('not a confidence interval')>=0,'uncertainty label');
+ ['cross_sectional','dma','trm','ecm'].forEach(function(model){
+   document.getElementById('sr-rank-order').value=model;document.getElementById('sr-rank-order').events.change();
+   var ordered=window.check.rows('outlook_latest').filter(function(r){return r.panel===panel&&r.delay===delay&&r.horizon===horizon&&r.model===model;});
+   ordered.sort(function(a,b){return a.rank-b.rank||a.style.localeCompare(b.style);});
+   var markup=document.getElementById('sr-ranking').innerHTML;
+   assert(ordered.length===15,'missing model rankings');
+   assert(markup.indexOf(ordered[0].style+' ·')<markup.indexOf(ordered[14].style+' ·'),'selected model ordering');
+   ['CSM rank','DMA rank','TRM rank','ECM rank'].forEach(function(label){assert(markup.indexOf(label)>=0,'missing comparison column');});
+ });
+ document.getElementById('sr-rank-order').value='dma';
  outlookCases++;
 });});});});
 assert(outlookCases===54,'outlook coverage'); assert(calls.length===1,'outlooks refetched snapshot');
@@ -108,7 +119,7 @@ window.check.reset();fetchMode='network';window.StyleRotation.open('test-passwor
 fetchMode='auth';window.StyleRotation.open('test-password');assert(document.getElementById('sr-status').textContent.indexOf('verified')>=0,'auth error missing');
 fetchMode='ok';document.getElementById('sr-retry').events.click();assert(!document.getElementById('sr-content').hidden,'retry failed');
 print('PASS: 216 scenarios, SVG/chart P&L reconciliation, auth headers, caching, downloads and retry');
-print('PASS: 54 outlook/correlation scenarios, rank ordering, dates, DMA labels and heatmap cells');
+print('PASS: 54 outlook/correlation scenarios × four ranking models, dates, DMA labels and heatmap cells');
 '''
     run(stub+setup+frontend+probes)
     # Execute the server handler with deterministic crypto and response adapters.

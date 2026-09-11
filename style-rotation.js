@@ -103,19 +103,26 @@
   function renderOutlook() {
     var panel=el('sr-out-panel').value, delay=Number(el('sr-out-delay').value), horizon=Number(el('sr-horizon').value);
     var selected=rows('outlook_latest').filter(function(r){return r.panel===panel&&r.delay===delay&&r.horizon===horizon;});
-    var dma=selected.filter(function(r){return r.model==='dma';}).sort(function(a,b){return a.rank-b.rank||a.style.localeCompare(b.style);});
-    var cross={}; selected.filter(function(r){return r.model==='cross_sectional';}).forEach(function(r){cross[r.style]=r;});
-    var meta=dma[0];
-    el('sr-out-date').textContent='Forecast as of '+meta.formation_date.slice(0,10)+' · style inputs through '+meta.source_end.slice(0,10)+' · outlook '+meta.target_start.slice(0,10)+' to '+meta.target_end.slice(0,10)+'. Latest training outcome: '+meta.training_target_end.slice(0,10)+'.';
+    var modelLabels={cross_sectional:'CSM',dma:'DMA',trm:'TRM',ecm:'ECM'};
+    var order=el('sr-rank-order').value;
+    var byModel={};
+    selected.forEach(function(r){if(!byModel[r.model])byModel[r.model]={};byModel[r.model][r.style]=r;});
+    var ranked=selected.filter(function(r){return r.model===order;}).sort(function(a,b){return a.rank-b.rank||a.style.localeCompare(b.style);});
+    var meta=ranked[0];
+    el('sr-out-date').textContent='Forecast as of '+meta.formation_date.slice(0,10)+' · style inputs through '+meta.source_end.slice(0,10)+' · outlook '+meta.target_start.slice(0,10)+' to '+meta.target_end.slice(0,10)+'. Latest training outcome: '+meta.training_target_end.slice(0,10)+'. ECM macro state: '+meta.formation_date.slice(0,10)+'.';
     var delta=function(v){return v==null?'—':(v>0?'+':'')+num(v,Number.isInteger(v)?0:1);};
-    el('sr-ranking').innerHTML=table('Rank 1 = strongest relative outlook. Scores are dimensionless; they are not expected percentage returns. Δ is improvement in rank since the preceding forecast month.',
-      ['DMA rank','Factor portfolio','Cross-sectional rank','CS score','CS Δ','DMA score','DMA Δ','Candidate rank range'],dma.map(function(r){var c=cross[r.style];return [num(r.rank,Number.isInteger(r.rank)?0:1),r.style+' · '+styleNames[r.style],num(c.rank,Number.isInteger(c.rank)?0:1),num(c.score,3),delta(c.rank_change),num(r.score,3),delta(r.rank_change),num(r.candidate_rank_min,1)+'–'+num(r.candidate_rank_max,1)];}));
+    el('sr-ranking').innerHTML=table('Ordered by '+modelLabels[order]+'. Rank 1 = strongest relative outlook. Score and Δ refer to '+modelLabels[order]+'. Scores are not percentage returns; Δ is rank improvement since the preceding forecast month.',
+      ['Factor portfolio','CSM rank','DMA rank','TRM rank','ECM rank',modelLabels[order]+' score',modelLabels[order]+' Δ','DMA candidate rank range'],ranked.map(function(r){
+        var entries=[r.style+' · '+styleNames[r.style]];
+        ['cross_sectional','dma','trm','ecm'].forEach(function(m){var value=byModel[m][r.style].rank;entries.push(num(value,Number.isInteger(value)?0:1));});
+        var d=byModel.dma[r.style];return entries.concat([num(r.score,3),delta(r.rank_change),num(d.candidate_rank_min,1)+'–'+num(d.candidate_rank_max,1)]);
+      }));
     var weights=rows('outlook_weights').filter(function(r){return r.panel===panel&&r.delay===delay&&r.horizon===horizon;});
     var candidateNames={trend:'Trend model',risk_shape:'Risk & shape model',all:'All signals',all_strong:'All signals · stronger shrinkage'};
     el('sr-dma-weights').innerHTML=weights.map(function(r){return '<div class="sr-model"><span>'+esc(candidateNames[r.candidate])+'</span><strong>'+pct(r.weight)+'</strong><div class="sr-bar"><span style="width:'+num(100*r.weight,3)+'%"></span></div></div>';}).join('');
     el('sr-dma-note').textContent='DMA updates from completed, published outcomes only. Latest feedback ends '+weights[0].feedback_target_end.slice(0,10)+'. Candidate rank range shows model disagreement, not a confidence interval. This first specification has not established an investable edge.';
     var validation=rows('outlook_validation').filter(function(r){return r.panel===panel&&r.delay===delay&&r.horizon===horizon&&r.period==='post_2000';});
-    el('sr-out-validation').innerHTML=table('Retrospective validation from 2000 onward · '+horizon+'-month outcomes overlap when the horizon exceeds one month. No significance claim.', ['Model','Mean realized Rank IC × 100','Forecasts','First target','Last target'],validation.map(function(r){return [r.model==='dma'?'DMA':'Cross-sectional',num(r.rank_ic),r.n,r.target_start.slice(0,10),r.target_end.slice(0,10)];}));
+    el('sr-out-validation').innerHTML=table('Retrospective validation from 2000 onward · '+horizon+'-month outcomes overlap when the horizon exceeds one month. No significance claim.', ['Model','Mean realized Rank IC × 100','Forecasts','First target','Last target'],validation.map(function(r){return [modelLabels[r.model],num(r.rank_ic),r.n,r.target_start.slice(0,10),r.target_end.slice(0,10)];}));
     var window=Number(el('sr-corr-window').value);
     var corr=rows('outlook_correlations').filter(function(r){return r.panel===panel&&r.delay===delay&&r.window===window;});
     var styles=Object.keys(styleNames).sort(), lookup={};
@@ -141,7 +148,7 @@
     }).catch(function (e) { loading = false; data = null; el('sr-content').hidden = true; el('sr-status').textContent = e.message; el('sr-retry').hidden = false; });
   }
   ['sr-panel','sr-delay','sr-period','sr-cost'].forEach(function (id) { el(id).addEventListener('change', render); });
-  ['sr-out-panel','sr-out-delay','sr-horizon','sr-corr-window'].forEach(function(id){el(id).addEventListener('change',function(){if(data)renderOutlook();});});
+  ['sr-out-panel','sr-out-delay','sr-horizon','sr-corr-window','sr-rank-order'].forEach(function(id){el(id).addEventListener('change',function(){if(data)renderOutlook();});});
   el('sr-out-csv').addEventListener('click',function(){if(!data)return;var t=data.tables.outlook_latest;var subset=rows('outlook_latest').filter(function(r){return r.panel===el('sr-out-panel').value&&r.delay===Number(el('sr-out-delay').value)&&r.horizon===Number(el('sr-horizon').value);});download('factor-outlook-'+el('sr-horizon').value+'m.csv',csv({columns:t.columns,rows:subset.map(function(r){return t.columns.map(function(c){return r[c];});})}),'text/csv');});
   el('sr-retry').addEventListener('click', function () { open(password); });
   el('sr-csv').addEventListener('click', function () { if (data) { var name = el('sr-table-choice').value; download(name+'.csv', csv(data.tables[name]), 'text/csv'); } });
