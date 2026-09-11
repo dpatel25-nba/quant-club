@@ -172,22 +172,6 @@
   .hero.sub .lede { margin-bottom: 0; }
   .closer .cta-row { margin-top: 24px; }
 
-  /* --- Membership is centred. Anything with a max-width needs auto margins
-     as well as text-align, or it stays hard against the left edge with its
-     text merely centred inside it. The benefits list drops its bullets: a
-     centred list with hanging markers reads as ragged on both sides. --- */
-  #m-membership { text-align: center; }
-  #m-membership .hero h1,
-  #m-membership .hero .lede,
-  #m-membership .prose,
-  #m-membership .prose p,
-  #m-membership .prose li,
-  #m-membership .closer h2,
-  #m-membership .closer p { margin-left: auto; margin-right: auto; }
-  #m-membership .prose ul { list-style: none; padding-left: 0; }
-  #m-membership .prose li { max-width: 60ch; }
-  #m-membership .cta-row { justify-content: center; }
-
   .prose { max-width: 68ch; }
   .prose h2 { font-size: clamp(24px, 3vw, 32px); margin: 72px 0 18px;
               font-weight: 700; letter-spacing: -.025em; }
@@ -319,6 +303,7 @@
              font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
   .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; }
 </style>
+<link rel="stylesheet" href="/membership.css">
 </head>
 <body>
 <div class="topbar">
@@ -453,61 +438,116 @@
     </div>
   </section>
 
-  <section class="mview" id="m-membership">
-    <div class="hero sub">
-      <div class="kicker">Membership</div>
-      <h1>Membership</h1>
-      <p class="lede">Open to all full-time Emory
-        students. There are no dues, and no prior experience is required.</p>
+  <section class="mview" id="m-membership" aria-labelledby="membership-title">
+    <div class="membership-masthead">
+      <span>Goizueta Portfolio Management Club</span>
+      <span>Membership / Emory University</span>
     </div>
-    <div class="prose">
-      <h2>Member Benefits</h2>
-      <ul>
-        <li><b>Skill development</b> — hands-on experience building and
-          evaluating portfolios through quantitative and fundamental asset
-          allocation, risk analysis, performance measurement and investment
-          research.</li>
-        <li><b>Publication and recognition</b> — opportunities to present
-          portfolio strategies, market outlooks and performance reports to the
-          club and potentially the broader Goizueta community.</li>
-        <li><b>Leadership</b> — roles such as Portfolio Team Lead, Project
-          Manager, or Executive Board, with real experience leading teams and
-          making investment decisions.</li>
-        <li><b>Networking</b> — connections with students interested in asset
-          and wealth management, along with faculty and industry
-          professionals.</li>
-        <li><b>Portfolio building</b> — tangible work such as investment policy
-          statements, asset allocation models, portfolio reports and performance
-          analyses, to discuss in interviews and put on a resume.</li>
-        <li><b>Community</b> — a collaborative environment where students learn
-          portfolio management together regardless of prior experience.</li>
-      </ul>
 
-      <h2>Eligibility</h2>
-      <p>Membership is open to full-time, enrolled students of Emory University.
-        <b>There are no dues.</b> Members are selected by the Executive Board
-        through a process set at the beginning of each semester, and the process
-        may vary between units.</p>
-
-      <h2>Non-Discrimination Policy</h2>
-      <p>The club, as a representative of Emory University, is dedicated to
-        providing equal opportunities and equal access to all individuals
-        regardless of race, color, religion, ethnic or national origin, gender,
-        genetic information, age, disability, sexual orientation, gender
-        identity, gender expression, and veteran&rsquo;s status. The club does
-        not condone or participate in hazing of any kind.</p>
-      <p class="note">The full constitution, including officer duties, elections
-        and amendment procedures, is maintained separately and available on
-        request.</p>
-    </div>
-    <div class="closer">
-      <h2>How to Join</h2>
-      <p>Members are selected by the Executive Board through a process set at the
-        beginning of each semester. The process may vary between teams.</p>
-      <div class="cta-row">
-        <button class="cta" data-m="apply">View application details</button>
+    <div class="membership-hero">
+      <div class="membership-intro">
+        <p class="membership-eyebrow">A place to put your curiosity to work</p>
+        <h1 id="membership-title">Good questions.<br><em>Better portfolios.</em></h1>
+        <p class="membership-lede">Learn how investment decisions fit together.
+          Build, question and defend a portfolio alongside students who want
+          to understand the whole picture.</p>
+        <div class="membership-actions">
+          <button class="membership-button" data-m="apply">Explore the application <span aria-hidden="true">↗</span></button>
+          <a class="membership-text-link" href="#membership-teams">Find your team <span aria-hidden="true">↓</span></a>
+        </div>
+        <p class="membership-hero-note">All majors welcome. No prior experience required.</p>
       </div>
+
+      <figure class="membership-folio" aria-label="Illustrated portfolio research notebook: An idea is only the beginning. Research, discuss, refine.">
+        <div class="membership-folio-tab" aria-hidden="true">GPMC / Working notes</div>
+        <div class="membership-folio-paper" aria-hidden="true">
+          <div class="membership-folio-top"><span>Portfolio<br>Management</span><span>Emory<br>University</span></div>
+          <div class="membership-folio-title">An idea is<br>only the<br><em>beginning.</em></div>
+          <div class="membership-folio-drawing">
+            <svg viewBox="0 0 320 136" fill="none" role="presentation">
+              <path d="M28 108H292M28 108V20" stroke="currentColor" opacity=".35"/>
+              <path d="M28 108L104 70L178 86L250 30L292 42" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M28 108L104 70L178 86L250 30L292 42V108H28Z" fill="currentColor" opacity=".05"/>
+              <circle cx="104" cy="70" r="4" fill="currentColor"/><circle cx="178" cy="86" r="4" fill="currentColor"/>
+              <circle cx="250" cy="30" r="4" fill="currentColor"/>
+              <path d="M104 70V108M178 86V108M250 30V108" stroke="currentColor" stroke-dasharray="2 4" opacity=".35"/>
+            </svg>
+          </div>
+          <div class="membership-folio-bottom"><span>Research. Discuss. Refine.</span><span>01—04</span></div>
+        </div>
+        <figcaption>From an investment idea to a considered portfolio.</figcaption>
+      </figure>
     </div>
+
+    <dl class="membership-facts" aria-label="Membership at a glance">
+      <div><dt>Who can join</dt><dd>Full-time Emory students</dd></div>
+      <div><dt>Membership dues</dt><dd>None. Your interest comes first.</dd></div>
+      <div><dt>Where you contribute</dt><dd>Four teams. One portfolio perspective.</dd></div>
+    </dl>
+
+    <section class="membership-section membership-work" aria-labelledby="membership-work-title">
+      <div class="membership-section-heading">
+        <p class="membership-eyebrow">01 / The experience</p>
+        <h2 id="membership-work-title">Make something<br>you can stand behind.</h2>
+        <p>Develop your judgment through the work itself: asking a better question,
+          testing an assumption and explaining why a decision makes sense.</p>
+      </div>
+      <div class="membership-work-list">
+        <article><span class="membership-item-index">01</span><div><h3>Build your understanding.</h3><p>Explore asset allocation, investment research, risk and performance. Connect the concepts through hands-on portfolio work.</p></div></article>
+        <article><span class="membership-item-index">02</span><div><h3>Build a body of work.</h3><p>Develop investment policy statements, allocation models and portfolio reports. Present your reasoning and take away work you can discuss in an interview.</p></div></article>
+        <article><span class="membership-item-index">03</span><div><h3>Build your circle.</h3><p>Learn with students interested in asset and wealth management. Find opportunities to connect with faculty and industry professionals, and grow into team and club leadership.</p></div></article>
+      </div>
+    </section>
+
+    <section class="membership-section membership-teams" id="membership-teams" aria-labelledby="membership-teams-title">
+      <div class="membership-team-heading">
+        <div><p class="membership-eyebrow">02 / Find your place</p><h2 id="membership-teams-title">Four ways to contribute.</h2></div>
+        <p>Choose the questions that interest you.<br>You can express interest in more than one team.</p>
+      </div>
+      <div class="membership-team-list">
+        <details name="membership-team" open>
+          <summary><span class="membership-team-number">01</span><span>Systematic Portfolio Management</span><span class="membership-toggle" aria-hidden="true"></span></summary>
+          <div class="membership-team-content"><p>Turn questions into models. Work with data and rules-based approaches to build, test and evaluate systematic strategies within a portfolio.</p><span class="membership-team-focus">Data · Models · Testing</span></div>
+        </details>
+        <details name="membership-team">
+          <summary><span class="membership-team-number">02</span><span>Fundamental Portfolio Management</span><span class="membership-toggle" aria-hidden="true"></span></summary>
+          <div class="membership-team-content"><p>Understand what drives an investment. Compare companies, sectors and asset classes to build a case for where capital belongs.</p><span class="membership-team-focus">Research · Valuation · Investment cases</span></div>
+        </details>
+        <details name="membership-team">
+          <summary><span class="membership-team-number">03</span><span>Asset Allocation &amp; Risk</span><span class="membership-toggle" aria-hidden="true"></span></summary>
+          <div class="membership-team-content"><p>See how the pieces interact. Explore diversification, correlation and concentration to understand how allocation decisions shape a portfolio’s risk.</p><span class="membership-team-focus">Allocation · Diversification · Risk</span></div>
+        </details>
+        <details name="membership-team">
+          <summary><span class="membership-team-number">04</span><span>Investor Relations</span><span class="membership-toggle" aria-hidden="true"></span></summary>
+          <div class="membership-team-content"><p>Connect the club to a wider conversation. Help develop relationships with alumni, faculty, professionals and sponsors, and coordinate speakers and external opportunities.</p><span class="membership-team-focus">Relationships · Speakers · Outreach</span></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="membership-section membership-joining" aria-labelledby="membership-joining-title">
+      <div class="membership-section-heading">
+        <p class="membership-eyebrow">03 / Becoming a member</p>
+        <h2 id="membership-joining-title">Bring your thinking.<br>Start from there.</h2>
+        <p>We look at your reasoning and interest. You don’t need a finance background
+          or a connection to someone in the club.</p>
+        <button class="membership-button" data-m="apply">View application details <span aria-hidden="true">↗</span></button>
+        <p class="membership-deadline">Application form and deadlines to be announced.</p>
+      </div>
+      <ol class="membership-steps">
+        <li><h3>Choose your interests</h3><p>Read about the four teams and decide where you would like to contribute. More than one is welcome.</p></li>
+        <li><h3>Share your perspective</h3><p>Applications are reviewed blind. Explain your interest in the club and how you think about portfolio management.</p></li>
+        <li><h3>Continue the conversation</h3><p>Selected applicants interview with their team. The Executive Board sets the process each semester; details may vary by team.</p></li>
+      </ol>
+    </section>
+
+    <section class="membership-principles" aria-labelledby="membership-principles-title">
+      <div><p class="membership-eyebrow">A shared commitment</p><h2 id="membership-principles-title">An open door to learning.</h2><p>Membership is open to all full-time, enrolled Emory students, with no dues and no prior experience required. We’re committed to equal opportunity, mutual respect and a community free of hazing.</p></div>
+      <details class="membership-policy"><summary>Read our non-discrimination policy <span aria-hidden="true">+</span></summary>
+        <p>The club, as a representative of Emory University, is dedicated to providing equal opportunities and equal access to all individuals regardless of race, color, religion, ethnic or national origin, gender, genetic information, age, disability, sexual orientation, gender identity, gender expression, and veteran&rsquo;s status. The club does not condone or participate in hazing of any kind.</p>
+        <p>The full constitution, including officer duties, elections and amendment procedures, is maintained separately and available on request.</p>
+      </details>
+    </section>
+    <div class="membership-endnote"><span>Goizueta Portfolio Management Club</span><span>Learn together. Think independently.</span></div>
   </section>
 
   <section class="mview" id="m-apply">
@@ -1896,16 +1936,34 @@
   // apart at the top right, and the calls to action inside the page. Binding on
   // the ATTRIBUTE rather than the class means a new button works by existing,
   // without also having to be registered here.
-  function goto(name) {
+  function goto(name, updateURL) {
+    if (["overview", "membership", "apply", "tools"].indexOf(name) === -1) return;
     Array.prototype.forEach.call(document.querySelectorAll(".mtab"), function (x) {
-      x.classList.toggle("on", x.dataset.m === name); });
+      x.classList.toggle("on", x.dataset.m === name);
+      x.setAttribute("aria-selected", x.dataset.m === name ? "true" : "false"); });
     Array.prototype.forEach.call(document.querySelectorAll(".mview"), function (v) {
       v.classList.toggle("on", v.id === "m-" + name); });
+    if (updateURL !== false && window.location && window.history) {
+      var hash = "#" + name;
+      if (name === "tools" && window.location.hash === "#style-rotation") hash = "#style-rotation";
+      if (window.location.hash !== hash) window.history.pushState(null, "", hash);
+    }
     window.scrollTo(0, 0);
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-m]"), function (b) {
     b.addEventListener("click", function () { goto(b.dataset.m); });
   });
+  function restoreSection() {
+    var hash = window.location ? window.location.hash.slice(1) : "";
+    var name = hash === "style-rotation" ? "tools" : hash === "membership-teams" ? "membership" : hash || "overview";
+    goto(name, false);
+    if (hash === "membership-teams") document.getElementById("membership-teams").scrollIntoView();
+    if (hash === "style-rotation") {
+      Array.prototype.forEach.call(document.querySelectorAll('.tab[data-v="style-rotation"]'), function (tab) { tab.click(); });
+    }
+  }
+  window.addEventListener("hashchange", restoreSection);
+  restoreSection();
 
   Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) {
     b.addEventListener("click", function () {
