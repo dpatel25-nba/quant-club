@@ -59,6 +59,12 @@ async function request(query) {
   var monthly=await request({k:'test-password',symbol:'AAPL',month:'2026-08',quote:'0'});
   assert(monthly.body.month==='2026-08' && monthly.body.interval==='1day','calendar month metadata');
   calls=[];
+  await request({k:'test-password',symbol:'AAPL',exchange:'NASDAQ',range:'1m'});
+  assert(calls.length===2 && calls.every(function(url){return url.indexOf('&exchange=NASDAQ&')>=0;}),'exchange must reach both series and quote');
+  calls=[];
+  var badExchange=await request({k:'test-password',symbol:'AAPL',exchange:'NYSE&apikey=bad'});
+  assert(badExchange.code===400 && calls.length===0,'invalid exchange reached provider');
+  calls=[];
   var invalid=await request({k:'test-password',symbol:'XAU/USD&apikey=bad'});
   assert(invalid.code===400 && calls.length===0,'invalid symbol reached provider');
   print('PASS: symbols, OHLC, interval/month metadata, missing/zero/negative prices, authentication and provider errors');

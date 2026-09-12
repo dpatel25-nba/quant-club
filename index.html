@@ -319,6 +319,7 @@
   .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; }
 </style>
 <link rel="stylesheet" href="/membership.css">
+<link rel="stylesheet" href="/ticker-suggestions.css">
 </head>
 <body>
 <div class="topbar">
@@ -607,10 +608,19 @@
   <section class="view on" id="v-lookup">
   <div class="panel">
     <form class="search" id="form">
-      <input id="ticker" placeholder="AAPL" autocomplete="off"
-             spellcheck="false" aria-label="Ticker or commodity symbol" value="AAPL">
+      <div class="ticker-field">
+        <input id="ticker" placeholder="Ticker or name, e.g. Apple or gold" autocomplete="off"
+               spellcheck="false" aria-label="Ticker, commodity or company name" value="AAPL"
+               role="combobox" aria-autocomplete="list" aria-expanded="false"
+               aria-controls="ticker-matches" aria-describedby="ticker-hint">
+        <div class="ticker-popup" id="ticker-popup" hidden>
+          <ul id="ticker-matches" role="listbox" aria-label="Suggested instruments"></ul>
+          <div class="ticker-search-status" id="ticker-search-status" role="status" aria-live="polite"></div>
+        </div>
+      </div>
       <button class="btn" id="go" type="submit">Look up</button>
     </form>
+    <p class="ticker-hint" id="ticker-hint">Type a symbol or name. Use ↑ ↓ and Enter to choose a suggestion.</p>
     <div class="note" style="margin-top:8px">Stocks, ETFs and indices by symbol
       (<b>AAPL</b>, <b>SPY</b>). Crypto and currencies are pairs
       (<b>BTC/USD</b>, <b>EUR/USD</b>). Fixed income via bond funds
@@ -913,6 +923,7 @@
   </footer>
 </div>
 
+<script src="/ticker-suggestions.js"></script>
 <script>
 (function () {
   "use strict";
@@ -926,7 +937,7 @@
   // symbol+range for the life of the page: clicking 1Y, then 5Y, then back to
   // 1Y costs two credits rather than three. The quote block is cached per
   // SYMBOL, because nothing in it depends on the chart range.
-  var cache = {}, quoteCache = {};
+  var cache = {}, quoteCache = {}, lookupSelection = null;
 
   // ---- formatting ---------------------------------------------------------
   function money(x, cur) {
@@ -1252,6 +1263,8 @@
 
   el("commodity").addEventListener("change", function () {
     if (!el("commodity").value) return;
+    lookupSelection = null;
+    if (window.TickerSuggestions) window.TickerSuggestions.close();
     el("ticker").value = el("commodity").value;
     load();
   });
@@ -1260,28 +1273,30 @@
     var sym = el("ticker").value.trim().toUpperCase();
     el("commodity").value = commodityInfo(sym) ? sym : "";
     if (!sym) { say("Enter a ticker to begin."); return; }
-    var key = sym + "|" + (state.month ? "M" + state.month : state.range);
-
-    if (cache[key]) { state.symbol = sym; show(cache[key]); return; }
+    if (window.TickerSuggestions) window.TickerSuggestions.close();
+    var exchange = lookupSelection && lookupSelection.symbol === sym ? lookupSelection.exchange : "";
+    var instrumentKey = sym + (exchange ? "@" + exchange : "");
+    var key = instrumentKey + "|" + (state.month ? "M" + state.month : state.range);
 
     // A click while a request is in flight is remembered, not dropped — the
     // previous version silently ignored it, so a fast second click did nothing.
     if (state.busy) { state.pending = key; return; }
+    if (cache[key]) { state.symbol = sym; show(cache[key]); return; }
     state.busy = true;
     el("go").disabled = true;
     say("Loading " + sym + "…");
 
-    var needQuote = !quoteCache[sym];
+    var needQuote = !quoteCache[instrumentKey];
     fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + encodeURIComponent(sym) +
-          (state.month ? "&month=" + encodeURIComponent(state.month)
+          (exchange ? "&exchange=" + encodeURIComponent(exchange) : "") + (state.month ? "&month=" + encodeURIComponent(state.month)
                        : "&range=" + encodeURIComponent(state.range)) +
           (needQuote ? "" : "&quote=0") + "&ohlc=1")
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (!res.ok) { say(res.j.error || "Something went wrong.", true); return; }
         var d = res.j;
-        if (d.quote) quoteCache[sym] = d.quote;
-        else if (quoteCache[sym]) d.quote = quoteCache[sym];
+        if (d.quote) quoteCache[instrumentKey] = d.quote;
+        else if (quoteCache[instrumentKey]) d.quote = quoteCache[instrumentKey];
         cache[key] = d;
         state.symbol = sym;
         // A return means little on its own — "up 12%" is good or bad depending
@@ -1309,8 +1324,11 @@
         state.pending = null;
         if (q && q !== key) {                 // honour the click made while busy
           var parts = q.split("|");
-          el("ticker").value = parts[0];
-          state.range = parts[1];
+          var instrument = parts[0].split("@");
+          el("ticker").value = instrument[0];
+          lookupSelection = {symbol: instrument[0], exchange: instrument[1] || ""};
+          state.month = parts[1].charAt(0) === "M" ? parts[1].slice(1) : "";
+          state.range = state.month ? "" : parts[1];
           load();
         }
       });
@@ -2113,7 +2131,7 @@
     state.bench = !state.bench;
     el("benchBtn").classList.toggle("on", state.bench);
     el("benchBtn").setAttribute("aria-pressed", state.bench ? "true" : "false");
-    if (state.symbol) { delete cache[state.symbol + "|" + (state.month
+    if (state.symbol) { delete cache[state.symbol + (lookupSelection && lookupSelection.symbol === state.symbol && lookupSelection.exchange ? "@" + lookupSelection.exchange : "") + "|" + (state.month
       ? "M" + state.month : state.range)]; load(); }
   });
 
@@ -2125,6 +2143,11 @@
     if (pkYear < new Date().getFullYear()) { pkYear++; drawPicker(); }
   });
 
+  if (window.TickerSuggestions) window.TickerSuggestions.attach({
+    getPassword: function () { return pwKey; },
+    onEdit: function () { lookupSelection = null; },
+    onSelect: function (item) { lookupSelection = item; el("ticker").value = item.symbol; load(); }
+  });
   el("form").addEventListener("submit", function (e) { e.preventDefault(); load(); });
   Array.prototype.forEach.call(document.querySelectorAll(".range[data-r]"), function (b) {
     b.addEventListener("click", function () {

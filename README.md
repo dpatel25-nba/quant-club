@@ -134,6 +134,28 @@ right trade for a club, but it is worth knowing what it is.
 
 ## Asset coverage
 
+Ticker Lookup suggests instruments as the user types a symbol or name.
+Common stocks, funds, currencies and the existing commodity picker entries
+match locally. After a 400 ms pause, authenticated users also receive matches
+from Twelve Data's [symbol search](https://twelvedata.com/docs#symbol-search).
+Each suggestion shows its name, instrument type and exchange where supplied.
+Arrow keys highlight an option; Enter selects it and loads the chart. Escape,
+Tab and losing focus dismiss the list. Enter without a highlighted suggestion
+preserves normal direct ticker entry, including stock symbols such as `GOLD`.
+
+`ticker-suggestions.js` and `ticker-suggestions.css` implement the combobox.
+`/api/search` accepts the existing tools password in a header, keeps the
+provider key on the server and returns private, non-cached responses. The
+browser caches up to 50 search queries per page session, cancels outdated
+requests and pauses remote search for 60 seconds after a rate-limit response.
+Local matches remain available when remote search fails. Typing does not fetch
+price history; selecting a result does. A selected exchange is passed to both
+quote and time-series requests and included in client cache keys.
+
+Run `python3 test/check_search.py` for proxy checks and
+`python test/check_suggestions_browser.py` for browser integration checks
+(Playwright/Chromium required). Both use fake credentials and mocked APIs.
+
 Ticker Lookup has Line and Candlestick views. The proxy preserves the
 [provider's OHLC bars](https://twelvedata.com/docs#time-series), including
 zero and negative prices, and returns their interval. Switching chart types

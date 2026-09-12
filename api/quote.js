@@ -65,6 +65,10 @@ export default async function handler(req, res) {
 
   const symbol = String(req.query.symbol || "").trim().toUpperCase();
   const range = String(req.query.range || "1y").toLowerCase();
+  const exchange = String(req.query.exchange || "").trim();
+  if (exchange && !/^[A-Za-z0-9 ._&()\-]{1,48}$/.test(exchange)) {
+    return res.status(400).json({ error: "That exchange is not supported." });
+  }
 
   if (!SYMBOL_OK.test(symbol)) {
     return res.status(400).json({ error: "That does not look like a ticker symbol." });
@@ -89,11 +93,12 @@ export default async function handler(req, res) {
   // The quote endpoint costs a second credit. The client only asks for it when
   // the SYMBOL changes, because none of its fields depend on the chart range.
   const wantQuote = String(req.query.quote || "1") !== "0";
+  const exchangeQ = exchange ? `&exchange=${encodeURIComponent(exchange)}` : "";
 
   const series = `${PROVIDER}/time_series?symbol=${encodeURIComponent(symbol)}`
     + `&interval=${spec.interval}&outputsize=${spec.outputsize}${dateQ}`
-    + `&apikey=${key}`;
-  const quote = `${PROVIDER}/quote?symbol=${encodeURIComponent(symbol)}&apikey=${key}`;
+    + `${exchangeQ}&apikey=${key}`;
+  const quote = `${PROVIDER}/quote?symbol=${encodeURIComponent(symbol)}${exchangeQ}&apikey=${key}`;
 
   try {
     const calls = wantQuote ? [fetch(series), fetch(quote)] : [fetch(series)];
