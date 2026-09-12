@@ -41,6 +41,11 @@ footer mark repeat the same visual language. These SVGs are decorative and
 hidden from assistive technology; their figures have descriptive labels.
 The drawings do not represent investment results or allocation advice.
 
+Panels use modest corner radii, soft drop shadows and warm tonal shading.
+Buttons lift slightly on hover with a deeper shadow and depress when pressed.
+Hover movement is limited to fine pointers; reduced-motion preferences disable
+movement and transitions while retaining visual feedback and focus outlines.
+
 ## Verification
 
 The existing CSS, page execution and Style Rotation checks continue to run.
