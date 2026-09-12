@@ -40,10 +40,28 @@ async function request(query) {
     assert(r.code===failure.code, 'wrong error classification');
     assert(JSON.stringify(r.body).indexOf('test-key')<0, 'upstream key exposed');
   }
+  responseBody={meta:{type:'Commodity'},values:[
+    {datetime:'2026-09-11',open:'102',high:'112',low:'98',close:'105'},
+    {datetime:'2026-09-10',open:'0',high:'2',low:'-3',close:'1'},
+    {datetime:'2026-09-09',open:null,high:'',low:'bad',close:'100'},
+    {datetime:'2026-09-08',close:null},
+    {datetime:'2026-09-07',close:''}
+  ]};
+  for (var range of ['1h','1d','1m','1y','5y','all']) {
+    var r=await request({k:'test-password',symbol:'XAU/USD',range:range,quote:'0',ohlc:'1'});
+    assert(r.body.points.length===3,'missing closes must not become zero');
+    var first=r.body.points[0], zero=r.body.points[1], last=r.body.points[2];
+    assert(first.o===null && first.h===null && first.l===null,'missing OHLC must remain missing');
+    assert(zero.o===0 && zero.l===-3,'valid zero and negative prices must survive');
+    assert(last.o===102 && last.h===112 && last.l===98 && last.c===105,'OHLC not preserved');
+    assert(r.body.interval===RANGES[range].interval,'bar interval missing');
+  }
+  var monthly=await request({k:'test-password',symbol:'AAPL',month:'2026-08',quote:'0'});
+  assert(monthly.body.month==='2026-08' && monthly.body.interval==='1day','calendar month metadata');
   calls=[];
   var invalid=await request({k:'test-password',symbol:'XAU/USD&apikey=bad'});
   assert(invalid.code===400 && calls.length===0,'invalid symbol reached provider');
-  print('PASS: commodity symbols, metadata, authentication, plan errors, rate limits and key redaction');
+  print('PASS: symbols, OHLC, interval/month metadata, missing/zero/negative prices, authentication and provider errors');
 })().catch(function(e) {print('FAIL: '+e.message);});
 '''
 with tempfile.TemporaryDirectory() as tmp:

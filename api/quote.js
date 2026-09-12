@@ -138,8 +138,9 @@ export default async function handler(req, res) {
     }
 
     // Provider returns newest-first; charts read left to right.
+    const numeric = value => value == null || String(value).trim() === "" || !Number.isFinite(Number(value)) ? null : Number(value);
     const points = sJson.values
-      .map(v => ({ t: v.datetime, c: Number(v.close), v: Number(v.volume || 0) }))
+      .map(v => ({ t: v.datetime, o: numeric(v.open), h: numeric(v.high), l: numeric(v.low), c: numeric(v.close), v: Number(v.volume || 0) }))
       .filter(p => Number.isFinite(p.c))
       .reverse();
 
@@ -173,6 +174,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       symbol,
       range,
+      month: month || null,
+      interval: spec.interval,
       label: spec.label,
       currency: sJson.meta?.currency || sJson.meta?.currency_quote || "USD",
       exchange: sJson.meta?.exchange || "",

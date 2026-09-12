@@ -134,6 +134,28 @@ right trade for a club, but it is worth knowing what it is.
 
 ## Asset coverage
 
+Ticker Lookup has Line and Candlestick views. The proxy preserves the
+[provider's OHLC bars](https://twelvedata.com/docs#time-series), including
+zero and negative prices, and returns their interval. Switching chart types
+redraws cached data without another market request. Candles use a hollow green
+body when close is at least open, a filled red body otherwise, and a wick for
+the bar's high and low. Hover, touch or arrow keys show the bar's date/time and
+OHLC values. Long histories scroll horizontally and open at their latest bars.
+
+The range controls determine bar size: 1H uses one-minute bars, 1D five-minute,
+1M/1Y and calendar-month views daily, 5Y weekly, and ALL monthly. Missing or
+inconsistent OHLC produces an explicit line-chart fallback, never invented
+candles. Range highs/lows use full bar extremes when available; return,
+volatility and drawdown remain based on closes. The benchmark remains a rebased
+line, and its values are included in the chart scale without clipping.
+Lookup requests carry `ohlc=1` to avoid previously cached close-only responses.
+
+`python test/check_candlesticks_browser.py` exercises synthetic OHLC geometry,
+doji and direction, missing and negative prices, all ranges, keyboard readouts,
+scrolling, responsive redraws and benchmark behavior with no live credentials.
+It requires Python Playwright and Chromium. `python3 test/check_quote.py` checks
+the proxy's OHLC and interval fields as well as authentication and errors.
+
 | class | works | how |
 |---|---|---|
 | Stocks, ETFs, indices | yes | plain symbol — `AAPL`, `SPY` |
