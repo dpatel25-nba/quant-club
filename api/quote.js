@@ -107,6 +107,13 @@ export default async function handler(req, res) {
     if (sJson.status === "error" || !Array.isArray(sJson.values)) {
       // Never let the key reach the client, even inside a provider message.
       const raw = String(sJson.message || "").split(key).join("***");
+      const isEntitlement = Number(sJson.code) === 403 || /upgrade|subscription|not (?:included|available|accessible).*plan|requires? .*plan/i.test(raw);
+      if (isEntitlement) {
+        return res.status(403).json({
+          error: "This symbol is not included in the site's market-data plan. Choose another symbol; commodity funds are listed separately in the picker.",
+          detail: raw || null,
+        });
+      }
       const perMinute = /minute/i.test(raw);
       const perDay = /day|daily/i.test(raw);
       const isLimit = perMinute || perDay || /credit|quota|limit/i.test(raw);
@@ -173,7 +180,7 @@ export default async function handler(req, res) {
       // every day of the year, equities about 252 days, forex about 260.
       // Annualising Bitcoin on a 252-day year understates its volatility.
       type: sJson.meta?.type || "",
-      name: qJson?.name || symbol,
+      name: qJson?.name || sJson.meta?.name || symbol,
       points,
       // A failed quote is not fatal: the chart and every computed statistic
       // come from the series, so the page degrades rather than erroring.

@@ -236,6 +236,10 @@
     border: 1px solid var(--border); border-radius: 10px;
   }
   #ticker:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .commodity-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 18px; }
+  .commodity-picker label { font-size: 13px; font-weight: 600; }
+  .commodity-picker select { max-width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px; }
+  .commodity-picker select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .btn {
     padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer;
     background: var(--accent); color: #fff; border: 1px solid transparent;
@@ -593,7 +597,7 @@
   <div class="panel">
     <form class="search" id="form">
       <input id="ticker" placeholder="AAPL" autocomplete="off"
-             spellcheck="false" aria-label="Stock ticker" value="AAPL">
+             spellcheck="false" aria-label="Ticker or commodity symbol" value="AAPL">
       <button class="btn" id="go" type="submit">Look up</button>
     </form>
     <div class="note" style="margin-top:8px">Stocks, ETFs and indices by symbol
@@ -601,6 +605,33 @@
       (<b>BTC/USD</b>, <b>EUR/USD</b>). Fixed income via bond funds
       (<b>TLT</b>, <b>AGG</b>, <b>LQD</b>, <b>HYG</b>) — individual bonds are
       not covered.</div>
+    <div class="commodity-picker">
+      <label for="commodity">Commodities</label>
+      <select id="commodity" aria-describedby="commodity-help">
+        <option value="">Choose a commodity or fund</option>
+        <optgroup label="Commodity prices">
+          <option value="XAU/USD" data-kind="spot">Gold spot · XAU/USD</option>
+          <option value="XAG/USD" data-kind="spot">Silver spot · XAG/USD</option>
+          <option value="WTI/USD" data-kind="spot">WTI crude oil spot · WTI/USD</option>
+          <option value="XBR/USD" data-kind="spot">Brent crude oil spot · XBR/USD</option>
+          <option value="HG1" data-kind="spot">Copper spot · HG1</option>
+          <option value="XPT/USD" data-kind="spot">Platinum spot · XPT/USD</option>
+          <option value="XPD/USD" data-kind="spot">Palladium spot · XPD/USD</option>
+        </optgroup>
+        <optgroup label="Commodity funds — share prices">
+          <option value="GLD" data-kind="fund">Gold fund · GLD</option>
+          <option value="SLV" data-kind="fund">Silver fund · SLV</option>
+          <option value="USO" data-kind="fund">WTI oil fund · USO</option>
+          <option value="BNO" data-kind="fund">Brent oil fund · BNO</option>
+          <option value="CPER" data-kind="fund">Copper fund · CPER</option>
+          <option value="UNG" data-kind="fund">Natural gas fund · UNG</option>
+          <option value="CORN" data-kind="fund">Corn fund · CORN</option>
+          <option value="WEAT" data-kind="fund">Wheat fund · WEAT</option>
+          <option value="DBC" data-kind="fund">Broad commodity fund · DBC</option>
+        </optgroup>
+      </select>
+    </div>
+    <p class="note" id="commodity-help" style="margin-top:8px">Selecting an item loads its chart. Commodity price access depends on the site's data plan. Funds show share prices, which can differ from the underlying commodity price.</p>
     <div class="ranges" id="ranges" role="group" aria-label="Time range">
       <button class="range" data-r="1h">1H</button>
       <button class="range" data-r="1d">1D</button>
@@ -915,6 +946,9 @@
     var perYear = { "1h": d1 * 390, "1d": d1 * 78, "1m": d1, "1y": d1,
                     "5y": 52, "all": 12, "month": d1 }[range] || d1;
     var vol = Math.sqrt(varr) * Math.sqrt(perYear);
+    // Commodity feeds have different sessions. Do not apply the equity
+    // 390-minute trading day to their intraday bars.
+    if (/commodity/i.test(type || "") && /^(1h|1d)$/.test(range)) vol = NaN;
 
     var peak = -Infinity, dd = 0;
     for (var j = 0; j < c.length; j++) {
@@ -1035,11 +1069,14 @@
     var p = data.points, cur = data.currency;
     var last = p[p.length - 1].c, first = p[0].c;
     var chg = last - first, up = chg >= 0;
-    var s = analyse(p, data.month ? "month" : data.range, data.type);
     var q = data.quote;
 
-    el("name").textContent = data.name;
-    el("meta").textContent = [data.symbol, data.exchange].filter(Boolean).join(" · ");
+    var commodity = commodityInfo(data.symbol);
+    var spotCommodity = commodity ? commodity.kind === "spot" : /commodity/i.test(data.type || "");
+    var s = analyse(p, data.month ? "month" : data.range, spotCommodity ? "Commodity" : data.type);
+    el("name").textContent = data.name === data.symbol && commodity ? commodity.name : data.name;
+    el("meta").textContent = [data.symbol, data.exchange,
+      spotCommodity ? "Commodity price" : commodity ? "Commodity fund · share price" : ""].filter(Boolean).join(" · ");
     el("price").textContent = money(last, cur);
     el("chg").textContent = (up ? "+" : "") + money(chg, cur) +
                             "  (" + (up ? "+" : "") + pct(chg / first) + ") " + data.label;
@@ -1059,8 +1096,10 @@
       rows.push(["Previous close", money(q.previous_close, cur)]);
       rows.push(["Day range", isFinite(q.low) && isFinite(q.high)
         ? money(q.low, cur) + " – " + money(q.high, cur) : "—"]);
-      rows.push(["Volume", big(q.volume)]);
-      rows.push(["Avg volume", big(q.average_volume)]);
+      if (!spotCommodity) {
+        rows.push(["Volume", big(q.volume)]);
+        rows.push(["Avg volume", big(q.average_volume)]);
+      }
       if (q.fifty_two_week) {
         rows.push(["52-week range",
           money(Number(q.fifty_two_week.low), cur) + " – " +
@@ -1091,6 +1130,14 @@
       : "Return and drawdown are price-only: they exclude dividends, so a paying "
         + "stock's total return is higher than shown. Volatility is the standard "
         + "deviation of returns over this range, annualised. Prices may be delayed.";
+    if (spotCommodity) {
+      el("note").textContent = "Commodity price history, not a tradable futures contract or investment total return. "
+        + "Daily volatility uses a 252-observation year; intraday annualised volatility is not shown because trading sessions vary. Prices may be delayed.";
+    } else if (commodity) {
+      el("note").textContent = "Commodity fund share prices, not the underlying commodity price. "
+        + "Fund expenses and, for futures-based funds, contract rolls can affect performance. "
+        + "Return and drawdown are price-only and exclude distributions. Prices may be delayed.";
+    }
 
     // Align the benchmark to this security's dates before anything is compared.
     var bcol = null;
@@ -1148,8 +1195,23 @@
     el("result").hidden = true;
   }
 
+  function commodityInfo(symbol) {
+    var found = null;
+    Array.prototype.forEach.call(document.querySelectorAll("#commodity option[data-kind]"), function (option) {
+      if (option.value === symbol) found = { kind: option.dataset.kind, name: option.textContent.split(" · ")[0] };
+    });
+    return found;
+  }
+
+  el("commodity").addEventListener("change", function () {
+    if (!el("commodity").value) return;
+    el("ticker").value = el("commodity").value;
+    load();
+  });
+
   function load() {
     var sym = el("ticker").value.trim().toUpperCase();
+    el("commodity").value = commodityInfo(sym) ? sym : "";
     if (!sym) { say("Enter a ticker to begin."); return; }
     var key = sym + "|" + (state.month ? "M" + state.month : state.range);
 

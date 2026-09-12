@@ -139,8 +139,38 @@ right trade for a club, but it is worth knowing what it is.
 | Stocks, ETFs, indices | yes | plain symbol — `AAPL`, `SPY` |
 | Crypto | yes | pair — `BTC/USD` |
 | Currencies | yes | pair — `EUR/USD` |
+| Commodity prices | subject to account access | `XAU/USD`, `XAG/USD`, `WTI/USD`, `XBR/USD`, `HG1`, `XPT/USD`, `XPD/USD` |
+| Commodity funds | via fund share prices | `GLD`, `SLV`, `USO`, `BNO`, `CPER`, `UNG`, `CORN`, `WEAT`, `DBC` |
 | Fixed income | **via funds only** | `TLT`, `AGG`, `LQD`, `HYG`, `TIP` |
 | Individual bonds | no | the provider lists ~179 thin corporate names; there is no CUSIP-level pricing or treasury curve |
+
+Ticker Lookup includes a Commodities picker. Selecting a commodity fills the
+symbol field and uses the existing chart, range, month and benchmark controls.
+Spot prices and fund share prices have separate groups and explanatory labels;
+an unavailable spot series is never silently replaced with a fund. Provider
+plan restrictions return an explicit 403 message, separately from rate limits.
+Commodity intraday annualised volatility is omitted because the equity-session
+assumption does not apply. Daily commodity volatility uses 252 observations per
+year; weekly and monthly series use 52 and 12 respectively. Spot volume is not
+displayed. Existing stock tickers such as `GOLD` are not treated as aliases.
+
+The spot symbols were checked against Twelve Data's public
+[commodity catalog](https://api.twelvedata.com/commodities) on September 12, 2026.
+[Commodity access](https://twelvedata.com/exchanges/commodity?group=core) depends
+on the account plan. Fund mappings were checked with
+[State Street](https://www.ssga.com/us/en/individual/etfs/spdr-gold-shares-gld),
+[iShares](https://www.ishares.com/us/products/239855/ishares-silver-trust-fund),
+[USCF](https://www.uscfinvestments.com/index.php),
+[Teucrium](https://teucrium.com/weat) and
+[Invesco](https://www.invesco.com/us/en/solutions/invesco-etfs/commodity-investing.html).
+These checks establish symbol identity, not live access on this site's account.
+
+Commodity checks use fake credentials and simulated market responses:
+
+```sh
+python3 test/check_quote.py
+python test/check_commodities_browser.py  # requires Playwright and Chromium
+```
 
 **Fixed income needs care, and the site now says so on screen.** Every return
 here is PRICE ONLY. For a stock, excluding dividends costs a point or two a
