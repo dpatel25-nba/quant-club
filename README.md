@@ -20,7 +20,7 @@ fundamentals.js / fundamentals.css  company research interface
 Open `/#fundamentals` after unlocking Research Tools, or use **View company
 fundamentals** beneath a supported U.S. stock lookup. This is a dedicated company
 research tab. It contains five annual periods and up to eight quarterly and
-trailing 12-month periods, 39 reported financial fields,
+trailing 12-month periods, 40 reported financial fields,
 two calculated cash/balance measures, 15 ratios, a selectable historical chart,
 per-value sources and calculations, CSV export, and a filtered filing library.
 The statement views are income statement, balance sheet and cash flow. Ratios
@@ -49,6 +49,36 @@ multiples are unavailable; negative free cash flow yields remain visible.
 Parent net income is not adjusted for preferred dividends, so the earnings
 multiple is labeled explicitly and may differ from a quoted P/E. These are
 calculations from entered assumptions, not verified historical valuations.
+
+**Capital allocation** shows operating/free cash flow, capital expenditures,
+net acquisition outflows, dividends/distributions and common repurchases on a common bar scale,
+plus historical stock compensation and weighted average diluted shares. Bars
+are separate flows, not shares of a cash-flow reconciliation. Share counts do
+not isolate buyback effects and may reflect issuance, dilution and stock splits.
+Payout totals prefer the broader dividends/distributions tag (which can include
+preferred holders and noncontrolling interests), falling back to common dividends
+with explicit coverage. The two dividend tags are never added. Payout totals require both inputs; their FCF ratio requires positive
+FCF and may exceed 100%. Long-term debt uses the reported total including the
+current portion, or current plus noncurrent components only when both exist.
+It is an ending balance, not total debt or net borrowing. Inputs remain inspectable.
+
+**Research notes** stores thesis, catalysts, risks, open questions and valuation
+assumptions in localStorage, keyed by SEC CIK (`gpmc-research-notes-v1:<cik>`).
+Notes save on each edit, with a 12,000-character limit per field. Storage/read
+failures remain visible; unsaved edits stay in memory and can still be exported.
+These are device/browser-profile notes, not club-shared or account-synced data.
+Anyone using the profile can access them; clearing site data removes them.
+Markdown export provides a portable backup. No credentials are stored with notes.
+
+**Research report** previews a configurable report with four recent financial
+periods, the selected history chart, latest allocation, loaded peers, entered
+market-cap assumptions and research notes. It includes fiscal/retrieval dates,
+SEC source references and calculation notes. Pending/failed peers are disclosed.
+Print / save PDF uses the browser print dialog; Download report HTML produces a
+standalone, script-free document with embedded styles and chart. Notes can be
+excluded before sharing. Neither export sends the report to a server or another
+member. `fundamental-workspace.js` implements allocation, notes and reports
+without additional providers or dependencies.
 
 Company name suggestions use the SEC ticker directory through
 `/api/fundamentals?q=...`, independently of Twelve Data credits. Submitting a

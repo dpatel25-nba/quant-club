@@ -25,5 +25,25 @@
     });
     return {marketCap:marketCap,date:date,start:period.start,end:period.end,metrics:metrics};
   }
-  window.FundamentalAnalysis={periods:periods,valuation:valuation,filedDate:filedDate};
+  function allocation(period) {
+    var v=period ? period.values : {};
+    function value(id) { return v[id] && Number.isFinite(v[id].value) ? v[id].value : null; }
+    var dividendInput=value("distributions")!=null ? "distributions" : "dividends";
+    var dividends=value(dividendInput), buybacks=value("buybacks"), fcf=value("fcf");
+    var returned=dividends!=null && buybacks!=null && dividends>=0 && buybacks>=0 ? dividends+buybacks : null;
+    var payoutFormula=dividendInput==="distributions" ? "Reported dividends and distributions, which can include common, preferred and noncontrolling holders, plus common share repurchases." : "Common dividends paid + common share repurchases. Broader dividends/distributions are unavailable; this covers common holders only.";
+    // LongTermDebt already includes its current portion. Never add it again.
+    var debt=value("longDebt"), debtInputs=["longDebt"];
+    if (debt==null) {
+      var current=value("currentLongDebt"), noncurrent=value("noncurrentDebt");
+      debt=current!=null && noncurrent!=null ? current+noncurrent : null;
+      debtInputs=["currentLongDebt","noncurrentDebt"];
+    }
+    return [
+      {label:"Dividends, distributions + buybacks",value:returned,unit:"USD",inputs:[dividendInput,"buybacks"],formula:payoutFormula+" Both inputs must be available and nonnegative."},
+      {label:"Payouts / free cash flow",value:returned!=null && fcf>0 ? returned/fcf : null,unit:"ratio",inputs:[dividendInput,"buybacks","fcf"],formula:payoutFormula+" Divided by positive free cash flow. Above 100% means these outflows exceed this period’s FCF; it does not identify their funding source."},
+      {label:"Long-term debt, including current portion",value:debt,unit:"USD",inputs:debtInputs,formula:"Reported long-term debt including current portion, or current plus noncurrent long-term debt when both are available. An ending balance, not net borrowing or total debt."}
+    ];
+  }
+  window.FundamentalAnalysis={periods:periods,valuation:valuation,filedDate:filedDate,allocation:allocation};
 })();

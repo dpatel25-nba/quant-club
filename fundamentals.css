@@ -76,6 +76,27 @@
 .fd-method p { font-size: 12px; color: var(--muted); line-height: 1.8; }
 .fd-links { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; margin-top: 14px; }
 #lookup-fundamentals { margin-top: 16px; font-size: 13px; padding: 9px 14px; }
+.fd-note-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.fd-note-grid label { display: grid; gap: 8px; font-size: 13px; font-weight: 600; }
+.fd-note-grid textarea { width: 100%; box-sizing: border-box; resize: vertical; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); color: var(--text); padding: 12px; font-family: inherit; font-size: 14px; line-height: 1.6; }
+.fd-note-grid textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fd-allocation-bars { display: grid; gap: 14px; margin: 24px 0 12px; }
+.fd-allocation-bar > div:first-child { display: flex; justify-content: space-between; gap: 16px; font-size: 12px; margin-bottom: 6px; }
+.fd-allocation-bar strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fd-bar-track { background: var(--panel-2); height: 10px; border-radius: 4px; overflow: hidden; }
+.fd-bar-track span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+#fd-allocation-metrics .fd-value { display: block; text-align: left; white-space: normal; color: var(--accent); font-size: 11px; margin-top: 8px; }
+.fd-report-options { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 20px 0; font-size: 13px; }
+.fd-report-options label { display: flex; align-items: center; gap: 6px; }
+.fd-report-document { border: 1px solid #ccd4da; border-radius: 8px; min-width: 0; }
+.fd-report-scroll { max-width: 100%; }
+.fd-report-history-table { width: 100%; }
+#fd-print-document { display: none; }
+@media print {
+  body:has(> #fd-print-document) > :not(#fd-print-document) { display: none !important; }
+  body:has(> #fd-print-document) { background: white !important; margin: 0; }
+  #fd-print-document { display: block; border: 0; border-radius: 0; }
+}
 @media(max-width: 650px) {
   body:has(#m-tools.on) .topbar-in { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; padding: 12px 16px; }
   body:has(#m-tools.on) .brand { grid-column: 1; grid-row: 1; gap: 7px; min-width: 0; }
@@ -93,4 +114,7 @@
   .fd-filing { grid-template-columns: 75px minmax(0,1fr); gap: 10px; }
   .fd-filing > a { grid-column: 2; }
   .fd-controls { align-items: flex-start; }
+  .fd-note-grid { grid-template-columns: 1fr; }
+  #fd-allocation-metrics { grid-template-columns: 1fr; }
+  #fd-report-preview { padding: 14px; }
 }

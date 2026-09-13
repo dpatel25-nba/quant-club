@@ -79,7 +79,29 @@ assert(A.valuation(ttm,6600,'2027-01-01','2026-09-13').error,'future date');
 var negative=JSON.parse(JSON.stringify(ttm));negative.values.netIncome.value=-10;negative.values.fcf.value=-20;
 result=A.valuation(negative,6600,'2026-09-13');assert(result.metrics[0].value===null && result.metrics[2].value<0,'loss earnings NM, negative FCF yield retained');
 assert(A.filedDate(ttm.values.fcf)>='2026-08-01','recursive source date');
-print('PASS: valuation periods, market-cap validation, financial availability dates and negative earnings/cash flow');
+var allocationPeriod={values:{dividends:{value:10},buybacks:{value:30},fcf:{value:20},longDebt:{value:100},currentLongDebt:{value:15},noncurrentDebt:{value:85}}};
+var allocation=A.allocation(allocationPeriod);
+near(allocation[0].value,40,'common shareholder outflows');near(allocation[1].value,2,'outflows over FCF can exceed 100%');near(allocation[2].value,100,'no double counting debt current portion');
+assert(allocation[2].inputs.join(',')==='longDebt','reported debt provenance');
+delete allocationPeriod.values.longDebt;
+near(A.allocation(allocationPeriod)[2].value,100,'complete debt component fallback');
+delete allocationPeriod.values.currentLongDebt;
+assert(A.allocation(allocationPeriod)[2].value===null,'partial debt remains missing');
+delete allocationPeriod.values.dividends;
+assert(A.allocation(allocationPeriod)[0].value===null && A.allocation(allocationPeriod)[1].value===null,'missing dividends are not zero');
+allocationPeriod.values.dividends={value:0};allocationPeriod.values.buybacks={value:0};
+near(A.allocation(allocationPeriod)[0].value,0,'reported zero retained');
+allocationPeriod.values.fcf.value=-20;
+assert(A.allocation(allocationPeriod)[1].value===null,'negative FCF has no payout ratio');
+allocationPeriod.values.fcf.value=0;
+assert(A.allocation(allocationPeriod)[1].value===null,'zero FCF has no payout ratio');
+assert(A.allocation(null).every(m=>m.value===null),'no financial period');
+allocationPeriod.values.distributions={value:12};allocationPeriod.values.dividends={value:5};allocationPeriod.values.buybacks={value:30};
+near(A.allocation(allocationPeriod)[0].value,42,'prefer broad distributions, never add overlapping dividend fields');
+assert(A.allocation(allocationPeriod)[0].inputs[0]==='distributions','broad dividend coverage is sourced');
+allocationPeriod.values.distributions.value=-12;
+assert(A.allocation(allocationPeriod)[0].value===null,'unexpected signed distribution does not become an outflow total');
+print('PASS: valuation periods, market-cap validation, financial availability, negative earnings/cash flow, allocation coverage and debt components');
 '''
 with tempfile.TemporaryDirectory() as tmp:
     file=pathlib.Path(tmp)/'interim.js';file.write_text('var window={};\n'+source+'\n'+analysis+'\n'+checks)

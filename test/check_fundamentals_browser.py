@@ -39,6 +39,7 @@ FIELDS.forEach(function(f,i){
  }
 });
 delete facts.facts['us-gaap'].InventoryNet;
+delete facts.facts['us-gaap'].PaymentsToAcquireBusinessesNetOfCashAcquired;
 var recent={accessionNumber:[],form:[],filingDate:[],reportDate:[]};
 ['10-K','10-Q','8-K','DEF 14A','4'].forEach(function(form,i){for(var n=0;n<(form==='4'?25:1);n++){
 recent.accessionNumber.push('0000320193-25-'+String(i*100+n+1).padStart(6,'0'));recent.form.push(form);recent.filingDate.push('2025-11-01');recent.reportDate.push('2025-09-30');}});
@@ -153,7 +154,7 @@ try:
             dest = pathlib.Path(tmp) / "financials.csv"
             download_info.value.save_as(dest)
             rows = list(csv.DictReader(io.StringIO(dest.read_text(encoding="utf-8-sig"))))
-        assert len(rows) == 56 * 5
+        assert len(rows) == len(data["fields"]) * 5
         revenue = next(r for r in rows if r["Metric"] == "Revenue" and r["Period end"] == "2025-09-30")
         assert revenue["Value"] == "150000000000" and revenue["Unit"] == "USD" and revenue["Filed"] == "2025-11-01"
         assert next(r for r in rows if r["Metric"] == "Inventory")["Value"] == ""
@@ -263,6 +264,58 @@ try:
         expect(page.locator("#fd-peer-table")).to_contain_text("20.00×")
         page.locator("#fd-basis").select_option("quarterly")
         expect(page.locator("#fd-peer-table thead")).to_contain_text("2026-04-01 to 2026-06-30")
+        # Allocation calculations, source controls and company research/report workflow.
+        page.locator('[data-fd-view="allocation"]').click()
+        expect(page.locator("#fd-allocation-period")).to_contain_text("Quarterly")
+        expect(page.locator("#fd-allocation-bars")).to_contain_text("$7.5B")
+        missing_bar=page.locator(".fd-allocation-bar").filter(has_text="Acquisitions")
+        expect(missing_bar).to_contain_text("—")
+        assert missing_bar.locator(".fd-bar-track span").evaluate("e=>e.getBoundingClientRect().width")==0, "Missing cash flow must not render a full bar"
+        expect(page.locator("#fd-allocation-metrics")).to_contain_text("An ending balance")
+        page.locator("#fd-allocation-table .fd-value").first.click()
+        expect(page.locator("#fd-source")).to_contain_text("Operating cash flow")
+        page.locator('[data-fd-view="notes"]').click()
+        thesis='Durable cash generation. <script>window.notesInjected=true</script> & source checks.'
+        page.locator("#fd-note-thesis").fill(thesis)
+        page.locator("#fd-note-risks").fill("Margin pressure\nExecution risk")
+        expect(page.locator("#fd-notes-status")).to_contain_text("Saved on this device")
+        with page.expect_download() as notes_download:
+            page.locator("#fd-notes-download").click()
+        assert thesis in pathlib.Path(notes_download.value.path()).read_text()
+        page.locator('[data-fd-view="report"]').click()
+        preview=page.locator("#fd-report-preview")
+        expect(preview).to_contain_text(thesis)
+        expect(preview).to_contain_text("Microsoft Corporation")
+        expect(preview).to_contain_text("20.00×")
+        expect(preview).to_contain_text("No SEC company matches")
+        expect(preview).to_contain_text("Sources & calculation notes")
+        assert preview.locator("script, img").count()==0
+        assert preview.locator('a[href^="https://www.sec.gov/"]').count()>2
+        page.locator("#fd-report-notes").uncheck()
+        expect(preview).not_to_contain_text(thesis)
+        page.locator("#fd-report-notes").check()
+        with page.expect_download() as report_download:
+            page.locator("#fd-report-download").click()
+        report_text=pathlib.Path(report_download.value.path()).read_text()
+        assert '<script>' not in report_text and '&lt;script&gt;' in report_text
+        assert '20.00×' in report_text and 'fundamental-workspace.js' not in report_text
+        exported=browser.new_page()
+        exported.set_content(report_text)
+        expect(exported.locator('main')).to_contain_text(thesis)
+        assert exported.evaluate('window.notesInjected') is None
+        exported.pdf(path=str(pathlib.Path(tempfile.gettempdir())/'gpmc-research-report.pdf'),format='A4')
+        exported.close()
+        page.evaluate("window.print = () => { window.testPrinted = true; }")
+        page.locator("#fd-report-print").click()
+        assert page.evaluate("window.testPrinted")
+        page.emulate_media(media="print")
+        expect(page.locator("#fd-print-document")).to_be_visible()
+        expect(page.locator("#m-tools")).to_be_hidden()
+        page.pdf(path=str(pathlib.Path(tempfile.gettempdir())/'gpmc-research-print.pdf'),format='A4')
+        page.emulate_media(media="screen")
+        page.evaluate("window.dispatchEvent(new Event('afterprint'))")
+        expect(page.locator("#fd-print-document")).to_have_count(0)
+        page.locator('[data-fd-view="peers"]').click()
         # A peer response arriving after a company change cannot repopulate it.
         pending.clear()
         page.locator("#fd-peer-symbols").fill("SLOW")
@@ -276,6 +329,35 @@ try:
         expect(page.locator("#fd-peer-table")).to_be_empty()
         expect(page.locator("#fd-peer-go")).to_be_enabled()
 
+        # Issuer separation, reload persistence and storage failure preserve the draft.
+        page.locator('[data-fd-view="notes"]').click()
+        expect(page.locator("#fd-note-thesis")).to_have_value("")
+        ticker.fill("AAPL")
+        page.locator("#fd-form").evaluate("f => f.requestSubmit()")
+        expect(page.locator("#fd-note-thesis")).to_have_value(thesis)
+        page.reload()
+        if page.locator("#lock").is_visible():
+            page.locator("#pw").fill(PASSWORD)
+            page.locator("#pw").press("Enter")
+        expect(page.locator("#fd-result")).to_be_visible()
+        page.locator('[data-fd-view="notes"]').click()
+        expect(page.locator("#fd-note-thesis")).to_have_value(thesis)
+        page.evaluate("""() => {
+          const original=Storage.prototype.setItem;
+          Storage.prototype.setItem=function(k,v){if(k.startsWith('gpmc-research-notes'))throw new Error('Quota exceeded');return original.call(this,k,v);};
+        }""")
+        page.locator("#fd-note-thesis").fill("Unsaved research draft")
+        expect(page.locator("#fd-notes-status")).to_contain_text("Not saved")
+        page.locator('[data-fd-view="report"]').click()
+        expect(page.locator("#fd-report-preview")).to_contain_text("Unsaved research draft")
+        page.locator('[data-fd-view="notes"]').click()
+        expect(page.locator("#fd-note-thesis")).to_have_value("Unsaved research draft")
+        for width in (320, 390, 768, 1280):
+            page.set_viewport_size({"width":width,"height":1000})
+            for view in ("allocation","notes","report"):
+                page.locator('[data-fd-view="'+view+'"]').click()
+                assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), f"{view} overflow at {width}"
+        page.locator("#v-fundamentals").screenshot(path=str(pathlib.Path(tempfile.gettempdir())/'gpmc-report-preview.png'))
         for width in (320, 390, 768, 1280):
             page.set_viewport_size({"width": width, "height": 1000})
             page.locator('[data-fd-view="statements"]').click()
@@ -289,6 +371,6 @@ try:
         page.locator("#v-fundamentals").screenshot(path=str(pathlib.Path(tempfile.gettempdir()) / "gpmc-fundamentals.png"))
         assert not errors, errors
         browser.close()
-        print("PASS: fundamental workflows plus quarterly/TTM, row charts, freshness, entered-cap valuation, peer comparisons, partial failures, issuer deduplication, stale peer cancellation and responsive layout")
+        print("PASS: fundamental workflows plus quarterly/TTM, row charts, freshness, entered-cap valuation, peer comparisons, partial failures, issuer deduplication, stale peer cancellation, allocation sources, note persistence/isolation/storage failure, safe HTML/PDF export and responsive layout")
 finally:
     server.shutdown()

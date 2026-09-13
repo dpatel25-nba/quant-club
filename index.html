@@ -779,9 +779,12 @@
         <button type="button" data-fd-view="overview" aria-pressed="true">Overview</button>
         <button type="button" data-fd-view="statements" aria-pressed="false">Financial statements</button>
         <button type="button" data-fd-view="ratios" aria-pressed="false">Ratios &amp; quality</button>
+        <button type="button" data-fd-view="allocation" aria-pressed="false">Capital allocation</button>
         <button type="button" data-fd-view="peers" aria-pressed="false">Peer comparison</button>
         <button type="button" data-fd-view="valuation" aria-pressed="false">Valuation</button>
         <button type="button" data-fd-view="filings" aria-pressed="false">Filings &amp; disclosures</button>
+        <button type="button" data-fd-view="notes" aria-pressed="false">Research notes</button>
+        <button type="button" data-fd-view="report" aria-pressed="false">Research report</button>
       </div>
       <div class="fd-controls" id="fd-basis-controls"><label>Reporting period<select id="fd-basis"><option value="annual">Annual</option><option value="quarterly">Quarterly</option><option value="ttm">Trailing 12 months</option></select></label><span class="fd-muted">Growth compares the matching prior-year period.</span></div>
       <p class="fd-notice" id="fd-freshness" hidden></p>
@@ -808,6 +811,43 @@
       <div id="fd-ratios" hidden>
         <p class="fd-muted">Calculated for the selected reporting period. Quarterly returns on equity and assets are not annualized. — means an input is missing or the ratio is not meaningful; no missing values are treated as zero.</p>
         <div class="fd-table-wrap" id="fd-ratios-table" tabindex="0" aria-label="Scrollable financial ratios"></div>
+      </div>
+      <div id="fd-allocation" hidden>
+        <h3>Capital allocation</h3>
+        <p class="fd-muted" id="fd-allocation-period"></p>
+        <div class="fd-metrics" id="fd-allocation-metrics"></div>
+        <div class="fd-allocation-bars" id="fd-allocation-bars"></div>
+        <p class="fd-muted">Bars show separate cash flows on a common scale, not parts of a total. Broader dividends/distributions can include common, preferred and noncontrolling holders; they are not added to the common-dividend field. Acquisitions are net of cash acquired. Share-based compensation is a noncash expense and is shown separately in the history.</p>
+        <h3>Allocation history</h3>
+        <p class="fd-muted">Weighted average diluted shares can change with issuance, repurchases, dilution and stock splits; the series does not isolate the effect of buybacks. Debt figures are ending balances, not borrowing or repayments. Select a value to inspect its source. — means unavailable.</p>
+        <div class="fd-table-wrap" id="fd-allocation-table" tabindex="0" aria-label="Scrollable capital allocation history"></div>
+      </div>
+      <div id="fd-notes" hidden>
+        <h3>Company research notes</h3>
+        <p class="fd-muted">Notes save automatically in this browser, under this company’s SEC issuer. They are not shared with the club or synced between devices. Anyone using this browser profile may access them; clearing site data removes them. Download a copy to keep a backup.</p>
+        <div class="fd-note-grid">
+          <label>Investment thesis<textarea id="fd-note-thesis" maxlength="12000" rows="6" placeholder="What is the business, and why is it worth researching?"></textarea></label>
+          <label>Catalysts<textarea id="fd-note-catalysts" maxlength="12000" rows="6" placeholder="Upcoming events, expected timing and what to watch."></textarea></label>
+          <label>Risks<textarea id="fd-note-risks" maxlength="12000" rows="6" placeholder="What could weaken the business or your thesis?"></textarea></label>
+          <label>Open questions<textarea id="fd-note-questions" maxlength="12000" rows="6" placeholder="Questions for the next filing or research meeting."></textarea></label>
+          <label>Valuation assumptions<textarea id="fd-note-assumptions" maxlength="12000" rows="6" placeholder="Market-cap source, growth assumptions and your valuation reasoning."></textarea></label>
+        </div>
+        <p class="fd-status" id="fd-notes-status" role="status" aria-live="polite"></p>
+        <button class="btn ghost" type="button" id="fd-notes-download">Download notes</button>
+      </div>
+      <div id="fd-report" hidden>
+        <h3>Research report</h3>
+        <p class="fd-muted">Choose the sections to include. The report uses the selected reporting basis, your current peer comparison and any market-cap inputs entered this session. Review the preview, then print or choose Save as PDF in your browser’s print dialog.</p>
+        <div class="fd-report-options" role="group" aria-label="Report sections">
+          <label><input type="checkbox" id="fd-report-history" checked> Financial history &amp; selected chart</label>
+          <label><input type="checkbox" id="fd-report-allocation" checked> Capital allocation</label>
+          <label><input type="checkbox" id="fd-report-peers" checked> Peer comparison</label>
+          <label><input type="checkbox" id="fd-report-valuation" checked> Valuation</label>
+          <label><input type="checkbox" id="fd-report-notes" checked> Research notes</label>
+        </div>
+        <div class="fd-controls"><button class="btn" type="button" id="fd-report-print">Print / save PDF</button><button class="btn ghost" type="button" id="fd-report-download">Download report HTML</button></div>
+        <p class="fd-muted">The downloaded HTML is a standalone report you can open or share. Included notes will be visible to anyone you share it with. Financial sources and calculation details appear at the end.</p>
+        <div id="fd-report-preview" class="fd-report-document" aria-label="Research report preview"></div>
       </div>
       <div id="fd-peers" hidden>
         <p class="fd-muted">Compare this company with up to four peers you choose. Each column shows its own fiscal dates; matching reporting bases may still cover different dates. Companies with the same SEC issuer are shown once.</p>
@@ -1058,6 +1098,7 @@
 
 <script src="/ticker-suggestions.js"></script>
 <script src="/fundamental-analysis.js"></script>
+<script src="/fundamental-workspace.js"></script>
 <script src="/fundamentals.js"></script>
 <script>
 (function () {

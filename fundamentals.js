@@ -240,6 +240,7 @@
       }); body.appendChild(tr);
     });
     t.appendChild(body); el("peer-table").replaceChildren(t);
+    if (section==="report") workspace.view("report");
   }
   async function comparePeers() {
     var requestedSymbols=el("peer-symbols").value.toUpperCase().split(/[\s,;]+/).filter(Boolean);
@@ -266,6 +267,7 @@
     }
     if (token!==peerGeneration) return;
     el("peer-go").disabled=false;
+    if (section==="report") workspace.view("report");
     el("peer-status").textContent="Comparison loaded. Check fiscal dates and industry differences before comparing ratios."+(duplicates ? " Duplicate SEC issuers were removed." : "");
   }
   function filings() {
@@ -286,11 +288,12 @@
   }
   function view(name) {
     section = name;
-    ["overview","statements","ratios","peers","valuation","filings"].forEach(function (x) { el(x).hidden = x!==name; });
-    el("basis-controls").hidden=name==="filings" || name==="valuation";
+    ["overview","statements","ratios","peers","valuation","filings","allocation","notes","report"].forEach(function (x) { el(x).hidden = x!==name; });
+    el("basis-controls").hidden=name==="filings" || name==="valuation" || name==="notes";
     document.querySelectorAll("[data-fd-view]").forEach(function (b) { b.setAttribute("aria-pressed",String(b.dataset.fdView===name)); });
     el("source").hidden = true;
     if (!current) return;
+    workspace.view(name);
     if (name === "statements") table(statement,"statements-table");
     if (name === "ratios") table("ratios","ratios-table");
     if (name === "filings") filings();
@@ -355,9 +358,14 @@
     var a = node("a"); a.href=url; a.download=current.symbol+"-"+basis+"-fundamentals.csv"; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); },1000);
   }
+  var workspace=window.FundamentalWorkspace.create({
+    el:el,node:node,link:link,format:format,compact:compact,source:source,chart:chart,
+    current:function () { return current; }, periods:periods,basisName:basisName,
+    peers:function () { return peers; }, valuationFor:valuationFor, valuationPeriod:valuationPeriod
+  });
   window.Fundamentals = {
     attach: function (c) {
-      config=c;
+      config=c; workspace.attach();
       el("form").addEventListener("submit",function (e) { e.preventDefault(); load(); });
       document.querySelectorAll("[data-fd-view]").forEach(function (b) { b.addEventListener("click",function () { view(b.dataset.fdView); }); });
       document.querySelectorAll("[data-fd-statement]").forEach(function (b) { b.addEventListener("click",function () {
