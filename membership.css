@@ -1,5 +1,5 @@
 /* Shared public club pages: warm paper, green ink and serif headings. */
-:is(#m-membership, #m-overview) {
+:is(#m-membership, #m-overview, #m-apply) {
   --member-paper: #f5f3ec;
   --member-ink: #232f2d;
   --member-muted: #61665e;
@@ -10,37 +10,37 @@
   color: var(--member-ink);
   text-align: left;
 }
-body:has(#m-membership.on, #m-overview.on) { background: #f5f3ec; color: #232f2d; }
-body:has(#m-membership.on, #m-overview.on) > .wrap { max-width: 1240px; padding-bottom: 0; }
-body:has(#m-membership.on, #m-overview.on) .topbar { background: #f5f3ec; border-color: #cecfc3; backdrop-filter: none; box-shadow: 0 3px 14px #232f2d08; }
-body:has(#m-membership.on, #m-overview.on) .topbar-in { max-width: 1260px; padding: 20px 24px; }
-body:has(#m-membership.on, #m-overview.on) .brand .mark { background: #232f2d; border-radius: 5px; height: 34px; }
-body:has(#m-membership.on, #m-overview.on) .brand .bs { color: #61665e; }
-body:has(#m-membership.on, #m-overview.on) .mtab { color: #61665e; border-radius: 5px; font-size: 13px; }
-body:has(#m-membership.on, #m-overview.on) .mtab.on { color: #232f2d; box-shadow: inset 0 -1px #913f2f; }
-body:has(#m-membership.on, #m-overview.on) .mtab:hover { background: #e9e8df; color: #232f2d; }
-body:has(#m-membership.on, #m-overview.on) .applybtn { background: linear-gradient(165deg, #354440, #232f2d); border-color: #232f2d; border-radius: 6px; }
-body:has(#m-membership.on, #m-overview.on) .applybtn:hover { background: #913f2f; border-color: #913f2f; }
-body:has(#m-membership.on, #m-overview.on) .wrap > footer { display: none; }
-:is(#m-membership, #m-overview) h1, :is(#m-membership, #m-overview) h2 {
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) { background: #f5f3ec; color: #232f2d; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) > .wrap { max-width: 1240px; padding-bottom: 0; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .topbar { background: #f5f3ec; border-color: #cecfc3; backdrop-filter: none; box-shadow: 0 3px 14px #232f2d08; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .topbar-in { max-width: 1260px; padding: 20px 24px; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .brand .mark { background: #232f2d; border-radius: 5px; height: 34px; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .brand .bs { color: #61665e; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .mtab { color: #61665e; border-radius: 5px; font-size: 13px; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .mtab.on { color: #232f2d; box-shadow: inset 0 -1px #913f2f; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .mtab:hover { background: #e9e8df; color: #232f2d; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .applybtn { background: linear-gradient(165deg, #354440, #232f2d); border-color: #232f2d; border-radius: 6px; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .applybtn:hover { background: #913f2f; border-color: #913f2f; }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .wrap > footer { display: none; }
+:is(#m-membership, #m-overview, #m-apply) h1, :is(#m-membership, #m-overview, #m-apply) h2 {
   font-family: Georgia, 'Times New Roman', serif;
   font-weight: 400;
   letter-spacing: -.045em;
 }
-:is(#m-membership, #m-overview) h2 { font-size: clamp(34px, 3.5vw, 47px); line-height: 1.13; margin: 0 0 24px; }
-:is(#m-membership, #m-overview) h3 { font-size: 19px; font-weight: 600; line-height: 1.35; letter-spacing: -.025em; margin: 0 0 10px; }
-:is(#m-membership, #m-overview) p { margin-top: 0; }
-:is(#m-membership, #m-overview) button, :is(#m-membership, #m-overview) a, :is(#m-membership, #m-overview) summary { -webkit-tap-highlight-color: transparent; }
-:is(#m-membership, #m-overview) :is(button, a, summary):focus-visible,
-body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
+:is(#m-membership, #m-overview, #m-apply) h2 { font-size: clamp(34px, 3.5vw, 47px); line-height: 1.13; margin: 0 0 24px; }
+:is(#m-membership, #m-overview, #m-apply) h3 { font-size: 19px; font-weight: 600; line-height: 1.35; letter-spacing: -.025em; margin: 0 0 10px; }
+:is(#m-membership, #m-overview, #m-apply) p { margin-top: 0; }
+:is(#m-membership, #m-overview, #m-apply) button, :is(#m-membership, #m-overview, #m-apply) a, :is(#m-membership, #m-overview, #m-apply) summary { -webkit-tap-highlight-color: transparent; }
+:is(#m-membership, #m-overview, #m-apply) :is(button, a, summary):focus-visible,
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .topbar button:focus-visible {
   outline: 2px solid #913f2f; outline-offset: 5px;
 }
 .membership-masthead { display: flex; justify-content: space-between; gap: 20px; padding: 28px 0 0; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--member-muted); }
 .membership-hero { display: grid; grid-template-columns: 1.3fr 1fr; gap: 64px; align-items: center; padding: 76px 0 62px; }
 .membership-intro { min-width: 0; }
 .membership-eyebrow { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .15em; color: var(--member-rust); margin-bottom: 24px; }
-:is(#m-membership, #m-overview) h1 { font-size: clamp(50px, 5.8vw, 80px); line-height: 1.05; margin: 0 0 28px; }
-:is(#m-membership, #m-overview) h1 em { color: var(--member-rust); font-weight: 400; }
+:is(#m-membership, #m-overview, #m-apply) h1 { font-size: clamp(50px, 5.8vw, 80px); line-height: 1.05; margin: 0 0 28px; }
+:is(#m-membership, #m-overview, #m-apply) h1 em { color: var(--member-rust); font-weight: 400; }
 .membership-lede { max-width: 43ch; font-size: 17px; line-height: 1.75; color: var(--member-muted); margin-bottom: 30px; }
 .membership-actions { display: flex; gap: 26px; flex-wrap: wrap; align-items: center; }
 .membership-button { display: inline-flex; justify-content: space-between; align-items: center; gap: 24px; padding: 16px 20px; min-height: 50px; background: linear-gradient(165deg, #354440, var(--member-ink)); color: #fff; border: 1px solid var(--member-ink); font: inherit; font-size: 13px; font-weight: 500; line-height: 1.4; cursor: pointer; border-radius: 6px; }
@@ -48,7 +48,7 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
 .membership-button:hover { background: var(--member-rust); border-color: var(--member-rust); }
 .membership-text-link { color: var(--member-ink); font-size: 13px; text-underline-offset: 6px; text-decoration-thickness: 1px; display: inline-flex; align-items: center; gap: 22px; min-height: 44px; }
 .membership-text-link:hover { color: var(--member-rust); }
-:is(#m-membership, #m-overview) .membership-hero-note { color: var(--member-muted); font-size: 11px; margin: 19px 0 0; }
+:is(#m-membership, #m-overview, #m-apply) .membership-hero-note { color: var(--member-muted); font-size: 11px; margin: 19px 0 0; }
 .membership-folio { position: relative; margin: 0; padding: 30px 28px 0; isolation: isolate; }
 .membership-folio::before { content: ''; position: absolute; inset: 10px 0 45px; background: linear-gradient(145deg, #eae6dc, #dcd7c9); border-radius: 10px; box-shadow: inset 0 1px 0 #ffffff80; z-index: -1; }
 .membership-folio-tab { position: absolute; top: 0; right: 28px; background: var(--member-rust); color: #fff; padding: 8px 16px; font-size: 9px; text-transform: uppercase; letter-spacing: .12em; transform: rotate(3deg); border-radius: 4px; box-shadow: 0 3px 7px #232f2d14; }
@@ -90,10 +90,10 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
 .membership-team-content { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; padding: 0 0 27px 52px; align-items: end; }
 .membership-team-content p { font-size: 14px; line-height: 1.8; color: #c4c9bc; max-width: 59ch; margin-bottom: 0; }
 .membership-team-focus { color: #d4bb8c; font-size: 10px; letter-spacing: .03em; text-align: right; }
-:is(#m-membership, #m-overview) .membership-teams summary:focus-visible { outline-color: #dcc797; outline-offset: 3px; }
+:is(#m-membership, #m-overview, #m-apply) .membership-teams summary:focus-visible { outline-color: #dcc797; outline-offset: 3px; }
 .membership-joining { padding-top: 92px; }
 .membership-joining .membership-button { margin-top: 12px; }
-:is(#m-membership, #m-overview) .membership-deadline { margin: 14px 0 0; font-size: 11px; }
+:is(#m-membership, #m-overview, #m-apply) .membership-deadline { margin: 14px 0 0; font-size: 11px; }
 .membership-steps { list-style: none; margin: 0; padding: 0 0 0 25px; counter-reset: joining; border-left: 1px solid var(--member-rule); }
 .membership-steps li { position: relative; padding: 0 0 30px 22px; counter-increment: joining; }
 .membership-steps li:last-child { padding-bottom: 0; }
@@ -102,7 +102,7 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
 .membership-steps p { font-size: 14px; line-height: 1.8; color: var(--member-muted); margin: 0; max-width: 51ch; }
 .membership-principles { display: grid; grid-template-columns: 1.05fr 1fr; gap: 90px; background: linear-gradient(135deg, #eeeee5, #e4e5da); border-radius: 10px; box-shadow: var(--member-surface-shadow), inset 0 1px 0 #ffffff80; padding: 40px 42px; align-items: start; }
 .membership-principles .membership-eyebrow { margin-bottom: 16px; }
-:is(#m-membership, #m-overview) .membership-principles h2 { font-size: 31px; margin-bottom: 16px; }
+:is(#m-membership, #m-overview, #m-apply) .membership-principles h2 { font-size: 31px; margin-bottom: 16px; }
 .membership-principles p { font-size: 13px; line-height: 1.8; color: var(--member-muted); margin-bottom: 0; }
 .membership-policy { border-block: 1px solid #c2c6b7; margin-top: 36px; }
 .membership-policy summary { cursor: pointer; padding: 17px 0; font-size: 13px; display: flex; gap: 20px; align-items: center; justify-content: space-between; list-style: none; }
@@ -113,7 +113,7 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
 .membership-endnote { display: flex; justify-content: space-between; gap: 20px; color: var(--member-muted); padding: 30px 0; font-size: 10px; }
 @media (max-width: 1050px) {
   .membership-hero { gap: 38px; padding-top: 58px; }
-  :is(#m-membership, #m-overview) h1 { font-size: 60px; }
+  :is(#m-membership, #m-overview, #m-apply) h1 { font-size: 60px; }
   .membership-folio-paper { padding-inline: 22px; }
   .membership-actions { gap: 12px 22px; }
   .membership-work, .membership-joining { gap: 56px; }
@@ -123,7 +123,7 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
   .membership-masthead { font-size: 9px; }
   .membership-masthead span:first-child { display: none; }
   .membership-hero { grid-template-columns: 1.2fr 1fr; gap: 28px; }
-  :is(#m-membership, #m-overview) h1 { font-size: 49px; }
+  :is(#m-membership, #m-overview, #m-apply) h1 { font-size: 49px; }
   .membership-lede { font-size: 15px; }
   .membership-folio { padding: 24px 18px 0; }
   .membership-folio-paper { padding: 20px 18px 16px; }
@@ -141,18 +141,18 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
   .membership-principles { gap: 32px; padding: 34px 30px; }
 }
 @media (max-width: 620px) {
-  body:has(#m-membership.on, #m-overview.on) > .wrap { padding-inline: 20px; }
-  body:has(#m-membership.on, #m-overview.on) .topbar-in { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 14px 20px 0; }
-  body:has(#m-membership.on, #m-overview.on) .brand { grid-column: 1; grid-row: 1; gap: 8px; }
-  body:has(#m-membership.on, #m-overview.on) .brand .bn { font-size: 11px; line-height: 1.35; max-width: 180px; }
-  body:has(#m-membership.on, #m-overview.on) .brand .bs { font-size: 9px; margin-top: 3px; }
-  body:has(#m-membership.on, #m-overview.on) .brand .mark { width: 38px; font-size: 9px; }
-  body:has(#m-membership.on, #m-overview.on) .applybtn { grid-column: 2; grid-row: 1; padding: 9px 14px; font-size: 12px; }
-  body:has(#m-membership.on, #m-overview.on) .navlinks { grid-column: 1 / -1; grid-row: 2; display: flex; gap: 0; flex-wrap: nowrap; }
-  body:has(#m-membership.on, #m-overview.on) .mtab { flex: 1; font-size: 12px; padding: 10px 6px; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) > .wrap { padding-inline: 20px; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .topbar-in { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 14px 20px 0; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .brand { grid-column: 1; grid-row: 1; gap: 8px; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .brand .bn { font-size: 11px; line-height: 1.35; max-width: 180px; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .brand .bs { font-size: 9px; margin-top: 3px; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .brand .mark { width: 38px; font-size: 9px; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .applybtn { grid-column: 2; grid-row: 1; padding: 9px 14px; font-size: 12px; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .navlinks { grid-column: 1 / -1; grid-row: 2; display: flex; gap: 0; flex-wrap: nowrap; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .mtab { flex: 1; font-size: 12px; padding: 10px 6px; }
   .membership-masthead { padding-top: 23px; }
   .membership-hero { grid-template-columns: minmax(0, 1fr); gap: 40px; padding: 42px 0; }
-  :is(#m-membership, #m-overview) h1 { font-size: clamp(43px, 11vw, 64px); margin-bottom: 23px; }
+  :is(#m-membership, #m-overview, #m-apply) h1 { font-size: clamp(43px, 11vw, 64px); margin-bottom: 23px; }
   .membership-eyebrow { font-size: 9px; letter-spacing: .12em; margin-bottom: 23px; }
   .membership-lede { font-size: 16px; max-width: 40ch; margin-bottom: 24px; }
   .membership-actions { gap: 12px 25px; }
@@ -169,7 +169,7 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
   .membership-facts dd { font-size: 12px; }
   .membership-section { padding: 58px 0; }
   .membership-work, .membership-joining { grid-template-columns: 1fr; gap: 28px; }
-  :is(#m-membership, #m-overview) h2 { font-size: 37px; }
+  :is(#m-membership, #m-overview, #m-apply) h2 { font-size: 37px; }
   .membership-section-heading > p:not(.membership-eyebrow) { font-size: 15px; margin-bottom: 0; }
   .membership-work-list article { padding: 22px 0; }
   .membership-teams { padding: 33px 23px 23px; margin-inline: -20px; scroll-margin-top: 125px; }
@@ -180,20 +180,55 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
   .membership-team-content p { font-size: 13px; }
   .membership-joining { gap: 38px; }
   .membership-joining .membership-button { margin-top: 23px; }
-  :is(#m-membership, #m-overview) .membership-deadline { margin-top: 14px; }
+  :is(#m-membership, #m-overview, #m-apply) .membership-deadline { margin-top: 14px; }
   .membership-steps { margin-left: 16px; }
   .membership-principles { grid-template-columns: 1fr; gap: 24px; padding: 30px 23px; margin-inline: -20px; }
-  :is(#m-membership, #m-overview) .membership-principles h2 { font-size: 29px; }
+  :is(#m-membership, #m-overview, #m-apply) .membership-principles h2 { font-size: 29px; }
   .membership-policy { margin-top: 0; }
   .membership-endnote { flex-direction: column; gap: 5px; padding: 24px 0; font-size: 9px; }
 }
 @media print {
-  body:has(#m-membership.on, #m-overview.on) .topbar { position: static; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .topbar { position: static; }
   .membership-folio-paper { transform: none; box-shadow: none; }
   .membership-section { break-inside: avoid; }
 }
 
 /* Overview uses the same page frame and section styles as Membership. */
+.apply-hero { grid-template-columns: 1.3fr 1fr; }
+#m-apply .membership-button { text-decoration: none; }
+.apply-status { position: relative; padding: 34px; background: linear-gradient(140deg, #efeee6, #e3e4d8); border-top: 3px solid var(--member-rust); border-radius: 9px; box-shadow: var(--member-surface-shadow), inset 0 1px 0 #ffffff80; }
+.apply-status .membership-eyebrow { padding-right: 35px; margin-bottom: 18px; }
+#m-apply .apply-status h2 { font-size: 36px; margin-bottom: 18px; }
+.apply-status > p:not(.membership-eyebrow) { font-size: 16px; line-height: 1.75; color: var(--member-ink); margin-bottom: 24px; }
+.apply-status-note { border-top: 1px solid var(--member-rule); padding-top: 20px; font-size: 13px; line-height: 1.8; color: var(--member-muted); }
+.apply-review { align-self: start; border: 1px solid var(--member-rule); border-left: 3px solid var(--member-rust); border-radius: 8px; padding: 28px; background: linear-gradient(140deg, #faf9f3, #efeee6); box-shadow: var(--member-surface-shadow); }
+.apply-review p { font-size: 14px; line-height: 1.8; color: var(--member-muted); }
+#m-apply .apply-review-policy { font-size: 12px; padding-top: 16px; border-top: 1px solid var(--member-rule); margin-bottom: 0; }
+.apply-questions { border-top: 1px solid var(--member-rule); }
+.apply-prompt-list article:first-child { padding-top: 24px; }
+.apply-prompt-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin-bottom: 12px; }
+.apply-word-limit { display: inline-block; color: var(--member-rust); background: #913f2f08; border: 1px solid #913f2f22; padding: 3px 8px; font-size: 10px; border-radius: 4px; }
+.apply-interviews { display: grid; grid-template-columns: .9fr 1.1fr; gap: 70px; padding: 42px; background: linear-gradient(135deg, #2d403a, #232f2d 70%); color: var(--member-paper); border-radius: 10px; box-shadow: 0 3px 6px #232f2d0a, 0 14px 32px #232f2d1a, inset 0 1px 0 #ffffff12; }
+.apply-interviews .membership-eyebrow { color: #d4bb8c; margin-bottom: 18px; }
+#m-apply .apply-interviews h2 { margin-bottom: 0; }
+.apply-interviews p:not(.membership-eyebrow) { color: #c4c9bc; font-size: 14px; line-height: 1.8; }
+.apply-interviews p:last-child { margin-bottom: 0; }
+@media (max-width: 800px) {
+  .apply-hero { grid-template-columns: 1.2fr 1fr; }
+  .apply-status { padding: 28px; }
+  .apply-interviews { gap: 35px; padding: 34px 30px; }
+}
+@media (max-width: 620px) {
+  .apply-hero { grid-template-columns: minmax(0, 1fr); }
+  .apply-status { padding: 28px 23px; }
+  #m-apply .apply-status h2 { font-size: 32px; }
+  .apply-review { padding: 23px; }
+  .apply-interviews { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 30px 23px; }
+}
+@media print {
+  .apply-status, .apply-review, .apply-interviews { box-shadow: none; break-inside: avoid; }
+}
+
 .overview-hero { display: grid; grid-template-columns: 1.4fr 1fr; gap: 72px; align-items: center; padding: 76px 0 62px; }
 .overview-hero > div { min-width: 0; }
 #m-overview h1 { font-size: clamp(42px, 4.5vw, 64px); }
@@ -265,38 +300,38 @@ body:has(#m-membership.on, #m-overview.on) .topbar button:focus-visible {
 
 /* Button depth stays within the layout; touch controls keep the pressed state. */
 .membership-button, .overview-secondary,
-body:has(#m-membership.on, #m-overview.on) .applybtn {
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .applybtn {
   box-shadow: 0 2px 3px #232f2d14, 0 4px 9px #232f2d0d, inset 0 1px 0 #ffffff14;
   transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease;
 }
-body:has(#m-membership.on, #m-overview.on) .mtab {
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .mtab {
   transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease;
 }
 @media (hover: hover) and (pointer: fine) {
   .membership-button:hover, .overview-secondary:hover,
-  body:has(#m-membership.on, #m-overview.on) .applybtn:hover {
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .applybtn:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 6px #232f2d14, 0 9px 18px #232f2d24, inset 0 1px 0 #ffffff24;
   }
-  body:has(#m-membership.on, #m-overview.on) .mtab:hover {
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .mtab:hover {
     transform: translateY(-1px);
     box-shadow: 0 3px 7px #232f2d12;
   }
-  body:has(#m-membership.on, #m-overview.on) .mtab.on:hover {
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) .mtab.on:hover {
     box-shadow: inset 0 -1px #913f2f, 0 3px 7px #232f2d12;
   }
 }
 .membership-button:active, .overview-secondary:active,
-body:has(#m-membership.on, #m-overview.on) .applybtn:active {
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .applybtn:active {
   transform: translateY(1px);
   box-shadow: 0 1px 2px #232f2d14, inset 0 2px 4px #0000001a;
 }
-body:has(#m-membership.on, #m-overview.on) .mtab:active { transform: translateY(0); }
+body:has(#m-membership.on, #m-overview.on, #m-apply.on) .mtab:active { transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
   .membership-button, .overview-secondary,
   :is(.membership-button, .overview-secondary):is(:hover, :active),
-  body:has(#m-membership.on, #m-overview.on) :is(.applybtn, .mtab),
-  body:has(#m-membership.on, #m-overview.on) :is(.applybtn, .mtab):is(:hover, :active) {
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) :is(.applybtn, .mtab),
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) :is(.applybtn, .mtab):is(:hover, :active) {
     transition: none;
     transform: none;
   }
@@ -304,5 +339,5 @@ body:has(#m-membership.on, #m-overview.on) .mtab:active { transform: translateY(
 @media print {
   .overview-focus, .membership-teams, .membership-principles,
   .membership-button, .overview-secondary,
-  body:has(#m-membership.on, #m-overview.on) :is(.topbar, .applybtn, .mtab) { box-shadow: none; }
+  body:has(#m-membership.on, #m-overview.on, #m-apply.on) :is(.topbar, .applybtn, .mtab) { box-shadow: none; }
 }
