@@ -24,11 +24,25 @@ FIELDS.forEach(function(f,i){
  var rows=[];
  for(var y=2020;y<=2025;y++) rows.push({start:f.section==='balance'?undefined:(y-1)+'-10-01',end:y+'-09-30',form:'10-K',filed:y+'-11-01',accn:'0000320193-'+String(y).slice(2)+'-000001',val:f.id==='eps'?6.5:f.id==='revenue'?100000000000+(y-2020)*10000000000:f.id==='netIncome'?20000000000:f.id==='ocf'?30000000000:f.id==='capex'?8000000000:f.id==='cash'?0:f.id==='inventory'?0:5000000000+i*1000000000});
  facts.facts['us-gaap'][f.tags[0]]={units:{}};facts.facts['us-gaap'][f.tags[0]].units[f.unit]=rows;
+ var annualBase=rows[rows.length-1].val;
+ for(var y=2023;y<=2026;y++){
+  var total=f.id==='revenue'?100000000000+(y-2020)*10000000000:annualBase;
+  ['12-31','03-31','06-30'].forEach(function(suffix,q){
+   var start=q===0?(y-1)+'-10-01':y+(q===1?'-01-01':'-04-01'),end=(q===0?y-1:y)+'-'+suffix;
+   var base={end:end,form:'10-Q',filed:y+'-'+['02-01','05-01','08-01'][q],accn:'0000320193-'+String(y).slice(2)+'-000001'};
+   if(f.section==='balance')rows.push(Object.assign({},base,{val:total}));
+   else {
+    if(f.unit==='USD')rows.push(Object.assign({},base,{start:(y-1)+'-10-01',val:total*(q+1)/4}));
+    if(f.section!=='cashflow')rows.push(Object.assign({},base,{start:start,val:f.unit==='shares'?total:total/4}));
+   }
+  });
+ }
 });
 delete facts.facts['us-gaap'].InventoryNet;
 var recent={accessionNumber:[],form:[],filingDate:[],reportDate:[]};
 ['10-K','10-Q','8-K','DEF 14A','4'].forEach(function(form,i){for(var n=0;n<(form==='4'?25:1);n++){
 recent.accessionNumber.push('0000320193-25-'+String(i*100+n+1).padStart(6,'0'));recent.form.push(form);recent.filingDate.push('2025-11-01');recent.reportDate.push('2025-09-30');}});
+recent.filingDate[1]='2026-08-01';recent.reportDate[1]='2026-06-30';
 var sub={cik:320193,name:'Apple fixture <img src=x onerror="window.injected=true">',sic:'3571',sicDescription:'Electronic Computers',exchanges:['Nasdaq'],filings:{recent:recent}};
 print(JSON.stringify(normalizeFinancials(facts,sub,'AAPL','2026-09-13T12:00:00Z')));
 '''
@@ -68,10 +82,12 @@ def api(route):
             return
         result = copy.deepcopy(data)
         result["symbol"] = symbol
+        if symbol == "MSFT":
+            result["cik"] = "0000789019"
         if symbol != "AAPL":
             result["name"] = "Microsoft Corporation" if symbol == "MSFT" else symbol
         if symbol == "FOREIGN":
-            result.update(periods=[], coverage="filings-only", message="Standardized USD annual financials are unavailable for this issuer.")
+            result.update(periods=[], quarterly=[], ttm=[], coverage="filings-only", message="Standardized USD annual financials are unavailable for this issuer.")
         route.fulfill(json=result)
     elif path == "/api/search":
         route.fulfill(json={"results": []})
@@ -111,24 +127,24 @@ try:
         expect(page.locator("#fd-statements-table thead")).to_contain_text("2021-09-30")
         first = page.locator("#fd-statements-table tbody tr").first
         expect(first).to_contain_text("150,000")
-        first.get_by_role("button").first.click()
+        first.locator(".fd-value").first.click()
         expect(page.locator("#fd-source")).to_contain_text("us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax")
         assert page.locator("#fd-source a").first.get_attribute("href").startswith("https://www.sec.gov/Archives/")
         page.locator("#fd-units").select_option("1000000000")
-        expect(first.get_by_role("button").first).to_have_text("150")
+        expect(first.locator(".fd-value").first).to_have_text("150")
         page.locator('[data-fd-statement="balance"]').click()
         inventory = page.locator("#fd-statements-table tr").filter(has_text=re.compile("^Inventory"))
         expect(inventory).to_contain_text("—")
         cash = page.locator("#fd-statements-table tr").filter(has_text=re.compile("^Cash & cash equivalents"))
-        expect(cash.get_by_role("button").first).to_have_text("0")
+        expect(cash.locator(".fd-value").first).to_have_text("0")
         page.locator('[data-fd-statement="cashflow"]').click()
-        page.locator("#fd-statements-table tr").filter(has_text="Free cash flow (calculated)").get_by_role("button").first.click()
+        page.locator("#fd-statements-table tr").filter(has_text="Free cash flow (calculated)").locator(".fd-value").first.click()
         expect(page.locator("#fd-source")).to_contain_text("22,000,000,000")
         expect(page.locator("#fd-source a")).to_have_count(2)
         page.locator('[data-fd-view="ratios"]').click()
         margin = page.locator("#fd-ratios-table tr").filter(has_text=re.compile("^Net profit margin"))
-        expect(margin.get_by_role("button").first).to_have_text("13.3%")
-        margin.get_by_role("button").first.click()
+        expect(margin.locator(".fd-value").first).to_have_text("13.3%")
+        margin.locator(".fd-value").first.click()
         expect(page.locator("#fd-source")).to_contain_text("Calculated:")
 
         with page.expect_download() as download_info:
@@ -194,6 +210,72 @@ try:
         expect(page.locator("#v-fundamentals")).to_be_visible()
         expect(page.locator("#fd-name")).to_contain_text("Apple fixture")
 
+        # Recent filings, quarterly/TTM selection and row charts.
+        expect(page.locator("#fd-freshness")).to_contain_text("2026-06-30")
+        page.locator("#fd-basis").select_option("quarterly")
+        expect(page.locator("#fd-period-label")).to_contain_text("Quarterly financials · 2026-04-01 to 2026-06-30")
+        expect(page.locator("#fd-freshness")).to_be_hidden()
+        page.locator('[data-fd-view="statements"]').click()
+        page.locator('[data-fd-statement="cashflow"]').click()
+        ocf=page.locator("#fd-statements-table tr").filter(has_text=re.compile("^Operating cash flow"))
+        ocf.locator(".fd-value").first.click()
+        expect(page.locator("#fd-source")).to_contain_text("Single quarter")
+        ocf.locator(".fd-row-chart").click()
+        expect(page.locator("#fd-overview")).to_be_visible()
+        expect(page.locator("#fd-chart")).to_have_attribute("aria-label", re.compile("Quarterly Operating cash flow"))
+        page.locator("#fd-basis").select_option("ttm")
+        expect(page.locator("#fd-period-label")).to_contain_text("2025-07-01 to 2026-06-30")
+        with page.expect_download() as ttm_download:
+            page.locator("#fd-download").click()
+        with tempfile.TemporaryDirectory() as tmp:
+            path=pathlib.Path(tmp)/'ttm.csv'
+            ttm_download.value.save_as(path)
+            ttm_rows=list(csv.DictReader(io.StringIO(path.read_text(encoding='utf-8-sig'))))
+        assert ttm_rows[0]['Reporting basis']=='ttm' and ttm_rows[0]['Period end']=='2026-06-30'
+
+        # Entered market cap is explicit; no price-provider request is needed.
+        before_prices=sum(path=="/api/quote" for path,_ in requests)
+        page.locator('[data-fd-view="valuation"]').click()
+        page.locator("#fd-market-cap").fill("1575")
+        page.locator("#fd-market-date").fill("2026-09-13")
+        page.locator("#fd-valuation-form").evaluate("f => f.requestSubmit()")
+        expect(page.locator("#fd-valuation-status")).to_contain_text("Member-entered market cap")
+        expect(page.locator("#fd-valuation-metrics")).to_contain_text("10.00×")
+        assert sum(path=="/api/quote" for path,_ in requests)==before_prices
+        page.locator("#fd-market-date").fill("2025-01-01")
+        page.locator("#fd-valuation-form").evaluate("f => f.requestSubmit()")
+        expect(page.locator("#fd-valuation-status")).to_contain_text("on or after")
+        expect(page.locator("#fd-valuation-metrics .fd-metric")).to_have_count(0)
+        page.locator("#fd-market-date").fill("2026-09-13")
+        page.locator("#fd-valuation-form").evaluate("f => f.requestSubmit()")
+
+        # Mixed successes, issuer deduplication and valuation inputs in peers.
+        page.locator('[data-fd-view="peers"]').click()
+        page.locator("#fd-peer-symbols").fill("MSFT, ALIAS, UNKNOWN")
+        page.locator("#fd-peer-form").evaluate("f => f.requestSubmit()")
+        expect(page.locator("#fd-peer-status")).to_contain_text("Duplicate SEC issuers")
+        expect(page.locator("#fd-peer-table thead th")).to_have_count(4)
+        expect(page.locator("#fd-peer-table")).to_contain_text("No SEC company")
+        page.get_by_label("MSFT market capitalization in USD billions").fill("3150")
+        page.get_by_label("MSFT market capitalization in USD billions").press("Tab")
+        page.get_by_label("MSFT market-cap date").fill("2026-09-13")
+        page.get_by_label("MSFT market-cap date").press("Tab")
+        expect(page.locator("#fd-peer-table")).to_contain_text("20.00×")
+        page.locator("#fd-basis").select_option("quarterly")
+        expect(page.locator("#fd-peer-table thead")).to_contain_text("2026-04-01 to 2026-06-30")
+        # A peer response arriving after a company change cannot repopulate it.
+        pending.clear()
+        page.locator("#fd-peer-symbols").fill("SLOW")
+        page.locator("#fd-peer-form").evaluate("f => f.requestSubmit()")
+        expect(page.locator("#fd-peer-status")).to_contain_text("Loading SLOW")
+        ticker.fill("MSFT")
+        page.locator("#fd-form").evaluate("f => f.requestSubmit()")
+        expect(page.locator("#fd-name")).to_have_text("Microsoft Corporation")
+        for route in pending:
+            route.fulfill(json={**data,"name":"Late peer"})
+        expect(page.locator("#fd-peer-table")).to_be_empty()
+        expect(page.locator("#fd-peer-go")).to_be_enabled()
+
         for width in (320, 390, 768, 1280):
             page.set_viewport_size({"width": width, "height": 1000})
             page.locator('[data-fd-view="statements"]').click()
@@ -207,6 +289,6 @@ try:
         page.locator("#v-fundamentals").screenshot(path=str(pathlib.Path(tempfile.gettempdir()) / "gpmc-fundamentals.png"))
         assert not errors, errors
         browser.close()
-        print("PASS: fundamental deep link, gate, search, statements, ratios, sources, CSV, filings, caching, stale responses, unavailable data, lookup handoff and responsive layout")
+        print("PASS: fundamental workflows plus quarterly/TTM, row charts, freshness, entered-cap valuation, peer comparisons, partial failures, issuer deduplication, stale peer cancellation and responsive layout")
 finally:
     server.shutdown()

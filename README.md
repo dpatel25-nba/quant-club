@@ -19,12 +19,36 @@ fundamentals.js / fundamentals.css  company research interface
 
 Open `/#fundamentals` after unlocking Research Tools, or use **View company
 fundamentals** beneath a supported U.S. stock lookup. This is a dedicated company
-research tab. It contains five annual periods, 39 reported financial fields,
+research tab. It contains five annual periods and up to eight quarterly and
+trailing 12-month periods, 39 reported financial fields,
 two calculated cash/balance measures, 15 ratios, a selectable historical chart,
 per-value sources and calculations, CSV export, and a filtered filing library.
 The statement views are income statement, balance sheet and cash flow. Ratios
 include growth, margins, returns on average equity/assets, liquidity and cash
-conversion. No price-based valuation multiples or forecasts are fabricated.
+conversion. The reporting selector updates statements, charts, ratios and CSV
+exports together. Clicking a row name charts that metric. The Overview includes
+factual changes and a notice when a newer filing covers a more recent period.
+
+**Peer comparison** accepts up to four tickers alongside the current company.
+Companies are loaded sequentially, reuse the 15-minute client cache, and are
+deduplicated by SEC issuer (CIK), including different classes of the same issuer.
+Failures remain visible in their own columns. Each company keeps its actual
+fiscal dates; a common reporting basis does not imply matching calendar periods.
+Changing the main company cancels pending peer comparisons.
+
+**Valuation** is an explicit calculator using a member-entered, company-wide
+market capitalization in USD billions and its date. It computes market cap /
+parent net income, price / sales, free cash flow yield and price / book from
+the latest available TTM period, falling back to annual if no TTM history exists.
+Market-cap inputs can also be entered in the peer table and are retained only
+for the browser page, by issuer. This does not fetch or infer a live market cap
+from stale shares, and consumes no additional market-provider credits.
+The date must be at least the financial period end and the latest filing date
+among valuation inputs, and cannot be in the future. Negative earnings/equity
+multiples are unavailable; negative free cash flow yields remain visible.
+Parent net income is not adjusted for preferred dividends, so the earnings
+multiple is labeled explicitly and may differ from a quoted P/E. These are
+calculations from entered assumptions, not verified historical valuations.
 
 Company name suggestions use the SEC ticker directory through
 `/api/fundamentals?q=...`, independently of Twelve Data credits. Submitting a
@@ -49,31 +73,43 @@ queue with a global rate limit.
 
 Normalization rules:
 
-- USD values from standard US GAAP tags in 10-K/10-K/A filings only. Other
+- USD values from standard US GAAP tags in 10-K/10-K/A and 10-Q/10-Q/A filings. Other
   currencies and custom or segment tags are not combined. An issuer without
   supported financials still gets its available original filings.
 - Annual income/cash-flow periods must span 320–400 days. Columns use actual
   start/end dates, not the `fy` label of a later comparative filing. Balance
-  sheet facts must be instantaneous at the exact annual end date.
+  sheet facts must be instantaneous at the exact selected period end date.
+- Single-quarter periods span 70–110 days. Prefer directly reported quarter
+  values; otherwise monetary flows are derived by subtracting cumulative
+  disclosures with matching start date, currency and tag. This includes Q4 as
+  the full year less nine months. Components can come from different filings;
+  later restatements can affect comparability. All component sources are kept.
+- TTM uses an exact reported year or four consecutive, non-overlapping quarters
+  spanning 350–380 days. Missing monetary components make the total unavailable.
+  Ending balance-sheet values are carried forward as snapshots, never summed.
+  EPS and weighted average shares are never subtracted or summed; absent an
+  exact reported period, their derived-quarter/TTM values remain unavailable.
 - The latest filed value for an exact period wins across supported aliases;
   same-filing ties use the documented alias order in `FIELDS`. Later comparative
   disclosures and amendments can restate old figures. Each number retains its
   tag, filing date, accession, unit and source link. This is not a point-in-time
   backtest dataset, and separate rows can cite different filings.
-- Missing is null, never zero. Ratios require positive denominators. Growth and
-  average-balance returns require consecutive fiscal years; a sixth year is
+- Missing is null, never zero. Ratios require positive denominators. Growth
+  compares matching prior-year periods, including for quarters and TTM. Returns
+  on average assets/equity require a balance immediately before the period start;
+  quarterly returns are not annualized. Additional historical periods are
   loaded internally to calculate the oldest displayed year's growth/returns.
   Free cash flow is operating cash flow minus reported cash capital expenditures.
   Its formula and all input sources are exposed and exported.
 - General ratios can be unsuitable for banks and insurers. Debt components
   overlap and should not all be added together. No implicit debt summation,
-  non-GAAP EBITDA, TTM figures, forecasts, or valuation multiples are supplied.
+  non-GAAP EBITDA, forecasts or enterprise-value multiples are supplied.
 
 The filing library includes annual/quarterly reports, current-event reports,
 proxy disclosures and insider/beneficial ownership filings from the SEC's
 recent submissions block. Its time coverage can differ from the annual tables;
-**Full history on SEC EDGAR** reaches older reports. Quarterly statements,
-segment details, risk factors, management commentary, footnotes and company
+**Full history on SEC EDGAR** reaches older reports. Segment details,
+risk factors, management commentary, footnotes and company
 guidance remain accessible in the originals; they are not automatically extracted.
 Links open the SEC filing index so users can choose the original document or
 its exhibits. CSV includes unscaled values, units, missing cells and provenance.
@@ -82,13 +118,17 @@ Validation:
 
 ```sh
 python3 test/check_fundamentals.py
+python3 test/check_interim.py
 PLAYWRIGHT_BROWSERS_PATH=/tmp/gpmc-browsers ../venv/bin/python test/check_fundamentals_browser.py
 ```
 
 The model/API tests use synthetic filings and fake credentials to cover fiscal
 dates, amendments, currency separation, missing data, calculations, authorization,
-caching and failures. Browser tests cover deep links, source inspection, search,
-exports, filters, stale requests and phone/desktop widths. Public SEC snapshots
+caching and failures. Interim tests check YTD subtraction, Q4, TTM continuity,
+missing components, EPS safeguards, YoY growth, balance timing and valuation
+availability dates. Browser tests cover deep links, source inspection, search,
+exports, filters, reporting bases, valuation, peer partial failures, issuer
+deduplication, stale requests and phone/desktop widths. Public SEC snapshots
 for AAPL, MSFT and JPM were also normalized during implementation to check period
 selection and coverage. These checks do not establish SEC access from every
 Vercel deployment; an upstream block produces a visible error, never sample data.
