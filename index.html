@@ -320,6 +320,7 @@
 </style>
 <link rel="stylesheet" href="/membership.css">
 <link rel="stylesheet" href="/ticker-suggestions.css">
+<link rel="stylesheet" href="/fundamentals.css">
 </head>
 <body>
 <div class="topbar">
@@ -578,7 +579,7 @@
       <h1 style="font-size:clamp(26px,4vw,38px)">Research tools</h1>
       <p class="lede">Price history and statistics for any
         listed security, portfolio risk and return attribution, correlation across
-        asset classes, and Fama-French factor exposures.</p>
+        asset classes, Fama-French factor exposures, and company financials from SEC filings.</p>
     </div>
     <div class="panel" id="lock">
       <div class="eyebrow">Members only</div>
@@ -599,6 +600,7 @@
     <div id="toolsWrap" hidden>
   <nav class="tabs" role="tablist">
     <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
+    <button class="tab" data-v="fundamentals" role="tab" aria-controls="v-fundamentals">Fundamental Data</button>
     <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
     <button class="tab" data-v="compare" role="tab">Compare</button>
     <button class="tab" data-v="factors" role="tab">Factors</button>
@@ -702,8 +704,80 @@
       <div class="legend" id="legend"></div>
       <div class="stats" id="stats"></div>
       <div class="note" id="note"></div>
+      <button class="btn ghost" id="lookup-fundamentals" type="button" hidden>View company fundamentals →</button>
     </div>
   </div>
+  </section>
+
+  <section class="view" id="v-fundamentals">
+    <div class="panel">
+      <div class="eyebrow">Company research · SEC EDGAR</div>
+      <h2 class="fd-heading">Fundamental Data</h2>
+      <p class="fd-intro">Explore the financial performance behind a company’s stock. Review annual statements, compare key ratios, and go directly to the filings for the full story.</p>
+      <form class="search" id="fd-form">
+        <div class="ticker-field">
+          <input class="fd-input" id="fd-ticker" value="AAPL" placeholder="Company name or U.S. ticker" autocomplete="off" spellcheck="false"
+                 aria-label="Company name or U.S. ticker" role="combobox" aria-autocomplete="list" aria-expanded="false"
+                 aria-controls="fd-ticker-matches" aria-describedby="fd-hint">
+          <div class="ticker-popup" id="fd-ticker-popup" hidden>
+            <ul id="fd-ticker-matches" role="listbox" aria-label="Suggested SEC companies"></ul>
+            <div class="ticker-search-status" id="fd-ticker-search-status" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+        <button class="btn" id="fd-go" type="submit">Research company</button>
+      </form>
+      <p class="ticker-hint" id="fd-hint">Search a name and select a match, or enter a ticker directly. Annual US GAAP financials in USD where available.</p>
+      <p class="fd-status" id="fd-status" role="status" aria-live="polite">Choose a company to begin.</p>
+    </div>
+    <div class="fd-welcome" id="fd-welcome">
+      <article class="panel"><h3>Financial performance</h3><p>Five years of income statements, balance sheets and cash flows, with a source for every reported number.</p></article>
+      <article class="panel"><h3>Business quality</h3><p>Compare margins, capital investment, cash generation, liquidity and returns on equity over time.</p></article>
+      <article class="panel"><h3>Original disclosures</h3><p>Read management’s discussion, business risks, quarterly updates, governance disclosures and insider filings.</p></article>
+    </div>
+    <div class="panel" id="fd-result" hidden style="margin-top:18px">
+      <div class="fd-top">
+        <div><div class="eyebrow" id="fd-symbol"></div><h2 class="fd-name" id="fd-name"></h2><div class="fd-meta" id="fd-meta"></div></div>
+        <button class="btn ghost" id="fd-download" type="button">Download financials CSV</button>
+      </div>
+      <div class="fd-nav" role="group" aria-label="Fundamental research views">
+        <button type="button" data-fd-view="overview" aria-pressed="true">Overview</button>
+        <button type="button" data-fd-view="statements" aria-pressed="false">Financial statements</button>
+        <button type="button" data-fd-view="ratios" aria-pressed="false">Ratios &amp; quality</button>
+        <button type="button" data-fd-view="filings" aria-pressed="false">Filings &amp; disclosures</button>
+      </div>
+      <div id="fd-overview">
+        <p class="fd-muted" id="fd-period-label"></p>
+        <div class="fd-metrics" id="fd-metrics"></div>
+        <div class="fd-trend" id="fd-trend-box">
+          <div class="fd-controls"><h3>Annual performance</h3><label>Metric<select id="fd-trend-metric"><option value="revenue">Revenue</option><option value="netIncome">Net income</option><option value="fcf">Free cash flow</option><option value="ocf">Operating cash flow</option></select></label></div>
+          <svg id="fd-chart" role="img" aria-label="Annual financial performance"></svg>
+          <p class="fd-muted">Select a value in Financial statements to inspect its filing or calculation. Free cash flow is operating cash flow less capital expenditures.</p>
+        </div>
+        <div class="fd-links" id="fd-research-links"></div>
+      </div>
+      <div id="fd-statements" hidden>
+        <div class="fd-controls"><div class="fd-nav" role="group" aria-label="Financial statement" style="margin:0;padding:0;border:0">
+          <button type="button" data-fd-statement="income" aria-pressed="true">Income statement</button>
+          <button type="button" data-fd-statement="balance" aria-pressed="false">Balance sheet</button>
+          <button type="button" data-fd-statement="cashflow" aria-pressed="false">Cash flow</button>
+        </div><label>Display units<select id="fd-units"><option value="1000000">Millions</option><option value="1000000000">Billions</option><option value="1">As reported</option></select></label></div>
+        <p class="fd-muted">Annual periods in USD. Share counts use the selected scale; EPS is USD per share. Select any available value to see its source. — means unavailable.</p>
+        <div class="fd-table-wrap" id="fd-statements-table" tabindex="0" aria-label="Scrollable annual financial statements"></div>
+      </div>
+      <div id="fd-ratios" hidden>
+        <p class="fd-muted">Calculated from the annual financials. Definitions appear with each ratio. — means an input is missing or the ratio is not meaningful; no missing values are treated as zero.</p>
+        <div class="fd-table-wrap" id="fd-ratios-table" tabindex="0" aria-label="Scrollable annual financial ratios"></div>
+      </div>
+      <div id="fd-filings" hidden>
+        <div class="fd-controls"><label>Filing type<select id="fd-filing-type"><option value="reports">Annual &amp; quarterly reports</option><option value="events">Current reports &amp; events</option><option value="governance">Proxy &amp; governance</option><option value="ownership">Insider &amp; ownership</option><option value="all">All supported filings</option></select></label><a id="fd-sec-all" target="_blank" rel="noopener noreferrer">Full history on SEC EDGAR ↗</a></div>
+        <p class="fd-muted">Annual reports include business descriptions, risk factors, management’s discussion and footnotes. Proxy statements cover executive compensation and governance. These links open the original documents; the financial tables use annual reports only.</p>
+        <div class="fd-filings" id="fd-filing-list"></div>
+        <p class="fd-muted" id="fd-filing-count"></p>
+        <button class="btn ghost" id="fd-more-filings" type="button" hidden>Show more filings</button>
+      </div>
+      <div class="fd-source" id="fd-source" tabindex="-1" role="region" aria-label="Financial value source" hidden></div>
+      <details class="fd-method"><summary>Sources, coverage &amp; calculation notes</summary><p id="fd-methodology"></p><p>Debt rows can overlap: commercial paper may be included in short-term borrowings, and total long-term debt includes its current portion. Do not add every debt row together. Ratios are general-purpose measures and may be less useful for banks, insurers and other specialized businesses.</p><p>Filings shown here come from the SEC’s recent filing history, which may cover a different span from the financial tables. Use the full EDGAR history for older reports. Company-specific segments, non-GAAP adjustments, guidance and detailed notes should be read in the original documents.</p><p><a href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" target="_blank" rel="noopener noreferrer">About the SEC data source ↗</a></p></details>
+    </div>
   </section>
 
   <section class="view" id="v-portfolio">
@@ -924,6 +998,7 @@
 </div>
 
 <script src="/ticker-suggestions.js"></script>
+<script src="/fundamentals.js"></script>
 <script>
 (function () {
   "use strict";
@@ -1244,6 +1319,11 @@
       : "";
     el("result").hidden = false;
     el("msg").hidden = true;
+    var fundamentalButton = el("lookup-fundamentals");
+    fundamentalButton.hidden = !/stock|equity/i.test(data.type || "") || /fund|etf|commodity/i.test(data.type || "")
+      || (data.exchange && !/nasdaq|nyse|amex|arca|bats|cboe|otc|iex/i.test(data.exchange));
+    fundamentalButton.dataset.symbol = data.symbol;
+    fundamentalButton.dataset.exchange = data.exchange || "";
   }
 
   function say(text, isErr) {
@@ -2002,7 +2082,8 @@
     el("lock").hidden = true;
     el("toolsWrap").hidden = false;
     if (el("v-style-rotation").classList.contains("on") && window.StyleRotation) window.StyleRotation.open(pwKey);
-    if (!state.symbol) load();
+    if (el("v-fundamentals").classList.contains("on") && window.Fundamentals) window.Fundamentals.open();
+    else if (!state.symbol) load();
   }
 
   el("lockForm").addEventListener("submit", function (e) {
@@ -2053,15 +2134,14 @@
   });
   function restoreSection() {
     var hash = window.location ? window.location.hash.slice(1) : "";
-    var name = hash === "style-rotation" ? "tools" : hash === "membership-teams" ? "membership" : hash || "overview";
+    var name = hash === "style-rotation" || hash === "fundamentals" ? "tools" : hash === "membership-teams" ? "membership" : hash || "overview";
     goto(name, false);
     if (hash === "membership-teams") document.getElementById("membership-teams").scrollIntoView();
-    if (hash === "style-rotation") {
-      Array.prototype.forEach.call(document.querySelectorAll('.tab[data-v="style-rotation"]'), function (tab) { tab.click(); });
+    if (hash === "style-rotation" || hash === "fundamentals") {
+      Array.prototype.forEach.call(document.querySelectorAll('.tab[data-v="' + hash + '"]'), function (tab) { tab.click(); });
     }
   }
   window.addEventListener("hashchange", restoreSection);
-  restoreSection();
 
   Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) {
     b.addEventListener("click", function () {
@@ -2070,6 +2150,11 @@
       Array.prototype.forEach.call(document.querySelectorAll(".view"), function (v) {
         v.classList.toggle("on", v.id === "v-" + b.dataset.v); });
       if (b.dataset.v === "style-rotation" && window.StyleRotation) window.StyleRotation.open(pwKey);
+      if (b.dataset.v === "fundamentals" && window.Fundamentals) window.Fundamentals.open();
+      if (window.TickerSuggestions) window.TickerSuggestions.close();
+      if (window.history && window.location && (b.dataset.v === "fundamentals" || window.location.hash === "#fundamentals")) {
+        window.history.replaceState(null, "", b.dataset.v === "fundamentals" ? "#fundamentals" : "#tools");
+      }
     });
   });
 
@@ -2148,6 +2233,14 @@
     onEdit: function () { lookupSelection = null; },
     onSelect: function (item) { lookupSelection = item; el("ticker").value = item.symbol; load(); }
   });
+  if (window.Fundamentals) window.Fundamentals.attach({getPassword: function () { return pwKey; }});
+  el("lookup-fundamentals").addEventListener("click", function () {
+    var symbol = el("lookup-fundamentals").dataset.symbol;
+    // This research view resolves SEC issuers, not foreign exchange listings.
+    el("fd-ticker").value = symbol;
+    if (window.Fundamentals) window.Fundamentals.open(symbol);
+    Array.prototype.forEach.call(document.querySelectorAll('.tab[data-v="fundamentals"]'), function (tab) { tab.click(); });
+  });
   el("form").addEventListener("submit", function (e) { e.preventDefault(); load(); });
   Array.prototype.forEach.call(document.querySelectorAll(".range[data-r]"), function (b) {
     b.addEventListener("click", function () {
@@ -2170,6 +2263,7 @@
     }, 150);
   });
   // no automatic first load: the tools stay dark until the gate is passed
+  restoreSection();
 })();
 </script>
 <script src="/style-rotation.js"></script>

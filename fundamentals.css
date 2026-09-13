@@ -1,0 +1,76 @@
+.tabs { overflow-x: auto; }
+.tabs > .tab { flex-shrink: 0; white-space: nowrap; }
+#v-fundamentals { min-width: 0; }
+.fd-heading { margin: 6px 0 10px; font-size: clamp(24px, 3vw, 32px); letter-spacing: -.03em; }
+.fd-intro { color: var(--muted); max-width: 700px; line-height: 1.6; margin: 0 0 20px; }
+.fd-input { width: 100%; min-width: 0; padding: 12px 14px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font: inherit; }
+#fd-ticker-matches { list-style: none; margin: 0; padding: 5px; max-height: 300px; overflow-y: auto; }
+.fd-status { margin: 14px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.fd-status.err { color: var(--bad); }
+.fd-welcome, .fd-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.fd-welcome { margin-top: 18px; }
+.fd-welcome h3 { font-size: 16px; margin: 0 0 9px; }
+.fd-welcome p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.fd-top { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; margin-bottom: 20px; }
+.fd-name { font-size: 25px; margin: 4px 0 8px; overflow-wrap: anywhere; }
+.fd-meta { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.fd-nav, .fd-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fd-nav { padding-bottom: 18px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+.fd-nav button, .fd-controls button { font: inherit; font-size: 13px; cursor: pointer; padding: 8px 12px; background: var(--panel); color: var(--muted); border: 1px solid var(--border); border-radius: 7px; }
+.fd-nav button[aria-pressed="true"], .fd-controls button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+.fd-controls { justify-content: space-between; margin-bottom: 16px; }
+.fd-controls label { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.fd-controls select { font: inherit; padding: 7px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; max-width: 100%; }
+.fd-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 18px 0 24px; }
+.fd-metric { padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: linear-gradient(145deg,var(--panel),var(--panel-2)); }
+.fd-metric .fd-label { color: var(--muted); font-size: 12px; margin-bottom: 9px; }
+.fd-metric .fd-number { font-size: 25px; font-weight: 650; letter-spacing: -.03em; }
+.fd-metric .fd-caption { font-size: 11px; color: var(--muted); margin-top: 7px; }
+.fd-trend { border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 18px 0; }
+.fd-trend svg { width: 100%; height: auto; display: block; }
+.fd-trend h3 { margin: 0; font-size: 15px; }
+.fd-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 9px; }
+.fd-table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+.fd-table th, .fd-table td { text-align: right; padding: 12px 14px; border-bottom: 1px solid var(--border); min-width: 110px; vertical-align: top; }
+.fd-table th { font-weight: 600; background: var(--panel-2); }
+.fd-table th:first-child { text-align: left; min-width: 210px; max-width: 300px; position: sticky; left: 0; z-index: 1; }
+.fd-table tbody th { background: var(--panel); font-weight: 500; }
+.fd-table tbody tr:hover td, .fd-table tbody tr:hover th { background: var(--panel-2); }
+.fd-table td { white-space: nowrap; }
+.fd-table small { display: block; font-weight: 400; font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+.fd-value { color: var(--text); font: inherit; font-weight: 600; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 4px; }
+.fd-value:hover { color: var(--accent); }
+.fd-muted { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.fd-source { margin: 18px 0 0; padding: 18px; background: var(--accent-soft); border: 1px solid var(--border); border-radius: 8px; overflow-wrap: anywhere; }
+.fd-source h3 { margin: 0 0 10px; font-size: 15px; }
+.fd-source p, .fd-source li { font-size: 12px; line-height: 1.7; }
+.fd-source a, #v-fundamentals a { color: var(--accent); }
+.fd-filings { display: grid; gap: 0; border-top: 1px solid var(--border); }
+.fd-filing { display: grid; grid-template-columns: 95px minmax(0,1fr) auto; gap: 18px; align-items: start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.fd-form { display: inline-block; font: 600 12px ui-monospace, monospace; color: var(--accent); background: var(--accent-soft); border-radius: 5px; padding: 5px 8px; }
+.fd-filing h3 { font-size: 13px; margin: 2px 0 5px; overflow-wrap: anywhere; }
+.fd-filing p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.7; }
+.fd-filing a { font-size: 12px; white-space: nowrap; }
+.fd-method { margin-top: 22px; border-top: 1px solid var(--border); padding-top: 18px; }
+.fd-method summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.fd-method p { font-size: 12px; color: var(--muted); line-height: 1.8; }
+.fd-links { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; margin-top: 14px; }
+#lookup-fundamentals { margin-top: 16px; font-size: 13px; padding: 9px 14px; }
+@media(max-width: 650px) {
+  body:has(#m-tools.on) .topbar-in { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; padding: 12px 16px; }
+  body:has(#m-tools.on) .brand { grid-column: 1; grid-row: 1; gap: 7px; min-width: 0; }
+  body:has(#m-tools.on) .brand .bn { font-size: 11px; line-height: 1.4; }
+  body:has(#m-tools.on) .brand .bs { font-size: 9px; }
+  body:has(#m-tools.on) .brand .mark { width: 35px; font-size: 9px; }
+  body:has(#m-tools.on) .applybtn { grid-column: 2; grid-row: 1; padding: 8px 10px; font-size: 12px; }
+  body:has(#m-tools.on) .navlinks { grid-column: 1 / -1; grid-row: 2; }
+  .fd-welcome, .fd-columns { grid-template-columns: 1fr; }
+  .fd-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .fd-metric { padding: 12px; }
+  .fd-metric .fd-number { font-size: 21px; }
+  .fd-top { flex-direction: column; }
+  .fd-table th:first-child { min-width: 145px; max-width: 170px; }
+  .fd-filing { grid-template-columns: 75px minmax(0,1fr); gap: 10px; }
+  .fd-filing > a { grid-column: 2; }
+  .fd-controls { align-items: flex-start; }
+}

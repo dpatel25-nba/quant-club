@@ -2,15 +2,96 @@
 
 Emory University. Club site with the research tools built by the Systematic Portfolio Management unit.
 
-Four top-level sections: **Overview**, **Membership**, **Apply**, and **Research Tools** — the last containing Ticker Lookup, Portfolio Builder, Compare, Factors and **Style Rotation**.
+Four top-level sections: **Overview**, **Membership**, **Apply**, and **Research Tools** — the last containing Ticker Lookup, **Fundamental Data**, Portfolio Builder, Compare, Factors and **Style Rotation**.
 
-A static page plus one serverless function. Type a ticker, pick a range, get a
-chart and summary statistics.
+A static page with serverless data endpoints. Type a ticker, pick a range, get a
+chart and summary statistics, or research its SEC financials.
 
 ```
 index.html      the whole front end (no build step, no libraries)
 api/quote.js    serverless proxy that holds the API key
+api/fundamentals.js  authenticated SEC issuer search and financial data
+lib/sec-financials.js  fiscal-period normalization and ratio calculations
+fundamentals.js / fundamentals.css  company research interface
 ```
+
+## Fundamental Data
+
+Open `/#fundamentals` after unlocking Research Tools, or use **View company
+fundamentals** beneath a supported U.S. stock lookup. This is a dedicated company
+research tab. It contains five annual periods, 39 reported financial fields,
+two calculated cash/balance measures, 15 ratios, a selectable historical chart,
+per-value sources and calculations, CSV export, and a filtered filing library.
+The statement views are income statement, balance sheet and cash flow. Ratios
+include growth, margins, returns on average equity/assets, liquidity and cash
+conversion. No price-based valuation multiples or forecasts are fabricated.
+
+Company name suggestions use the SEC ticker directory through
+`/api/fundamentals?q=...`, independently of Twelve Data credits. Submitting a
+ticker uses `/api/fundamentals?symbol=...`. Both require the tools password in the
+`x-tools-password` header and return `private, no-store`. Tickers resolve to SEC
+CIKs; class-share aliases such as `BRK.B` resolve to the SEC's `BRK-B`. This does
+not map arbitrary foreign listings or currency pairs to U.S. companies.
+
+The server requests the public [SEC Company Facts and Submissions APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces).
+No additional paid data key is needed. Optional Vercel environment variable
+`SEC_USER_AGENT` can identify the club and an administrator contact for SEC
+requests. The default identifies GPMC Research and the public website URL.
+Cached SEC responses last 15 minutes (24 hours for the ticker directory),
+with at most 25 cached documents per warm server instance. In-flight duplicate
+reads are shared, request starts are spaced 250 ms apart per instance, and each
+fetch has an eight-second timeout. Client results are cached for 15 minutes,
+up to 12 companies. SEC blocks/rate limits display a retry message.
+The SEC's [fair-access limit](https://www.sec.gov/about/developer-resources) applies
+across machines: this per-instance pacing is not a distributed limiter. Before
+scaling traffic beyond club usage, move SEC ingestion/cache behind a shared
+queue with a global rate limit.
+
+Normalization rules:
+
+- USD values from standard US GAAP tags in 10-K/10-K/A filings only. Other
+  currencies and custom or segment tags are not combined. An issuer without
+  supported financials still gets its available original filings.
+- Annual income/cash-flow periods must span 320–400 days. Columns use actual
+  start/end dates, not the `fy` label of a later comparative filing. Balance
+  sheet facts must be instantaneous at the exact annual end date.
+- The latest filed value for an exact period wins across supported aliases;
+  same-filing ties use the documented alias order in `FIELDS`. Later comparative
+  disclosures and amendments can restate old figures. Each number retains its
+  tag, filing date, accession, unit and source link. This is not a point-in-time
+  backtest dataset, and separate rows can cite different filings.
+- Missing is null, never zero. Ratios require positive denominators. Growth and
+  average-balance returns require consecutive fiscal years; a sixth year is
+  loaded internally to calculate the oldest displayed year's growth/returns.
+  Free cash flow is operating cash flow minus reported cash capital expenditures.
+  Its formula and all input sources are exposed and exported.
+- General ratios can be unsuitable for banks and insurers. Debt components
+  overlap and should not all be added together. No implicit debt summation,
+  non-GAAP EBITDA, TTM figures, forecasts, or valuation multiples are supplied.
+
+The filing library includes annual/quarterly reports, current-event reports,
+proxy disclosures and insider/beneficial ownership filings from the SEC's
+recent submissions block. Its time coverage can differ from the annual tables;
+**Full history on SEC EDGAR** reaches older reports. Quarterly statements,
+segment details, risk factors, management commentary, footnotes and company
+guidance remain accessible in the originals; they are not automatically extracted.
+Links open the SEC filing index so users can choose the original document or
+its exhibits. CSV includes unscaled values, units, missing cells and provenance.
+
+Validation:
+
+```sh
+python3 test/check_fundamentals.py
+PLAYWRIGHT_BROWSERS_PATH=/tmp/gpmc-browsers ../venv/bin/python test/check_fundamentals_browser.py
+```
+
+The model/API tests use synthetic filings and fake credentials to cover fiscal
+dates, amendments, currency separation, missing data, calculations, authorization,
+caching and failures. Browser tests cover deep links, source inspection, search,
+exports, filters, stale requests and phone/desktop widths. Public SEC snapshots
+for AAPL, MSFT and JPM were also normalized during implementation to check period
+selection and coverage. These checks do not establish SEC access from every
+Vercel deployment; an upstream block produces a visible error, never sample data.
 
 ## Why there is a server at all
 

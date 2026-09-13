@@ -1,0 +1,212 @@
+"""Browser workflow checks with synthetic SEC responses and a fake tools password."""
+import copy
+import csv
+import functools
+import hashlib
+import http.server
+import io
+import json
+import pathlib
+import re
+import subprocess
+import tempfile
+import threading
+from urllib.parse import parse_qs, urlparse
+
+from playwright.sync_api import expect, sync_playwright
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+PASSWORD = "local-fundamentals-test"
+html = re.sub(r'var PW_HASH = "[a-f0-9]{64}";', f'var PW_HASH = "{hashlib.sha256(PASSWORD.encode()).hexdigest()}";', (ROOT / "index.html").read_text())
+fixture_js = r'''
+var facts={facts:{'us-gaap':{}}};
+FIELDS.forEach(function(f,i){
+ var rows=[];
+ for(var y=2020;y<=2025;y++) rows.push({start:f.section==='balance'?undefined:(y-1)+'-10-01',end:y+'-09-30',form:'10-K',filed:y+'-11-01',accn:'0000320193-'+String(y).slice(2)+'-000001',val:f.id==='eps'?6.5:f.id==='revenue'?100000000000+(y-2020)*10000000000:f.id==='netIncome'?20000000000:f.id==='ocf'?30000000000:f.id==='capex'?8000000000:f.id==='cash'?0:f.id==='inventory'?0:5000000000+i*1000000000});
+ facts.facts['us-gaap'][f.tags[0]]={units:{}};facts.facts['us-gaap'][f.tags[0]].units[f.unit]=rows;
+});
+delete facts.facts['us-gaap'].InventoryNet;
+var recent={accessionNumber:[],form:[],filingDate:[],reportDate:[]};
+['10-K','10-Q','8-K','DEF 14A','4'].forEach(function(form,i){for(var n=0;n<(form==='4'?25:1);n++){
+recent.accessionNumber.push('0000320193-25-'+String(i*100+n+1).padStart(6,'0'));recent.form.push(form);recent.filingDate.push('2025-11-01');recent.reportDate.push('2025-09-30');}});
+var sub={cik:320193,name:'Apple fixture <img src=x onerror="window.injected=true">',sic:'3571',sicDescription:'Electronic Computers',exchanges:['Nasdaq'],filings:{recent:recent}};
+print(JSON.stringify(normalizeFinancials(facts,sub,'AAPL','2026-09-13T12:00:00Z')));
+'''
+with tempfile.TemporaryDirectory() as tmp:
+    script = pathlib.Path(tmp) / "fixture.js"
+    script.write_text((ROOT / "lib/sec-financials.js").read_text().replace("export ", "") + fixture_js)
+    data = json.loads(subprocess.check_output(["/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc", str(script)], text=True))
+
+
+class Quiet(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *_args):
+        pass
+
+
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(ROOT)))
+threading.Thread(target=server.serve_forever, daemon=True).start()
+base = f"http://127.0.0.1:{server.server_port}"
+requests, pending = [], []
+
+
+def api(route):
+    path = urlparse(route.request.url).path
+    q = parse_qs(urlparse(route.request.url).query)
+    requests.append((path, q))
+    if path == "/api/fundamentals":
+        assert route.request.headers.get("x-tools-password") == PASSWORD
+        assert PASSWORD not in route.request.url
+        if "q" in q:
+            route.fulfill(json={"results": [{"symbol": "MSFT", "name": "Microsoft Corporation", "type": "SEC issuer", "exchange": "", "country": ""}]})
+            return
+        symbol = q["symbol"][0]
+        if symbol == "SLOW":
+            pending.append(route)
+            return
+        if symbol in ("XAU/USD", "UNKNOWN", "ERROR"):
+            route.fulfill(status=503 if symbol == "ERROR" else 404, json={"error": "SEC data access is temporarily unavailable." if symbol == "ERROR" else "No SEC company matches this ticker."})
+            return
+        result = copy.deepcopy(data)
+        result["symbol"] = symbol
+        if symbol != "AAPL":
+            result["name"] = "Microsoft Corporation" if symbol == "MSFT" else symbol
+        if symbol == "FOREIGN":
+            result.update(periods=[], coverage="filings-only", message="Standardized USD annual financials are unavailable for this issuer.")
+        route.fulfill(json=result)
+    elif path == "/api/search":
+        route.fulfill(json={"results": []})
+    elif path == "/api/quote":
+        symbol = q["symbol"][0]
+        route.fulfill(json={"symbol": symbol, "type": "Commodity" if "/" in symbol else "Common Stock", "name": symbol,
+                            "currency": "USD", "exchange": "NASDAQ", "range": "1y", "label": "test period", "quote": None,
+                            "points": [{"t": "2025-09-01", "c": 100}, {"t": "2025-09-02", "c": 101}]})
+    else:
+        route.fulfill(status=404, json={"error": "Test route not configured"})
+
+
+try:
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1280, "height": 1000}, accept_downloads=True)
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.route(base + "/", lambda route: route.fulfill(content_type="text/html", body=html))
+        page.route(base + "/api/**", api)
+        page.goto(base + "/#fundamentals")
+        expect(page.locator("#lock")).to_be_visible()
+        assert requests == [], "No data requests before unlock"
+        page.locator("#pw").fill(PASSWORD)
+        page.locator("#pw").press("Enter")
+        expect(page.locator("#v-fundamentals")).to_be_visible()
+        expect(page.locator("#fd-result")).to_be_visible()
+        expect(page.locator("#fd-name")).to_contain_text("Apple fixture <img")
+        assert page.locator("#fd-name img").count() == 0 and page.evaluate("window.injected") is None
+        assert all(path != "/api/quote" for path, _ in requests), "Fundamental deep link must not spend quote credits"
+        expect(page.locator("#fd-period-label")).to_contain_text("2024-10-01 to 2025-09-30")
+        expect(page.locator("#fd-metrics")).to_contain_text("$150B")
+        expect(page.locator("#fd-metrics")).to_contain_text("$0")
+        expect(page.locator("#fd-chart")).to_have_attribute("aria-label", re.compile("2025-09-30"))
+
+        page.locator('[data-fd-view="statements"]').click()
+        expect(page.locator("#fd-statements-table thead")).to_contain_text("2021-09-30")
+        first = page.locator("#fd-statements-table tbody tr").first
+        expect(first).to_contain_text("150,000")
+        first.get_by_role("button").first.click()
+        expect(page.locator("#fd-source")).to_contain_text("us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax")
+        assert page.locator("#fd-source a").first.get_attribute("href").startswith("https://www.sec.gov/Archives/")
+        page.locator("#fd-units").select_option("1000000000")
+        expect(first.get_by_role("button").first).to_have_text("150")
+        page.locator('[data-fd-statement="balance"]').click()
+        inventory = page.locator("#fd-statements-table tr").filter(has_text=re.compile("^Inventory"))
+        expect(inventory).to_contain_text("—")
+        cash = page.locator("#fd-statements-table tr").filter(has_text=re.compile("^Cash & cash equivalents"))
+        expect(cash.get_by_role("button").first).to_have_text("0")
+        page.locator('[data-fd-statement="cashflow"]').click()
+        page.locator("#fd-statements-table tr").filter(has_text="Free cash flow (calculated)").get_by_role("button").first.click()
+        expect(page.locator("#fd-source")).to_contain_text("22,000,000,000")
+        expect(page.locator("#fd-source a")).to_have_count(2)
+        page.locator('[data-fd-view="ratios"]').click()
+        margin = page.locator("#fd-ratios-table tr").filter(has_text=re.compile("^Net profit margin"))
+        expect(margin.get_by_role("button").first).to_have_text("13.3%")
+        margin.get_by_role("button").first.click()
+        expect(page.locator("#fd-source")).to_contain_text("Calculated:")
+
+        with page.expect_download() as download_info:
+            page.locator("#fd-download").click()
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = pathlib.Path(tmp) / "financials.csv"
+            download_info.value.save_as(dest)
+            rows = list(csv.DictReader(io.StringIO(dest.read_text(encoding="utf-8-sig"))))
+        assert len(rows) == 56 * 5
+        revenue = next(r for r in rows if r["Metric"] == "Revenue" and r["Period end"] == "2025-09-30")
+        assert revenue["Value"] == "150000000000" and revenue["Unit"] == "USD" and revenue["Filed"] == "2025-11-01"
+        assert next(r for r in rows if r["Metric"] == "Inventory")["Value"] == ""
+
+        page.locator('[data-fd-view="filings"]').click()
+        expect(page.locator("#fd-filing-list article")).to_have_count(2)
+        page.locator("#fd-filing-type").select_option("governance")
+        expect(page.locator("#fd-filing-list")).to_contain_text("Proxy statement")
+        page.locator("#fd-filing-type").select_option("ownership")
+        expect(page.locator("#fd-filing-list article")).to_have_count(20)
+        page.locator("#fd-more-filings").click()
+        expect(page.locator("#fd-filing-list article")).to_have_count(25)
+
+        ticker = page.locator("#fd-ticker")
+        ticker.fill("microsoft")
+        popup = page.locator("#fd-ticker-popup")
+        expect(popup).to_contain_text("SEC issuer")
+        ticker.press("ArrowDown")
+        ticker.press("Enter")
+        expect(page.locator("#fd-name")).to_have_text("Microsoft Corporation")
+        expect(page.locator("#fd-overview")).to_be_visible()
+        count = len(requests)
+        page.locator("#fd-form").evaluate("form => form.requestSubmit()")
+        expect(page.locator("#fd-result")).to_be_visible()
+        assert len(requests) == count, "Repeated company uses local cache"
+
+        ticker.fill("SLOW")
+        page.locator("#fd-form").evaluate("form => form.requestSubmit()")
+        expect(page.locator("#fd-status")).to_contain_text("Loading")
+        ticker.fill("AAPL")
+        page.locator("#fd-form").evaluate("form => form.requestSubmit()")
+        expect(page.locator("#fd-name")).to_contain_text("Apple fixture")
+        expect(page.locator("#fd-result")).to_have_attribute("aria-busy", "false")
+        for route in pending:
+            route.fulfill(json={**data, "name": "Stale response"})
+        expect(page.locator("#fd-name")).to_contain_text("Apple fixture")
+
+        for symbol, message in [("UNKNOWN", "No SEC company"), ("ERROR", "temporarily unavailable")]:
+            ticker.fill(symbol)
+            page.locator("#fd-form").evaluate("form => form.requestSubmit()")
+            expect(page.locator("#fd-status")).to_contain_text(message)
+            expect(page.locator("#fd-result")).to_be_hidden()
+        ticker.fill("FOREIGN")
+        page.locator("#fd-form").evaluate("form => form.requestSubmit()")
+        expect(page.locator("#fd-filings")).to_be_visible()
+        expect(page.locator("#fd-download")).to_be_disabled()
+        expect(page.locator('[data-fd-view="statements"]')).to_be_disabled()
+
+        page.locator('.tab[data-v="lookup"]').click()
+        page.locator("#ticker").fill("AAPL")
+        page.locator("#form").evaluate("form => form.requestSubmit()")
+        expect(page.locator("#lookup-fundamentals")).to_be_visible()
+        page.locator("#lookup-fundamentals").click()
+        expect(page.locator("#v-fundamentals")).to_be_visible()
+        expect(page.locator("#fd-name")).to_contain_text("Apple fixture")
+
+        for width in (320, 390, 768, 1280):
+            page.set_viewport_size({"width": width, "height": 1000})
+            page.locator('[data-fd-view="statements"]').click()
+            overflow = page.evaluate("""() => Array.from(document.querySelectorAll('body *')).filter(e => {
+                const b=e.getBoundingClientRect(); return b.height && b.right>window.innerWidth+1 && !e.closest('.fd-table-wrap') && !e.closest('.tabs');
+            }).map(e => [e.tagName,e.id,e.className,Math.round(e.getBoundingClientRect().right)]).slice(0,15)""")
+            assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), f"Page overflow at {width}: {overflow}"
+            box = page.locator("#fd-statements-table").bounding_box()
+            assert box["x"] + box["width"] <= width + 1
+        page.locator('[data-fd-view="overview"]').click()
+        page.locator("#v-fundamentals").screenshot(path=str(pathlib.Path(tempfile.gettempdir()) / "gpmc-fundamentals.png"))
+        assert not errors, errors
+        browser.close()
+        print("PASS: fundamental deep link, gate, search, statements, ratios, sources, CSV, filings, caching, stale responses, unavailable data, lookup handoff and responsive layout")
+finally:
+    server.shutdown()

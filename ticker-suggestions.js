@@ -1,11 +1,12 @@
 (function () {
   "use strict";
-  var closePopup = function () {};
+  var closers = [];
   window.TickerSuggestions = {
-    close: function () { closePopup(); },
+    close: function () { closers.forEach(function (close) { close(); }); },
     attach: function (config) {
-      var input = document.getElementById("ticker"), popup = document.getElementById("ticker-popup");
-      var list = document.getElementById("ticker-matches"), status = document.getElementById("ticker-search-status");
+      var prefix = config.prefix || "ticker";
+      var input = document.getElementById(prefix), popup = document.getElementById(prefix + "-popup");
+      var list = document.getElementById(prefix + "-matches"), status = document.getElementById(prefix + "-search-status");
       var rows = [], active = -1, timer, controller, generation = 0, composing = false, cooldown = 0;
       var cache = new Map();
       var seeds = [
@@ -24,7 +25,8 @@
         ["EUR/USD", "Euro / US Dollar", "Currency pair"], ["GBP/USD", "British Pound / US Dollar", "Currency pair"],
         ["USD/JPY", "US Dollar / Japanese Yen", "Currency pair"]
       ].map(function (x) { return {symbol: x[0], name: x[1], type: x[2], exchange: "", country: ""}; });
-      document.querySelectorAll("#commodity option[data-kind]").forEach(function (option) {
+      if (config.companiesOnly) seeds = seeds.filter(function (row) { return row.type === "Stock"; });
+      if (!config.companiesOnly) document.querySelectorAll("#commodity option[data-kind]").forEach(function (option) {
         seeds.push({symbol: option.value, name: option.textContent.split(" · ")[0],
           type: option.dataset.kind === "spot" ? "Commodity price" : "Commodity fund · share price", exchange: "", country: ""});
       });
@@ -38,7 +40,7 @@
         stop(); popup.hidden = true; active = -1;
         input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant");
       }
-      closePopup = close;
+      closers.push(close);
       function rank(row, query) {
         var symbol = row.symbol.toLowerCase(), name = row.name.toLowerCase();
         return symbol === query ? 0 : symbol.indexOf(query) === 0 ? 1 : name.indexOf(query) === 0 ? 2 : 3;
@@ -47,7 +49,15 @@
         var local = seeds.filter(function (row) { return (row.symbol + " " + row.name).toLowerCase().indexOf(query) >= 0; });
         var merged = local.slice(), seen = new Set(local.map(id));
         (remote || []).forEach(function (row) {
-          if (seen.has(id(row))) return;
+          if (seen.has(id(row))) {
+            // The SEC has issuer identities rather than exchange variants.
+            // Its official company name should replace a common-name seed.
+            if (config.companiesOnly) {
+              var existing = merged.findIndex(function (x) { return id(x) === id(row); });
+              if (existing >= 0) merged[existing] = row;
+            }
+            return;
+          }
           // Replace the default listing of a popular ticker with the provider's
           // first explicit exchange match, then retain other distinct listings.
           var popular = merged.findIndex(function (x) { return x.symbol === row.symbol && !x.exchange && !/commodity|crypto|currency/i.test(x.type); });
@@ -78,7 +88,7 @@
         rows = matches(query, remote); list.replaceChildren();
         rows.forEach(function (row, i) {
           var option = document.createElement("li");
-          option.id = "ticker-option-" + i; option.className = "ticker-option";
+          option.id = prefix + "-option-" + i; option.className = "ticker-option";
           option.setAttribute("role", "option"); option.setAttribute("aria-selected", "false");
           var symbol = document.createElement("span"); symbol.className = "ticker-symbol mono"; symbol.textContent = row.symbol;
           var description = document.createElement("span"); description.className = "ticker-description";
@@ -92,7 +102,7 @@
         });
         popup.hidden = false; input.setAttribute("aria-expanded", "true");
         highlight(selected ? rows.findIndex(function (row) { return id(row) === selected; }) : -1);
-        status.textContent = message || (rows.length ? rows.length + " suggestions. Select a match to load its chart." : "No matches. You can still enter a ticker and select Look up.");
+        status.textContent = message || (rows.length ? rows.length + " suggestions. Select a match to " + (config.companiesOnly ? "research the company." : "load its chart.") : "No matches. You can still enter a ticker and submit.");
       }
       function suggest() {
         stop();
@@ -100,12 +110,12 @@
         if (!query || query.length > 48 || composing) { close(); return; }
         if (cache.has(query)) { render(query, cache.get(query)); return; }
         var canSearch = query.length >= 2 && config.getPassword() && Date.now() >= cooldown;
-        render(query, [], canSearch ? "Searching for more matches…" : "Matching common symbols and commodities. Enter a ticker to look it up directly.");
+        render(query, [], canSearch ? "Searching for more matches…" : "Matching common " + (config.companiesOnly ? "company tickers." : "symbols and commodities.") + " Enter a ticker to look it up directly.");
         if (!canSearch) return;
         var current = generation;
         timer = setTimeout(function () {
           controller = new AbortController();
-          fetch("/api/search?q=" + encodeURIComponent(query), {signal: controller.signal, headers: {"x-tools-password": config.getPassword()}})
+          fetch((config.endpoint || "/api/search") + "?q=" + encodeURIComponent(query), {signal: controller.signal, headers: {"x-tools-password": config.getPassword()}})
             .then(function (response) {
               if (!response.ok) {
                 if (response.status === 429) cooldown = Date.now() + 60000;
