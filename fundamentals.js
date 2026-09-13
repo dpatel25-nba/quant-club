@@ -243,6 +243,7 @@
     if (section==="report") workspace.view("report");
   }
   async function comparePeers() {
+    if (window.TickerSuggestions) window.TickerSuggestions.close();
     var requestedSymbols=el("peer-symbols").value.toUpperCase().split(/[\s,;]+/).filter(Boolean);
     if (!requestedSymbols.length || requestedSymbols.length>4 || requestedSymbols.some(function (s) { return !/^[A-Z0-9.\-]{1,16}$/.test(s); })) {
       el("peer-status").textContent="Enter one to four company tickers, separated by commas."; return;
@@ -392,6 +393,8 @@
         marketCaps.set(current.cik,{value:Number(el("market-cap").value)*1e9,date:el("market-date").value});
         valuation(); renderPeers();
       });
+      if (window.TickerSuggestions) window.TickerSuggestions.attach({prefix:"fd-peer-symbols",multiple:true,companiesOnly:true,endpoint:"/api/fundamentals",
+        getPassword:c.getPassword,selectionHint:"add the company to your peer list."});
       if (window.TickerSuggestions) window.TickerSuggestions.attach({prefix:"fd-ticker",companiesOnly:true,endpoint:"/api/fundamentals",
         getPassword:c.getPassword,onEdit:function () {},onSelect:function (item) { section="overview"; load(item.symbol); }});
     },

@@ -6,6 +6,28 @@
     attach: function (config) {
       var prefix = config.prefix || "ticker";
       var input = document.getElementById(prefix), popup = document.getElementById(prefix + "-popup");
+      if (!input) return function () {};
+      if (!popup) {
+        var wrapper=document.createElement("div"); wrapper.className="ticker-field";
+        input.parentNode.insertBefore(wrapper,input); wrapper.appendChild(input);
+        popup=document.createElement("div"); popup.id=prefix+"-popup"; popup.className="ticker-popup"; popup.hidden=true;
+        var options=document.createElement("ul"); options.id=prefix+"-matches"; options.setAttribute("role","listbox"); options.setAttribute("aria-label","Suggested tickers");
+        var message=document.createElement("div"); message.id=prefix+"-search-status"; message.className="ticker-search-status"; message.setAttribute("role","status"); message.setAttribute("aria-live","polite");
+        popup.append(options,message); wrapper.appendChild(popup);
+      }
+      input.setAttribute("role","combobox"); input.setAttribute("aria-autocomplete","list"); input.setAttribute("aria-expanded","false");
+      input.setAttribute("aria-controls",prefix+"-matches"); input.setAttribute("autocomplete","off");
+      function token() {
+        var start=0,end=input.value.length;
+        if (config.multiple) {
+          start=input.selectionStart==null ? end : input.selectionStart; end=start;
+          while (start>0 && !/[,;]/.test(input.value[start-1])) start--;
+          while (end<input.value.length && !/[,;]/.test(input.value[end])) end++;
+          while (start<end && /\s/.test(input.value[start])) start++;
+          while (end>start && /\s/.test(input.value[end-1])) end--;
+        }
+        return {start:start,end:end,text:input.value.slice(start,end).trim().toLowerCase()};
+      }
       var list = document.getElementById(prefix + "-matches"), status = document.getElementById(prefix + "-search-status");
       var rows = [], active = -1, timer, controller, generation = 0, composing = false, cooldown = 0;
       var cache = new Map();
@@ -79,8 +101,14 @@
       function choose(index) {
         var row = rows[index];
         if (!row) return;
-        input.value = row.symbol;
-        close(); config.onSelect(row);
+        if (config.multiple) {
+          var part=token(), tail=input.value.slice(part.end), value=input.value.slice(0,part.start)+row.symbol+tail;
+          var caret=part.start+row.symbol.length;
+          if (!tail && value.split(/[\s,;]+/).filter(Boolean).length<4) { value+=", "; caret+=2; }
+          if (input.maxLength>0 && value.length>input.maxLength) { status.textContent="The ticker list is too long. Remove an entry before adding another."; return; }
+          input.value=value; input.setSelectionRange(caret,caret);
+        } else input.value = row.symbol;
+        close(); if (config.onSelect) config.onSelect(row);
       }
       function render(query, remote, message) {
         if (document.activeElement !== input) return;
@@ -102,11 +130,11 @@
         });
         popup.hidden = false; input.setAttribute("aria-expanded", "true");
         highlight(selected ? rows.findIndex(function (row) { return id(row) === selected; }) : -1);
-        status.textContent = message || (rows.length ? rows.length + " suggestions. Select a match to " + (config.companiesOnly ? "research the company." : "load its chart.") : "No matches. You can still enter a ticker and submit.");
+        status.textContent = message || (rows.length ? rows.length + " suggestions. Select a match to " + (config.selectionHint || (config.companiesOnly ? "research the company." : "load its chart.")) : "No matches. You can still enter a ticker and submit.");
       }
       function suggest() {
         stop();
-        var query = input.value.trim().toLowerCase();
+        var query = token().text;
         if (!query || query.length > 48 || composing) { close(); return; }
         if (cache.has(query)) { render(query, cache.get(query)); return; }
         var canSearch = query.length >= 2 && config.getPassword() && Date.now() >= cooldown;
@@ -135,8 +163,12 @@
             });
         }, 400);
       }
-      input.addEventListener("input", function () { config.onEdit(); suggest(); });
+      input.addEventListener("input", function () { if (config.onEdit) config.onEdit(); suggest(); });
       input.addEventListener("focus", function () { if (input.value.trim()) suggest(); });
+      if (config.multiple) input.addEventListener("click",suggest);
+      if (config.multiple) input.addEventListener("keyup",function (ev) {
+        if (["ArrowLeft","ArrowRight","Home","End"].indexOf(ev.key)>=0) suggest();
+      });
       input.addEventListener("blur", close);
       input.addEventListener("compositionstart", function () { composing = true; close(); });
       input.addEventListener("compositionend", function () { composing = false; suggest(); });
@@ -153,6 +185,7 @@
           else close();
         }
       });
+      return function () { close(); var index=closers.indexOf(close); if (index>=0) closers.splice(index,1); };
     }
   };
 })();

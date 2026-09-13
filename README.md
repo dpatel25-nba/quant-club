@@ -285,22 +285,31 @@ right trade for a club, but it is worth knowing what it is.
 
 ## Asset coverage
 
-Ticker Lookup suggests instruments as the user types a symbol or name.
+Ticker Lookup, both Compare inputs, every Portfolio Builder holding (including
+newly added rows), and the Factors lookup suggest instruments as the user types
+a symbol or name. Fundamental Data and its peer list use SEC company suggestions.
+Peer suggestions replace the comma-separated entry at the cursor, preserving
+other peers and allowing company names containing spaces. Selecting a peer or
+an instrument in the multi-input tools fills the field; analysis starts with
+the tool’s existing button. Removed holdings cancel their pending search.
+Selected exchanges are retained in market requests and cache keys; editing the
+ticker clears the exchange selection.
 Common stocks, funds, currencies and the existing commodity picker entries
 match locally. After a 400 ms pause, authenticated users also receive matches
 from Twelve Data's [symbol search](https://twelvedata.com/docs#symbol-search).
 Each suggestion shows its name, instrument type and exchange where supplied.
-Arrow keys highlight an option; Enter selects it and loads the chart. Escape,
+Arrow keys highlight an option; Enter selects it. In Ticker Lookup, selection
+also loads the chart. Escape,
 Tab and losing focus dismiss the list. Enter without a highlighted suggestion
 preserves normal direct ticker entry, including stock symbols such as `GOLD`.
 
 `ticker-suggestions.js` and `ticker-suggestions.css` implement the combobox.
 `/api/search` accepts the existing tools password in a header, keeps the
 provider key on the server and returns private, non-cached responses. The
-browser caches up to 50 search queries per page session, cancels outdated
+browser caches up to 50 search queries per field per page session, cancels outdated
 requests and pauses remote search for 60 seconds after a rate-limit response.
 Local matches remain available when remote search fails. Typing does not fetch
-price history; selecting a result does. A selected exchange is passed to both
+price history; selecting a Ticker Lookup result does. A selected exchange is passed to both
 quote and time-series requests and included in client cache keys.
 
 Run `python3 test/check_search.py` for proxy checks and

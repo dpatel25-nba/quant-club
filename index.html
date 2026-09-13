@@ -1593,10 +1593,21 @@
     return dd;
   }
 
+  var holdingId=0;
+  function selectedExchange(input) {
+    return input.dataset.selectedSymbol===input.value.trim().toUpperCase() ? input.dataset.exchange || "" : "";
+  }
+  function attachResearchTicker(input) {
+    if (!window.TickerSuggestions) return function () {};
+    return window.TickerSuggestions.attach({prefix:input.id,getPassword:function () { return pwKey; },selectionHint:"use this ticker.",
+      onEdit:function () { delete input.dataset.selectedSymbol; delete input.dataset.exchange; },
+      onSelect:function (item) { input.dataset.selectedSymbol=item.symbol; input.dataset.exchange=item.exchange || ""; }
+    });
+  }
   function pRows() {
     return Array.prototype.map.call(document.querySelectorAll("#rows .hrow"),
       function (r) {
-        return { sym: r.querySelector(".tk").value.trim().toUpperCase(),
+        return { sym: r.querySelector(".tk").value.trim().toUpperCase(), exchange:selectedExchange(r.querySelector(".tk")),
                  w: parseFloat(r.querySelector(".wt").value) };
       }).filter(function (h) { return h.sym && isFinite(h.w); });
   }
@@ -1608,11 +1619,15 @@
       '" spellcheck="false"><input class="wt" type="number" step="any" ' +
       'placeholder="weight %" value="' + (w == null ? "" : w) +
       '"><button class="x" type="button" aria-label="Remove">&times;</button>';
+    var tickerInput=d.querySelector(".tk"); tickerInput.id="holding-ticker-"+(++holdingId);
+    tickerInput.setAttribute("aria-label","Holding ticker "+holdingId);
+    var detach=function () {};
     d.querySelector(".x").addEventListener("click", function () {
-      d.remove(); sumW();
+      detach(); d.remove(); sumW();
     });
     d.querySelector(".wt").addEventListener("input", sumW);
     el("rows").appendChild(d);
+    detach=attachResearchTicker(tickerInput);
     sumW();
   }
 
@@ -1635,6 +1650,7 @@
   }
 
   function analysePortfolio() {
+    if (window.TickerSuggestions) window.TickerSuggestions.close();
     var hs = pRows();
     if (hs.length < 2) { pSay("Add at least two holdings.", true); return; }
     if (hs.length > 12) { pSay("Twelve holdings maximum.", true); return; }
@@ -1657,12 +1673,12 @@
     // quote=0: the portfolio maths needs only the price series, so this costs
     // one credit per holding rather than two.
     Promise.all(hs.map(function (h) {
-      var k = h.sym + "|" + range;
+      var k = h.sym + (h.exchange ? "@"+h.exchange : "") + "|" + range;
       if (cache[k]) return Promise.resolve(cache[k]);
       // quote=1 here only so the instrument NAME comes back, which is how a
       // bond fund is recognised; the extra credit buys the coupon warning.
       return fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + encodeURIComponent(h.sym) +
-                   "&range=" + encodeURIComponent(range))
+                   "&range=" + encodeURIComponent(range) + (h.exchange ? "&exchange="+encodeURIComponent(h.exchange) : ""))
         .then(function (r) {
           return r.json().then(function (j) {
             if (!r.ok) throw new Error(h.sym + ": " + (j.error || "failed"));
@@ -1860,16 +1876,18 @@
 
   // ======================= COMPARE =========================================
   function compare() {
+    if (window.TickerSuggestions) window.TickerSuggestions.close();
     var a = el("cA").value.trim().toUpperCase(), b = el("cB").value.trim().toUpperCase();
     if (!a || !b) { cSay("Enter two tickers.", true); return; }
-    if (a === b) { cSay("Enter two different tickers.", true); return; }
+    var exchanges=[selectedExchange(el("cA")),selectedExchange(el("cB"))];
+    if (a === b && exchanges[0]===exchanges[1]) { cSay("Enter two different tickers.", true); return; }
     var range = el("cRange").value;
     cSay("Comparing " + a + " and " + b + "…");
-    Promise.all([a, b].map(function (sym) {
-      var k = sym + "|" + range;
+    Promise.all([a, b].map(function (sym,index) {
+      var exchange=exchanges[index], k = sym + (exchange ? "@"+exchange : "") + "|" + range;
       if (cache[k]) return Promise.resolve(cache[k]);
       return fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + encodeURIComponent(sym) +
-                   "&range=" + encodeURIComponent(range) + "&quote=0")
+                   "&range=" + encodeURIComponent(range) + "&quote=0" + (exchange ? "&exchange="+encodeURIComponent(exchange) : ""))
         .then(function (r) { return r.json().then(function (j) {
           if (!r.ok) throw new Error(sym + ": " + (j.error || "failed"));
           cache[k] = j; return j; }); });
@@ -2027,6 +2045,7 @@
                 ["mom", "Momentum", "recent winners minus losers"]];
 
   function runFactors() {
+    if (window.TickerSuggestions) window.TickerSuggestions.close();
     var sym = el("fTicker").value.trim().toUpperCase();
     if (!sym) { fSay("Enter a ticker.", true); return; }
     var range = el("fRange").value;
@@ -2036,10 +2055,11 @@
           return r.json().then(function (j) {
             if (!r.ok) throw new Error(j.detail || j.error || "factor load failed");
             FACTORS = j; return j; }); });
-    var k2 = sym + "|" + range;
+    var exchange=selectedExchange(el("fTicker"));
+    var k2 = sym + (exchange ? "@"+exchange : "") + "|" + range;
     var sp = cache[k2] ? Promise.resolve(cache[k2])
       : fetch("/api/quote?k=" + encodeURIComponent(pwKey) + "&symbol=" + encodeURIComponent(sym) +
-              "&range=" + encodeURIComponent(range) + "&quote=0")
+              "&range=" + encodeURIComponent(range) + "&quote=0" + (exchange ? "&exchange="+encodeURIComponent(exchange) : ""))
           .then(function (r) { return r.json().then(function (j) {
             if (!r.ok) throw new Error(j.error || "failed");
             cache[k2] = j; return j; }); });
@@ -2143,6 +2163,7 @@
     el("fMsg").hidden = false; el("fOut").hidden = true;
   }
 
+  ["cA","cB","fTicker"].forEach(function (id) { attachResearchTicker(el(id)); });
   el("fGo").addEventListener("click", runFactors);
 
   el("cGo").addEventListener("click", compare);

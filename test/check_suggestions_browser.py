@@ -51,6 +51,9 @@ def market(route):
             rows = [{"symbol": "SAFE", "name": '<img src=x onerror="window.injected=true">', "type": "Stock", "exchange": "NYSE", "country": ""}]
         route.fulfill(json={"results": rows})
         return
+    if urlparse(route.request.url).path == "/api/factors":
+        route.fulfill(json={"rows":[],"last":"2026-09-01","source":"Test fixture"})
+        return
     quotes.append(query)
     route.fulfill(json={"symbol": query["symbol"][0], "name": query["symbol"][0], "currency": "USD", "type": "Stock",
                         "exchange": query.get("exchange", [""])[0], "range": query.get("range", ["1m"])[0], "label": "test period",
@@ -143,11 +146,79 @@ try:
             bounds = popup.bounding_box()
             assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width
             ticker.press("Escape")
+        ticker.press("Escape")
+        # All other market tools retain exchange identity, and selection only fills the field.
+        page.locator('.tab[data-v="compare"]').click()
+        a,b=page.locator('#cA'),page.locator('#cB')
+        a.fill('apple')
+        expect(page.locator('#cA-popup')).to_contain_text('XETRA')
+        count=len(quotes)
+        page.locator('#cA-popup [role="option"]').filter(has_text='XETRA').click()
+        assert len(quotes)==count
+        b.fill('gold')
+        page.locator('#cB-popup [role="option"]').filter(has_text='XAU/USD').click()
+        page.locator('#cGo').click()
+        expect(page.locator('#cMsg')).to_contain_text('too few')
+        assert any(q.get('symbol')==['AAPL'] and q.get('exchange')==['XETRA'] and q.get('range')==['5y'] for q in quotes)
+        # An edit clears the listing and cannot reuse the exchange-specific cache.
+        before=len(quotes)
+        a.fill('AAPL')
+        page.locator('#cGo').click()
+        expect(page.locator('#cMsg')).to_contain_text('too few')
+        assert any(q.get('symbol')==['AAPL'] and 'exchange' not in q for q in quotes[before:])
+        page.locator('.tab[data-v="portfolio"]').click()
+        first=page.locator('#rows .tk').first
+        first.fill('apple')
+        first_popup=page.locator('#'+first.get_attribute('id')+'-popup')
+        expect(first_popup).to_contain_text('XETRA')
+        first_popup.get_by_role('option').filter(has_text='XETRA').click()
+        page.locator('#pRange').select_option('1y')
+        before=len(quotes)
+        page.locator('#build').click()
+        expect(page.locator('#pMsg')).to_contain_text('too few')
+        assert any(q.get('symbol')==['AAPL'] and q.get('exchange')==['XETRA'] and q.get('range')==['1y'] for q in quotes[before:])
+        page.locator('#addRow').click()
+        last=page.locator('#rows .hrow').last
+        last.locator('.tk').fill('silver')
+        expect(last.locator('.ticker-popup')).to_contain_text('XAG/USD')
+        last.locator('.tk').press('ArrowDown')
+        last.locator('.tk').press('Enter')
+        expect(last.locator('.tk')).not_to_have_value('silver')
+        with page.expect_request(base+'/api/search?q=slow'):
+            last.locator('.tk').fill('slow')
+        last.locator('.x').click()
+        for route in pending:
+            try: route.fulfill(json={"results":[]})
+            except Exception: pass
+        pending.clear()
+        page.locator('.tab[data-v="factors"]').click()
+        f=page.locator('#fTicker')
+        f.fill('apple')
+        expect(page.locator('#fTicker-popup')).to_contain_text('NASDAQ')
+        page.locator('#fTicker-popup').get_by_role('option').filter(has_text='NASDAQ').click()
+        before=len(quotes)
+        page.locator('#fRange').select_option('5y')
+        page.locator('#fGo').click()
+        expect(page.locator('#fMsg')).to_contain_text('days line up')
+        assert any(q.get('symbol')==['AAPL'] and q.get('exchange')==['NASDAQ'] for q in quotes[before:])
+        for width in (320,390,768,1280):
+            page.set_viewport_size({"width":width,"height":1000})
+            for tab,selector in [('compare','#cA'),('compare','#cB'),('portfolio','#rows .tk'),('factors','#fTicker')]:
+                page.locator('.tab[data-v="'+tab+'"]').click()
+                field=page.locator(selector).first
+                field.fill('gold')
+                dropdown=page.locator('#'+field.get_attribute('id')+'-popup')
+                expect(dropdown).to_be_visible()
+                bounds=dropdown.bounding_box()
+                assert bounds['x']>=0 and bounds['x']+bounds['width']<=width+1,(tab,width,bounds)
+                assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(tab,width)
+                field.press('Escape')
+        page.locator('.tab[data-v="lookup"]').click()
         ticker.fill("gold")
         page.screenshot(path=str(pathlib.Path(tempfile.gettempdir()) / "gpmc-suggestions.png"), full_page=True)
         assert not errors, errors
         browser.close()
-        print("PASS: names/symbols, commodity/fund labels, keyboard/mouse selection, exchange identity, cache, stale replies, escaping, errors and responsive popup")
+        print("PASS: names/symbols, commodity/fund labels, keyboard/mouse selection, exchange identity, cache, stale replies, escaping, errors, all market lookup fields, dynamic holdings, exchange-aware requests/caches and responsive popups")
 finally:
     server.shutdown()
     server.server_close()

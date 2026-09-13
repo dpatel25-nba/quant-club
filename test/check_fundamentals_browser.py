@@ -252,6 +252,23 @@ try:
 
         # Mixed successes, issuer deduplication and valuation inputs in peers.
         page.locator('[data-fd-view="peers"]').click()
+        peer=page.locator('#fd-peer-symbols')
+        peer.fill('ALIAS, microsoft corporation')
+        expect(page.locator('#fd-peer-symbols-popup')).to_contain_text('Microsoft Corporation')
+        peer.press('ArrowDown')
+        peer.press('Enter')
+        expect(peer).to_have_value('ALIAS, MSFT, ')
+        expect(page.locator('#fd-peer-status')).to_contain_text('Choose companies')
+        # Editing an earlier token preserves the tickers after it.
+        peer.fill('microsoft, ALIAS')
+        peer.evaluate('e=>e.setSelectionRange(4,4)')
+        peer.dispatch_event('click')
+        expect(page.locator('#fd-peer-symbols-popup')).to_contain_text('Microsoft Corporation')
+        peer.press('ArrowDown')
+        peer.press('Enter')
+        expect(peer).to_have_value('MSFT, ALIAS')
+        peer.fill('gold')
+        expect(page.locator('#fd-peer-symbols-popup')).not_to_contain_text('XAU/USD')
         page.locator("#fd-peer-symbols").fill("MSFT, ALIAS, UNKNOWN")
         page.locator("#fd-peer-form").evaluate("f => f.requestSubmit()")
         expect(page.locator("#fd-peer-status")).to_contain_text("Duplicate SEC issuers")
