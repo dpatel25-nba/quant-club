@@ -13,7 +13,7 @@
     ["debtClaims","Debt claims for valuation",null,0,1e9],
     ["otherClaims","Preferred, NCI & other senior claims",null,0,1e9],
     ["marketCap","Market capitalization for comparison",null,.000001,1e10]
-  ].map(function (r) { return {id:r[0],label:r[1],field:r[2],min:r[3],max:r[4]}; });
+  ].map(function (r,i) { return {id:r[0],label:r[1],field:r[2],min:r[3],max:r[4],optional:i>=9}; });
   var drivers=[
     ["growth","Revenue growth",-95,200,"%"], ["grossMargin","Gross margin",-100,100,"%"],
     ["rd","R&D / revenue",0,100,"%"], ["sga","SG&A / revenue",0,100,"%"],
@@ -31,6 +31,41 @@
     ["terminalROIC","Terminal return on invested capital",.1,100], ["weight","Scenario weight",0,100]
   ].map(function (r) { return {id:r[0],label:r[1],min:r[2],max:r[3],unit:"%"}; });
   function supported(data) { return !(Number(data.sic)>=6000 && Number(data.sic)<7000) && !/banking|insurance|commercial banks/i.test(data.industry || ""); }
+  function suggestions(period) {
+    var v=period.values, out={};
+    function amount(id) { var f=v[id]; return f && Number.isFinite(f.value) && f.value>=0 ? f.value/1e6 : null; }
+    function add(id,value,note,ids) {
+      if (!Number.isFinite(value)) return;
+      out[id]={value:value,note:note,inputs:ids};
+    }
+    opening.forEach(function (f) { var n=f.field && amount(f.field); if (f.field && n!=null) add(f.id,n,"Reported SEC starting balance; review for changes since "+period.end+".",[f.field]); });
+    var long=amount("longDebt"), ids=["longDebt"];
+    if (long==null && amount("currentLongDebt")!=null && amount("noncurrentDebt")!=null) {
+      long=amount("currentLongDebt")+amount("noncurrentDebt"); ids=["currentLongDebt","noncurrentDebt"];
+    }
+    var short=amount("shortDebt"), shortId="shortDebt";
+    if (short==null) { short=amount("commercialPaper"); shortId="commercialPaper"; }
+    // ShortTermBorrowings may already include commercial paper: never add both.
+    if (long!=null && short!=null) {
+      ids=ids.concat(shortId);
+      var debt=long+short;
+      add("debt",debt,"Estimate: long-term debt including its current portion + "+(shortId==="shortDebt"?"short-term borrowings":"commercial paper")+". Commercial paper is not added twice. Review debt footnotes for overlap, leases and omitted borrowings.",ids);
+      add("debtClaims",debt,"Starting proxy: the same reported debt components at book value. Review valuation-date debt claims and lease treatment.",ids);
+    }
+    if (amount("cash")!=null && amount("revenue")!=null) add("excessCash",Math.max(0,amount("cash")-amount("revenue")*.02),"Assumption: cash less a reserve of 2% of annual revenue, floored at zero. Investments are excluded. This stays fixed when forecast minimum cash changes; review the operating reserve.",["cash","revenue"]);
+    var a=amount("assets"), l=amount("liabilities"), e=amount("equity");
+    if (a!=null && l!=null && e!=null && a-l-e>=-.000001) add("otherClaims",Math.max(0,a-l-e),"Proxy: consolidated equity less parent equity, floored at zero. Review noncontrolling interests at valuation value and add any preferred or other senior claims; zero does not confirm their absence.",["assets","liabilities","equity"]);
+    return out;
+  }
+  function fillMissing(m,period) {
+    var suggested=suggestions(period), count=0; m.references=m.references || {};
+    opening.forEach(function (f) {
+      var s=suggested[f.id]; if (m.opening[f.id]!=null || !s) return;
+      m.opening[f.id]=s.value; count++;
+      m.references[f.id]=f.field ? JSON.parse(JSON.stringify(period.values[f.field])) : {derived:true,formula:s.note,inputs:s.inputs.map(function (id) { return Object.assign({id:id},JSON.parse(JSON.stringify(period.values[id]))); })};
+    });
+    return count;
+  }
   function make(data,period,date) {
     var v=period.values, base={}, references={};
     opening.forEach(function (f) {
@@ -57,8 +92,10 @@
         cases[name].years.push(row);
       }
     });
-    return {version:1,cik:String(data.cik),symbol:data.symbol,period:{start:period.start,end:period.end,kind:period.kind},retrievedAt:data.retrievedAt,
+    var model={version:1,cik:String(data.cik),symbol:data.symbol,period:{start:period.start,end:period.end,kind:period.kind},retrievedAt:data.retrievedAt,
       asOf:date,horizon:5,opening:base,references:references,cases:cases,notes:"",reviewed:false};
+    fillMissing(model,period);
+    return model;
   }
   function validate(m,today) {
     var errors=[];
@@ -71,21 +108,19 @@
     function check(obj,fields,label) {
       fields.forEach(function (f) { var n=obj && obj[f.id]; if (!Number.isFinite(n) || n<f.min || n>f.max) errors.push(label+f.label+": enter a number between "+f.min+" and "+f.max+"."); });
     }
-    check(m.opening,opening,"Opening inputs · ");
+    check(m.opening,opening.filter(function (f) { return !f.optional; }),"Opening inputs · ");
     scenarios.forEach(function (name) {
-      var c=m.cases && m.cases[name]; check(c,settings,name+" · ");
+      var c=m.cases && m.cases[name];
       if (!c || !Array.isArray(c.years) || c.years.length!==10) { errors.push(name+": ten driver rows are required."); return; }
       c.years.slice(0,m.horizon).forEach(function (r,i) { check(r,drivers,name+" · Year "+(i+1)+" · "); });
-      if (c.wacc<=c.terminalGrowth) errors.push(name+": WACC must exceed terminal growth.");
-      if (c.terminalROIC<=c.terminalGrowth) errors.push(name+": terminal ROIC must exceed growth, leaving positive terminal cash flow.");
     });
     if (errors.length) return errors;
     var b=m.opening;
     if (b.cash+b.ar+b.inventory+b.ppe>b.assets+.000001) errors.push("Opening modeled asset components exceed total assets.");
     if (b.ap+b.debt>b.liabilities+.000001) errors.push("Opening debt and accounts payable exceed total liabilities.");
-    if (Math.abs(scenarios.reduce(function (n,s) { return n+m.cases[s].weight; },0)-100)>.00001) errors.push("Scenario weights must total 100%.");
     return errors;
   }
+  function hasInput(m,id) { var f=opening.find(function (f) { return f.id===id; }), n=m.opening[id]; return Number.isFinite(n) && n>=f.min && n<=f.max; }
   function project(m,name,override) {
     var c=m.cases[name], b=m.opening, prev=Object.assign({equity:b.assets-b.liabilities},b), rows=[], errors=[];
     var otherAssets=b.assets-b.cash-b.ar-b.inventory-b.ppe, otherLiabilities=b.liabilities-b.ap-b.debt;
@@ -121,18 +156,23 @@
   }
   function value(m,name,rows,overrides) {
     var c=Object.assign({},m.cases[name],overrides || {}), b=m.opening, last=rows[rows.length-1];
-    if (c.wacc<=c.terminalGrowth || c.terminalGrowth<0 || c.terminalROIC<=c.terminalGrowth || c.wacc<=0) return {error:"Invalid terminal growth, ROIC or discount rate."};
+    if (settings.slice(0,3).some(function (f) { return !Number.isFinite(c[f.id]) || c[f.id]<f.min || c[f.id]>f.max; }) || c.wacc<=c.terminalGrowth || c.terminalROIC<=c.terminalGrowth) return {error:"Enter valid valuation assumptions: WACC and terminal ROIC must exceed terminal growth. Financial projections remain available."};
     if (last.nopat<=0) return {error:"A positive final-year operating profit after tax is required for the perpetuity valuation."};
     var discount=c.wacc/100,g=c.terminalGrowth/100,roic=c.terminalROIC/100;
     var terminalNopat=last.nopat*(1+g), reinvestment=terminalNopat*g/roic, terminalFcff=terminalNopat-reinvestment;
     var terminal=terminalFcff/(discount-g), pvTerminal=terminal/Math.pow(1+discount,rows.length);
     var pv=rows.reduce(function (sum,r,i) { return sum+r.fcff/Math.pow(1+discount,i+1); },0), ev=pv+pvTerminal;
-    var equity=ev+b.excessCash-b.debtClaims-b.otherClaims;
-    return {ev:ev,equity:equity,perShare:equity>0 ? equity/b.shares : null,upside:equity>0 ? equity/b.marketCap-1 : null,
-      price:b.marketCap/b.shares,pvExplicit:pv,pvTerminal:pvTerminal,terminal:terminal,terminalFcff:terminalFcff,terminalNopat:terminalNopat,
-      reinvestment:reinvestment,terminalShare:ev>0 ? pvTerminal/ev : null};
+    var missing=["excessCash","debtClaims","otherClaims"].filter(function (id) { return !hasInput(m,id); }), messages=[];
+    if (missing.length) messages.push("Equity valuation needs valid inputs for: "+missing.map(function (id) {return opening.find(function (f) {return f.id===id;}).label;}).join(", ")+". Enterprise value and projections are available.");
+    if (!hasInput(m,"shares")) messages.push("Add current fully diluted shares for per-share valuation. Historical weighted-average shares are not substituted.");
+    if (!hasInput(m,"marketCap")) messages.push("Add a positive market capitalization for market comparison and reverse DCF.");
+    var equity=missing.length ? null : ev+b.excessCash-b.debtClaims-b.otherClaims;
+    return {ev:ev,equity:equity,perShare:equity>0 && hasInput(m,"shares") ? equity/b.shares : null,upside:equity>0 && hasInput(m,"marketCap") ? equity/b.marketCap-1 : null,
+      price:hasInput(m,"marketCap") && hasInput(m,"shares") ? b.marketCap/b.shares : null,pvExplicit:pv,pvTerminal:pvTerminal,terminal:terminal,terminalFcff:terminalFcff,terminalNopat:terminalNopat,
+      reinvestment:reinvestment,terminalShare:ev>0 ? pvTerminal/ev : null,messages:messages};
   }
   function reverse(m,name) {
+    if (!["excessCash","debtClaims","otherClaims","marketCap"].every(function (id) {return hasInput(m,id);})) return {error:"Reverse DCF needs a positive market capitalization and complete equity-bridge inputs. Financial projections remain available."};
     // Search a bounded domain, and explicitly reject ambiguous multiple crossings.
     var roots=[], previous=null;
     function residual(g) { var p=project(m,name,{growth:g}); if (p.errors.length) return null; var v=value(m,name,p.rows); return v.error ? null : v.equity-m.opening.marketCap; }
@@ -157,8 +197,9 @@
       var p=project(m,name), v=p.errors.length ? {error:p.errors.join(" ")} : value(m,name,p.rows);
       cases[name]={rows:p.rows,valuation:v,errors:p.errors,fundingGap:Math.max.apply(null,p.rows.map(function (r) { return r.fundingGap; }))};
     });
-    var valid=scenarios.every(function (name) { return m.cases[name].weight===0 || (!cases[name].valuation.error && cases[name].valuation.equity>0); });
-    return {errors:[],cases:cases,weightedEquity:valid ? scenarios.reduce(function (sum,name) { return m.cases[name].weight===0 ? sum : sum+cases[name].valuation.equity*m.cases[name].weight/100; },0) : null};
+    var weightsValid=scenarios.every(function (name) {var w=m.cases[name].weight;return Number.isFinite(w) && w>=0 && w<=100;}) && Math.abs(scenarios.reduce(function (n,s) {return n+m.cases[s].weight;},0)-100)<.00001;
+    var valid=weightsValid && scenarios.every(function (name) { return m.cases[name].weight===0 || (!cases[name].valuation.error && cases[name].valuation.equity>0); });
+    return {errors:[],cases:cases,messages:weightsValid ? [] : ["Scenario weights must total 100% for a weighted valuation. Individual forecasts remain available."],weightedEquity:valid ? scenarios.reduce(function (sum,name) { return m.cases[name].weight===0 ? sum : sum+cases[name].valuation.equity*m.cases[name].weight/100; },0) : null};
   }
   function importModel(raw,cik) {
     function validDate(s) { return typeof s==="string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0,10)===s; }
@@ -175,5 +216,5 @@
     // require fresh review and use current SEC links in the interface.
     return m;
   }
-  window.ForwardModel={opening:opening,drivers:drivers,settings:settings,scenarios:scenarios,make:make,validate:validate,project:project,value:value,reverse:reverse,run:run,importModel:importModel,supported:supported};
+  window.ForwardModel={opening:opening,drivers:drivers,settings:settings,scenarios:scenarios,suggestions:suggestions,fillMissing:fillMissing,make:make,validate:validate,project:project,value:value,reverse:reverse,run:run,importModel:importModel,supported:supported};
 })();

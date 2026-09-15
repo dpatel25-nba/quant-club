@@ -92,9 +92,30 @@ calculation engine; `forecast-workspace.js` and its CSS implement the editor,
 results, device storage and exports. No extra provider request is made.
 
 - Historical starting point: latest TTM or an available annual period. SEC
-  references are separate from editable inputs. Missing opening values, total
-  debt, current fully diluted shares, excess cash, valuation debt/other claims
-  and comparison market cap require explicit entries, including zero.
+  references are separate from editable inputs. New drafts prefill operating
+  balances and supported debt estimates. Debt uses long-term debt including its
+  current portion (or both reported components) plus short-term borrowings,
+  falling back to commercial paper. Never add both short-term tags or the current
+  long-term portion twice. Missing components remain missing; estimates require
+  review for debt overlap, omissions and leases.
+- Editable bridge suggestions use book debt as a valuation proxy, cash less a
+  2%-of-revenue operating reserve (floored at zero, excluding investments), and
+  consolidated less parent equity for other claims when available. The latter
+  is only a book NCI proxy; review preferred stock and other valuation claims.
+  Source buttons and assumption explanations accompany each estimate. The cash
+  reserve estimate stays fixed when forecast minimum-cash assumptions change.
+  **Fill missing inputs** preserves existing entries and requires renewed review.
+  It can reuse an issuer's valid member-entered market cap from Valuation when
+  that entry's date matches the model date. New drafts also reuse matching caps;
+  saved/imported drafts are not automatically overwritten.
+- Opening operating inputs and annual drivers are required for projections.
+  The equity bridge, current fully diluted shares and comparison market cap are
+  optional: missing/invalid values suppress only dependent outputs. No historical
+  weighted-average shares are substituted. Missing bridge values never become
+  zeros. Invalid DCF settings suppress valuation while preserving forecasts;
+  invalid weights suppress only the weighted value. Reports/CSV explain partial
+  results, and sensitivity shows enterprise or equity value when per-share
+  valuation is unavailable.
 - Annual drivers cover growth, gross margin, R&D, SG&A, other operating costs,
   taxes, capex, depreciation, receivable/inventory/payable days, SBC, interest,
   dividends, borrowing/repayment, cash issuance, buybacks and minimum cash.

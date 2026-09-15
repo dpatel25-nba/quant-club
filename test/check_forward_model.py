@@ -28,8 +28,8 @@ changed=copy();changed.cases.base.years.forEach(y=>y.grossMargin=5);var loss=E.r
 changed=copy();changed.cases.base.years[0].sbc=100;assert(E.run(changed).cases.base.errors.length,'noncash charges cannot exceed embedded expenses');
 changed=copy();changed.opening.debt=null;assert(E.run(changed).errors.length,'missing debt not zero');
 changed=copy();changed.opening.inventory=10000;assert(E.run(changed).errors.length,'inconsistent opening assets');
-changed=copy();changed.cases.base.weight=70;assert(E.run(changed).errors.length,'weights total 100');
-changed=copy();changed.cases.base.terminalROIC=1;assert(E.run(changed).errors.length,'growth needs reinvestment');
+changed=copy();changed.cases.base.weight=70;var weights=E.run(changed);assert(!weights.errors.length && weights.weightedEquity===null && weights.messages.length,'invalid weights block only weighted valuation');
+changed=copy();changed.cases.base.terminalROIC=1;var terminal=E.run(changed);assert(!terminal.errors.length && terminal.cases.base.valuation.error && terminal.cases.base.rows.length===5,'invalid terminal inputs preserve forecasts');
 changed=copy();changed.cases.downside.weight=0;changed.cases.base.weight=75;changed.cases.downside.years.forEach(y=>y.grossMargin=5);
 assert(E.run(changed).weightedEquity>0,'zero-weight invalid case does not poison weighted result');
 changed=copy();changed.asOf='2027-09-15';assert(E.run(changed,'2026-09-15').errors.length,'future model date');
@@ -39,6 +39,31 @@ changed.opening.marketCap=1e10;assert(E.reverse(changed,'base').error,'unbracket
 var seed=E.make({cik:123,symbol:'TEST',retrievedAt:'2026-09-15',fields:[]},{start:'2025-01-01',end:'2025-12-31',kind:'annual',values:{revenue:{value:1e9},assets:{value:2e9},cash:{value:0}}},'2026-09-15');
 assert(seed.opening.cash===0 && seed.opening.debt===null && seed.opening.shares===null,'seed zero/missing/manual inputs');
 assert(seed.cases.base.years[0].grossMargin===null,'unavailable margin requires input');
+// Optional valuation inputs never become implicit zeros or block operating forecasts.
+changed=copy();['shares','marketCap','excessCash','debtClaims','otherClaims'].forEach(id=>changed.opening[id]=null);
+var partial=E.run(changed);assert(!partial.errors.length,'forecast without valuation inputs');
+near(partial.cases.base.rows[0].fcff,217.5,'partial forecast unchanged');near(partial.cases.base.valuation.ev,v.ev,'EV independent of bridge');
+assert(partial.cases.base.valuation.equity===null && partial.cases.base.valuation.perShare===null && partial.cases.base.valuation.upside===null && partial.weightedEquity===null,'missing bridge remains unavailable');
+assert(E.reverse(changed,'base').error,'reverse requires bridge and cap');
+changed=copy();changed.opening.shares=null;changed.opening.marketCap=null;
+partial=E.run(changed);near(partial.weightedEquity,v.equity,'equity without shares or cap');assert(partial.cases.base.valuation.perShare===null && partial.cases.base.valuation.upside===null,'no invalid division');
+changed.opening.marketCap=v.equity;near(E.reverse(changed,'base').growth,10,'reverse independent of shares');
+changed=copy();changed.opening.shares=-1;changed.opening.otherClaims=-5;
+partial=E.run(changed);assert(!partial.errors.length && partial.cases.base.valuation.equity===null && partial.cases.base.valuation.perShare===null,'invalid optional inputs suppress only affected outputs');
+changed=copy();changed.cases.base.wacc=null;assert(!E.run(changed).errors.length && E.run(changed).cases.base.valuation.error,'missing WACC does not become zero');
+var period={start:'2025-01-01',end:'2025-12-31',kind:'annual',values:{}};
+Object.entries({revenue:1000,cash:100,longDebt:180,currentLongDebt:30,noncurrentDebt:150,shortDebt:20,commercialPaper:10,assets:1000,liabilities:400,equity:590}).forEach(([id,n])=>period.values[id]={value:n*1e6,url:'https://www.sec.gov/Archives/test',filed:'2026-02-01'});
+var estimates=E.suggestions(period);
+near(estimates.debt.value,200,'do not add current portion or commercial paper twice');near(estimates.debtClaims.value,200,'book proxy');near(estimates.excessCash.value,80,'cash reserve assumption');near(estimates.otherClaims.value,10,'NCI book proxy');
+delete period.values.longDebt;delete period.values.shortDebt;
+near(E.suggestions(period).debt.value,190,'current plus noncurrent plus commercial paper fallback');
+delete period.values.currentLongDebt;assert(!E.suggestions(period).debt,'missing current debt is not assumed zero');
+period.values.longDebt={value:180e6};period.values.cash={value:0};
+var auto=E.make({cik:123,symbol:'TEST'},period,'2026-09-15');near(auto.opening.debt,190,'new draft debt prefill');near(auto.opening.excessCash,0,'zero cash preserved');
+assert(auto.opening.shares===null && auto.opening.marketCap===null,'no historical share count or market cap inferred');
+auto.opening.debt=777;auto.opening.debtClaims=null;E.fillMissing(auto,period);
+near(auto.opening.debt,777,'prefill preserves user overrides');near(auto.opening.debtClaims,190,'prefill repairs only blank inputs');assert(auto.references.debtClaims.inputs.length===2,'derived debt sources retained');
+delete period.values.commercialPaper;assert(!E.suggestions(period).debt,'missing short-term debt is not assumed zero');
 var imported=E.importModel(m,'123');assert(!imported.reviewed && Object.keys(imported.references).length===0,'import requires review and does not trust sources');
 try{E.importModel(m,'124');throw new Error('wrong issuer accepted');}catch(e){assert(e.message!=='wrong issuer accepted','issuer check');}
 changed=copy();changed.horizon=1e9;

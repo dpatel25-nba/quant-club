@@ -20,7 +20,9 @@
     "Each forecast year is a full year after the model date. Starting run rates and balances come from the selected historical period and require analyst review for the intervening time. No stub-period estimate or market-data update is inferred. Cash flows are discounted at year end using a constant scenario WACC.",
     "Terminal NOPAT = final forecast NOPAT × (1 + terminal growth). Terminal reinvestment = terminal NOPAT × growth / terminal ROIC. Terminal FCFF = terminal NOPAT − reinvestment. Terminal value = terminal FCFF / (WACC − growth). Stable margins and taxes are assumed; the terminal reinvestment rule replaces the explicit capex and working-capital schedules.",
     "Enterprise value is the present value of explicit FCFF plus terminal value. Equity residual = enterprise value + valuation-date excess cash/nonoperating assets − debt claims − other senior claims. Future ending cash is not added again. Per-share estimates are shown only for a positive equity residual. Scenario weights are analyst choices, not calibrated probabilities.",
-    "Reverse DCF replaces all forecast revenue growth inputs with a single constant rate, while retaining the selected scenario’s other annual assumptions. It searches −50% to 100% growth using a grid and bisection and rejects multiple detected solutions. It is conditional on the chosen margins, reinvestment, discount rate and valuation bridge. Funding shortfalls are not automatically financed; financing terms, issuance dilution and distress costs could change the valuation."
+    "Reverse DCF replaces all forecast revenue growth inputs with a single constant rate, while retaining the selected scenario’s other annual assumptions. It searches −50% to 100% growth using a grid and bisection and rejects multiple detected solutions. It is conditional on the chosen margins, reinvestment, discount rate and valuation bridge. Funding shortfalls are not automatically financed; financing terms, issuance dilution and distress costs could change the valuation.",
+    "New drafts prefill debt from reported long-term debt including its current portion plus short-term borrowings, falling back to commercial paper only when short-term borrowings are unavailable. Both long- and short-term components are required; review overlapping or omitted debt and leases. Debt claims initially use the same book amounts. Excess cash initially reserves 2% of annual revenue and excludes investments. Other claims use consolidated equity less parent equity when available, but still require review for preferred stock and valuation adjustments. These are editable starting estimates, not verified valuation-date totals.",
+    "Missing valuation inputs leave only the affected outputs unavailable: the bridge is needed for equity value, current fully diluted shares for per-share value, and market capitalization for comparison/reverse DCF. Missing or invalid valuation settings do not prevent operating forecasts. Market cap can be reused from this issuer’s Valuation tab only when its entered date matches the model date. No live market data is inferred."
   ];
   window.ForecastWorkspace={create:function (ui) {
     var node=ui.node, el=function (id) { return document.getElementById("fm-"+id); }, drafts=new Map(), entry;
@@ -28,7 +30,18 @@
     function candidates() { var d=ui.current(); return (d.ttm || []).slice(0,1).concat(d.periods || []); }
     function number(n,digits) { if (!Number.isFinite(n)) return "—"; var d=digits==null?1:digits; return (Math.abs(n)<Math.pow(10,-d)/2 ? 0 : n).toLocaleString(undefined,{maximumFractionDigits:d}); }
     function money(n) { if (!Number.isFinite(n)) return "—";var scale=Math.abs(n)>=1e6?1e6:Math.abs(n)>=1e3?1e3:1;return "$"+number(n/scale,2)+(scale===1e6?"T":scale===1e3?"B":"M"); }
-    function changed() { entry.result=null; el("results").hidden=true; el("csv").disabled=true; el("status").textContent="Assumptions changed. Run the model to update results."; el("storage").textContent="Draft changed in this tab. Save to keep it on this device."; }
+    function changed() { entry.result=null; el("results").hidden=true; el("csv").disabled=true; el("status").textContent="Assumptions changed. Run the model to update results."; el("storage").textContent="Draft changed in this tab. Save to keep it on this device."; readiness(); }
+    function readiness() {
+      var m=entry.model, missing=E.opening.filter(function (f) {var n=m.opening[f.id];return !f.optional && (!Number.isFinite(n) || n<f.min || n>f.max);});
+      el("readiness").textContent=missing.length ? "Opening inputs to complete: "+missing.map(function (f) {return f.label;}).join(", ")+". Valuation inputs below are optional for the forecast." : "Opening financials are filled. Review them and the scenario assumptions, then run. Shares and market cap can be added later.";
+    }
+    function reuseMarketCap(m) {
+      var cap=ui.marketCap && ui.marketCap();
+      if (m.opening.marketCap!=null || !cap || cap.date!==m.asOf || !Number.isFinite(cap.value) || cap.value<=0) return 0;
+      m.opening.marketCap=cap.value/1e6;
+      m.references.marketCap={value:cap.value,unit:"USD",formula:"Member-entered market capitalization reused from Valuation, dated "+cap.date+". Not a live quote."};
+      return 1;
+    }
     function numeric(value,f,fn,label) {
       var input=node("input"); input.type="number"; input.step="any"; input.min=f.min; input.max=f.max; input.value=value==null?"":value;
       input.setAttribute("aria-label",label || f.label); input.addEventListener("input",function () { fn(input.value===""?null:Number(input.value)); changed(); }); return input;
@@ -39,17 +52,24 @@
       el("date").value=m.asOf; el("date").max=today(); el("horizon").value=m.horizon; el("case").value=entry.scenario; el("reviewed").checked=m.reviewed; el("notes").value=m.notes;
       el("baseline").textContent="Historical starting point: "+m.period.kind.toUpperCase()+" · "+m.period.start+" to "+m.period.end+". Model date: "+m.asOf+". All financial amounts use USD millions, except per-share values. Historical data retrieved "+m.retrievedAt+".";
       el("opening").replaceChildren();
-      var p=candidates().find(function (p) { return p.start===m.period.start && p.end===m.period.end && p.kind===m.period.kind; });
+      var p=candidates().find(function (p) { return p.start===m.period.start && p.end===m.period.end && p.kind===m.period.kind; }), suggestions=p ? E.suggestions(p) : {};
+      var operating=node("div",null,"fm-input-grid"), optional=node("div",null,"fm-input-grid");
+      el("opening").append(node("h4","Operating forecast"),operating,node("h4","Optional valuation inputs"),node("p","Complete the bridge for equity value, shares for per-share value, and market cap for comparison. You can run the forecast with these blank.","fd-muted"),optional);
       E.opening.forEach(function (f) {
-        var box=node("div"), label=node("label",f.label), input=numeric(m.opening[f.id],f,function (n) { m.opening[f.id]=n; }); label.appendChild(input); box.appendChild(label);
+        var box=node("div"), label=node("label",f.label), input=numeric(m.opening[f.id],f,function (n) { m.opening[f.id]=n; delete m.references[f.id]; }); label.appendChild(input); box.appendChild(label);
         var fact=p && f.field && p.values[f.field];
         if (fact) {
           var b=node("button","SEC: "+number(fact.value/1e6)+" · "+p.end,"fd-value"); b.type="button";
           b.addEventListener("click",function () { ui.source(f.field,p); }); box.appendChild(b);
-        } else box.appendChild(node("small",f.field ? "Not available in the selected SEC fields. Enter a reviewed amount." : "Analyst input required; not inferred."));
-        el("opening").appendChild(box);
+        } else {
+          var s=suggestions[f.id];
+          box.appendChild(node("small",s ? "Suggested starting point: "+number(s.value)+"m. "+s.note : f.optional ? f.id==="shares" ? "Optional · current fully diluted shares are needed only for per-share valuation." : f.id==="marketCap" ? "Optional · needed for market comparison and reverse DCF. Fill missing inputs can reuse a same-date entry from Valuation." : "Optional · enter a reviewed amount for equity valuation, including an explicit zero where appropriate." : "Not available in the selected SEC fields. Enter a reviewed amount."));
+          if (s) s.inputs.forEach(function (id) {var field=(data.fields || []).find(function (f) {return f.id===id;}),b=node("button","SEC: "+(field ? field.label : id)+" · "+p.end,"fd-value");b.type="button";b.addEventListener("click",function () {ui.source(id,p);});box.appendChild(b);});
+          if (f.id==="marketCap" && m.references.marketCap) box.appendChild(node("small",m.references.marketCap.formula));
+        }
+        (f.optional ? optional : operating).appendChild(box);
       });
-      renderDrivers();
+      readiness(); renderDrivers();
     }
     function renderDrivers() {
       var c=currentCase(); el("settings").replaceChildren();
@@ -89,17 +109,19 @@
       var m=entry.model,c=currentCase(), selected=result.cases[entry.scenario],v=selected.valuation;
       el("result-case").value=entry.scenario;
       el("results").hidden=false; el("csv").disabled=false; el("metrics").replaceChildren();
-      [["Weighted equity residual",money(result.weightedEquity)],[labels[entry.scenario]+" value per current diluted share",v.perShare==null?"—":"$"+number(v.perShare,2)],["Terminal value / enterprise value",v.terminalShare==null?"—":number(v.terminalShare*100)+"%"]].forEach(function (r) { var card=node("div",null,"fd-metric"); card.appendChild(node("div",r[0],"fd-label")); card.appendChild(node("div",r[1],"fd-number mono")); el("metrics").appendChild(card); });
+      [result.weightedEquity==null ? [labels[entry.scenario]+" enterprise value",money(v.ev)] : ["Weighted equity residual",money(result.weightedEquity)],[labels[entry.scenario]+" value per current diluted share",v.perShare==null?"—":"$"+number(v.perShare,2)],["Terminal value / enterprise value",v.terminalShare==null?"—":number(v.terminalShare*100)+"%"]].forEach(function (r) { var card=node("div",null,"fd-metric"); card.appendChild(node("div",r[0],"fd-label")); card.appendChild(node("div",r[1],"fd-number mono")); el("metrics").appendChild(card); });
       el("scenarios").replaceChildren(table(["Scenario","Weight","Enterprise value (m)","Equity residual (m)","Value / share","Vs entered market cap","Peak funding gap (m)"],scenarioRows(result)));
-      var diagnostics=[];
+      var diagnostics=(result.messages || []).slice(), availability=new Set();
       E.scenarios.forEach(function (name) {
         var r=result.cases[name],val=r.valuation;
         if (val.error) diagnostics.push(labels[name]+": "+val.error);
+        (val.messages || []).forEach(function (message) {availability.add(message);});
         if (r.fundingGap>.000001) diagnostics.push(labels[name]+": up to $"+number(r.fundingGap)+"m of additional cash is needed to meet the minimum balance. Funding and its dilution/costs are not modeled automatically.");
         if (r.rows.some(function (x) { return x.equity<0; })) diagnostics.push(labels[name]+": projected book equity turns negative.");
-        if (!val.error && val.equity<=0) diagnostics.push(labels[name]+": modeled enterprise value and nonoperating assets do not cover senior claims; no positive per-share estimate is shown.");
+        if (!val.error && val.equity!=null && val.equity<=0) diagnostics.push(labels[name]+": modeled enterprise value and nonoperating assets do not cover senior claims; no positive per-share estimate is shown.");
         if (!val.error && val.terminalShare>.8) diagnostics.push(labels[name]+": more than 80% of enterprise value comes from the terminal value.");
       });
+      el("availability").textContent=Array.from(availability).join(" "); el("availability").hidden=!availability.size;
       var maxResidual=Math.max.apply(null,E.scenarios.flatMap(function (s) { return result.cases[s].rows.map(function (r) { return Math.abs(r.balanceCheck); }); }));
       diagnostics.push("Maximum balance-sheet residual: $"+number(maxResidual,6)+"m. Other assets and liabilities stay constant; balance checks verify arithmetic, not the realism of assumptions.");
       el("diagnostics").textContent=diagnostics.join(" ");
@@ -110,8 +132,10 @@
         var tr=node("tr",null,"fm-statement-heading"),th=node("th",group[1]);th.colSpan=m.horizon+1;tr.appendChild(th);projectionBody.insertBefore(tr,projectedRows[rows.findIndex(function (r) {return r[0]===group[0];})]);
       });
       var growths=[-1,-.5,0,.5,1].map(function (d) { return c.terminalGrowth+d; });
+      var sensitivityKey=v.perShare!=null ? "perShare" : v.equity>0 ? "equity" : "ev";
+      el("sensitivity-label").textContent=(sensitivityKey==="perShare" ? "Equity value per current fully diluted share" : sensitivityKey==="equity" ? "Equity value · USD millions" : "Enterprise value · USD millions")+" for the selected scenario. Operating assumptions and terminal ROIC stay fixed. — marks unavailable combinations.";
       el("sensitivity").replaceChildren(table(["WACC / growth"].concat(growths.map(function (g) { return number(g)+"%"; })),[-2,-1,0,1,2].map(function (d) {
-        var w=c.wacc+d; return [number(w)+"%"].concat(growths.map(function (g) { var val=selected.errors.length ? {} : E.value(m,entry.scenario,selected.rows,{wacc:w,terminalGrowth:g}); return val.error || val.perShare==null ? "—" : "$"+number(val.perShare,2); }));
+        var w=c.wacc+d; return [number(w)+"%"].concat(growths.map(function (g) { var val=selected.errors.length ? {} : E.value(m,entry.scenario,selected.rows,{wacc:w,terminalGrowth:g}); return val.error || val[sensitivityKey]==null ? "—" : "$"+number(val[sensitivityKey],2); }));
       })));
       var reverse=selected.errors.length ? {error:"Resolve this scenario’s model errors before running reverse DCF."} : E.reverse(m,entry.scenario);
       el("reverse").textContent=reverse.error || "A constant annual revenue growth rate of "+number(reverse.growth,2)+"% for "+m.horizon+" years matches your entered $"+number(m.opening.marketCap)+"m market capitalization, holding this scenario’s other assumptions fixed. This is an implied assumption, not a growth forecast."+(reverse.fundingGap>.000001 ? " That solution also requires up to $"+number(reverse.fundingGap)+"m of additional cash funding." : "");
@@ -157,7 +181,7 @@
       var id=String(data.cik); entry=drafts.get(id);
       if (!entry) {
         entry={model:E.make(data,options[0],today()),scenario:"base",result:null};
-        try {var raw=localStorage.getItem("gpmc-forward-model-v1:"+id); if(raw){entry.model=E.importModel(JSON.parse(raw),id);el("storage").textContent="Loaded this device’s saved model. Review the inputs before running.";}else el("storage").textContent="New draft in this tab. Save or download it to keep a copy.";}
+        try {var raw=localStorage.getItem("gpmc-forward-model-v1:"+id); if(raw){entry.model=E.importModel(JSON.parse(raw),id);el("storage").textContent="Loaded this device’s saved model. Review the inputs before running.";}else {reuseMarketCap(entry.model);el("storage").textContent="New draft in this tab. Save or download it to keep a copy.";}}
         catch (_) {el("storage").textContent="Saved model could not be read. A new draft is shown; download a copy before closing if browser storage is unavailable.";}
         drafts.set(id,entry);
       } else el("storage").textContent="Current draft for "+data.symbol+". Save explicitly to update this device’s copy.";
@@ -170,6 +194,8 @@
       if (!e || !e.result) {section.appendChild(node("p","No current financial model results. Run the model after completing or changing assumptions."));return section;}
       var m=e.model;section.appendChild(node("p","Model date "+m.asOf+" · "+m.horizon+" forecast years · historical baseline "+m.period.start+" to "+m.period.end+". Analyst scenarios, not consensus forecasts. USD millions except per-share values."));
       section.appendChild(table(["Scenario","Enterprise value (m)","Equity residual (m)","Value / share","Funding gap (m)"],E.scenarios.map(function (s) {var r=e.result.cases[s],v=r.valuation;return [labels[s],v.error || number(v.ev),number(v.equity),number(v.perShare,2),number(r.fundingGap)];})));
+      var availability=new Set(e.result.messages || []); E.scenarios.forEach(function (s) {(e.result.cases[s].valuation.messages || []).forEach(function (message) {availability.add(message);});});
+      if (availability.size) section.appendChild(node("p",Array.from(availability).join(" ")));
       section.appendChild(node("p",m.notes || "No assumption rationale entered."));
       section.appendChild(table(["Opening / bridge assumption","Value"],E.opening.map(function (f) {return [f.label,number(m.opening[f.id])];})));
       E.scenarios.forEach(function (s) {var c=m.cases[s];section.appendChild(node("h3",labels[s]+" assumptions"));section.appendChild(node("p",E.settings.map(function (f) {return f.label+" "+number(c[f.id])+"%";}).join(" · ")));section.appendChild(table(["Driver","Year-by-year inputs (Y1 onward)"],E.drivers.map(function (f) {return [f.label+" ("+f.unit+")",c.years.slice(0,m.horizon).map(function (r) {return number(r[f.id]);}).join(" / ")];})));});
@@ -192,7 +218,13 @@
       el("reviewed").addEventListener("change",function () {entry.model.reviewed=el("reviewed").checked;changed();});
       el("notes").addEventListener("input",function () {entry.model.notes=el("notes").value;changed();});
       el("fill").addEventListener("click",function () {var c=currentCase();c.years=c.years.map(function () {return Object.assign({},c.years[0]);});changed();renderDrivers();});
-      el("reset").addEventListener("click",function () {entry.model=E.make(ui.current(),candidates()[Number(el("period").value)],today());changed();renderInputs();});
+      el("reset").addEventListener("click",function () {entry.model=E.make(ui.current(),candidates()[Number(el("period").value)],today());reuseMarketCap(entry.model);changed();renderInputs();});
+      el("prefill").addEventListener("click",function () {
+        var m=entry.model, p=candidates().find(function (p) {return p.start===m.period.start && p.end===m.period.end && p.kind===m.period.kind;});
+        var count=(p ? E.fillMissing(m,p) : 0)+reuseMarketCap(m);
+        if (count) {m.reviewed=false;changed();renderInputs();}
+        el("status").textContent=count ? "Filled "+count+" missing inputs. Existing entries were kept. Review the suggested amounts before running." : "No additional supported values are available for blank inputs. Market-cap reuse requires an entry dated the same day as the model.";
+      });
       el("chart-metric").addEventListener("change",chart);
       el("csv").addEventListener("click",csv);
       el("json").addEventListener("click",function () {download(JSON.stringify(entry.model,null,2),"application/json",entry.model.symbol+"-financial-model.json");});

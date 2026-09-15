@@ -882,8 +882,10 @@
             <label>Edit scenario<select id="fm-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label>
           </div>
           <details class="fd-method" open><summary>Opening financials &amp; valuation bridge · USD millions</summary>
-            <p>Review every opening amount as of the model date. Reported balance-sheet values are carried forward without a stub-period estimate. Update them when needed. Enter zero explicitly where appropriate. Fully diluted shares and debt claims are not inferred from incomplete SEC tags.</p>
-            <div class="fm-input-grid" id="fm-opening"></div>
+            <p>Financials and supported debt estimates are prefilled from SEC data. Cash reserves and valuation adjustments use labeled starting assumptions. Review amounts as of the model date; historical balances are carried forward without an interim estimate.</p>
+            <div class="fd-controls"><button type="button" class="btn ghost" id="fm-prefill">Fill missing inputs</button><span class="fd-muted">Keeps your existing entries. Also reuses a same-date market cap entered in Valuation.</span></div>
+            <p class="fd-status" id="fm-readiness" role="status"></p>
+            <div id="fm-opening"></div>
             <p>Excess cash/nonoperating assets and senior claims are valuation-date inputs. They are used once in the enterprise-to-equity bridge; projected ending cash is not added again. Do not include operating cash or overlap preferred/NCI claims with debt.</p>
           </details>
           <details class="fd-method" open><summary>Operating &amp; financing assumptions</summary>
@@ -899,6 +901,7 @@
           <p class="fd-status" id="fm-storage" role="status"></p>
           <div class="fd-status" id="fm-status" role="status" aria-live="polite"></div>
           <div id="fm-results" hidden>
+            <p class="fd-notice" id="fm-availability" hidden></p>
             <div class="fd-metrics" id="fm-metrics"></div>
             <div class="fd-table-wrap" id="fm-scenarios" tabindex="0" aria-label="Scenario valuation comparison"></div>
             <p class="fd-notice" id="fm-diagnostics"></p>
@@ -906,7 +909,7 @@
             <div class="fd-chart-wrap"><svg id="fm-chart" role="img" aria-label="Projected scenario paths"></svg></div>
             <div class="fd-controls"><h3>Linked projections</h3><label>View scenario<select id="fm-result-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label></div><p class="fd-muted" id="fm-projection-label"></p>
             <div class="fd-table-wrap" id="fm-projections" tabindex="0" aria-label="Projected income statement, cash flow and balance sheet"></div>
-            <h3>Discount rate &amp; terminal growth sensitivity</h3><p class="fd-muted">Equity value per current fully diluted share for the selected scenario. Operating assumptions and terminal ROIC stay fixed. — marks invalid combinations or no positive equity residual.</p>
+            <h3>Discount rate &amp; terminal growth sensitivity</h3><p class="fd-muted" id="fm-sensitivity-label"></p>
             <div class="fd-table-wrap" id="fm-sensitivity" tabindex="0" aria-label="DCF sensitivity table"></div>
             <h3>Reverse DCF</h3><p class="fd-muted" id="fm-reverse"></p>
           </div>

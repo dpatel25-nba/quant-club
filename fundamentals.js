@@ -361,7 +361,7 @@
     current:function () { return current; }, periods:periods,basisName:basisName,
     peers:function () { return peers; }, valuationFor:valuationFor, valuationPeriod:valuationPeriod
   });
-  var forecast=window.ForecastWorkspace.create({current:function () { return current; },node:node,source:source,link:link});
+  var forecast=window.ForecastWorkspace.create({current:function () { return current; },marketCap:function () { return valuationFor(current).error ? null : marketCaps.get(current.cik); },node:node,source:source,link:link});
   window.Fundamentals = {
     attach: function (c) {
       config=c; workspace.attach(); forecast.attach();
