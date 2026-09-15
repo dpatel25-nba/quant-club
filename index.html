@@ -885,6 +885,9 @@
             <p>Financials and supported debt estimates are prefilled from SEC data. Cash reserves and valuation adjustments use labeled starting assumptions. Review amounts as of the model date; historical balances are carried forward without an interim estimate.</p>
             <div class="fd-controls"><button type="button" class="btn ghost" id="fm-prefill">Fill missing inputs</button><span class="fd-muted">Keeps your existing entries. Also reuses a same-date market cap entered in Valuation.</span></div>
             <p class="fd-status" id="fm-readiness" role="status"></p>
+            <div class="fd-controls"><label>Share count basis<select id="fm-share-basis"><option value="fully-diluted">Reviewed fully diluted shares</option><option value="reported-common">Reported common shares · before dilution</option></select></label><button type="button" class="btn ghost" id="fm-market-fill">Fill share &amp; market estimates</button></div>
+            <p class="fd-muted">Uses a recent SEC common-share snapshot and a dated daily USD price where available. Estimates exclude potential dilution and may miss subsequent share changes. Existing entries are kept.</p>
+            <p class="fd-status" id="fm-market-status" role="status" aria-live="polite"></p>
             <div id="fm-opening"></div>
             <p>Excess cash/nonoperating assets and senior claims are valuation-date inputs. They are used once in the enterprise-to-equity bridge; projected ending cash is not added again. Do not include operating cash or overlap preferred/NCI claims with debt.</p>
           </details>

@@ -64,6 +64,20 @@ assert(auto.opening.shares===null && auto.opening.marketCap===null,'no historica
 auto.opening.debt=777;auto.opening.debtClaims=null;E.fillMissing(auto,period);
 near(auto.opening.debt,777,'prefill preserves user overrides');near(auto.opening.debtClaims,190,'prefill repairs only blank inputs');assert(auto.references.debtClaims.inputs.length===2,'derived debt sources retained');
 delete period.values.commercialPaper;assert(!E.suggestions(period).debt,'missing short-term debt is not assumed zero');
+var shareData={cik:'123',symbol:'TEST',exchanges:['Nasdaq'],commonShareSnapshots:[{symbol:'TEST',value:100e6,end:'2026-07-17',filed:'2026-07-31',url:'https://www.sec.gov/Archives/test'}]};
+changed=copy();changed.opening.shares=null;
+assert(E.fillShares(changed,shareData)===1 && changed.shareBasis==='reported-common','reported share basis explicitly selected');
+near(changed.opening.shares,100,'shares converted to millions');changed.opening.shares=200;assert(E.fillShares(changed,shareData)===0 && changed.opening.shares===200,'manual shares preserved');
+assert(!E.shareSnapshot(shareData,'2026-07-30'),'share disclosure unavailable before filed');assert(!E.shareSnapshot(shareData,'2027-03-01'),'stale share counts skipped');
+var quote={symbol:'TEST',exchange:'NASDAQ',currency:'USD',type:'Common Stock',interval:'1day',points:[{t:'2026-09-14',c:20},{t:'2026-09-16',c:999}]};
+var estimate=E.marketEstimate(shareData,'2026-09-15',quote);near(estimate.value,2000,'market cap uses reported shares, not diluted override');assert(estimate.priceDate==='2026-09-14','future price excluded');
+['symbol','currency','exchange','type','interval'].forEach(function(id){var wrong=Object.assign({},quote);wrong[id]='wrong';assert(E.marketEstimate(shareData,'2026-09-15',wrong).error,'reject mismatched '+id);});
+assert(E.marketEstimate(shareData,'2026-09-25',quote).error,'stale price rejected');
+assert(E.marketEstimate(shareData,'2026-09-15',Object.assign({},quote,{points:[{t:'2026-09-14',c:0}]})).error,'zero price rejected');
+changed.marketCapBasis='price-times-shares';var basisImport=E.importModel(changed,'123');assert(basisImport.shareBasis==='reported-common' && basisImport.marketCapBasis==='price-times-shares' && !basisImport.references.shares,'estimate labels survive import without trusting provenance');
+assert(E.run(changed).cases.base.valuation.messages.some(s=>s.includes('excludes potential dilution')),'valuation discloses share basis');
+changed.asOf='2026-07-30';assert(E.run(changed).cases.base.valuation.perShare===null,'backdating does not retain a future share disclosure');
+changed=copy();changed.marketCapBasis='price-times-shares';changed.references={marketCap:{priceDate:'2026-09-16'}};assert(E.run(changed).cases.base.valuation.upside===null && E.reverse(changed,'base').error,'future price suppressed after date edit');
 var imported=E.importModel(m,'123');assert(!imported.reviewed && Object.keys(imported.references).length===0,'import requires review and does not trust sources');
 try{E.importModel(m,'124');throw new Error('wrong issuer accepted');}catch(e){assert(e.message!=='wrong issuer accepted','issuer check');}
 changed=copy();changed.horizon=1e9;

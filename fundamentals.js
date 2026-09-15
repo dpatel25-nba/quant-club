@@ -361,7 +361,11 @@
     current:function () { return current; }, periods:periods,basisName:basisName,
     peers:function () { return peers; }, valuationFor:valuationFor, valuationPeriod:valuationPeriod
   });
-  var forecast=window.ForecastWorkspace.create({current:function () { return current; },marketCap:function () { return valuationFor(current).error ? null : marketCaps.get(current.cik); },node:node,source:source,link:link});
+  var forecast=window.ForecastWorkspace.create({current:function () { return current; },marketCap:function () { return valuationFor(current).error ? null : marketCaps.get(current.cik); },marketPrice:async function (data,signal) {
+    var response=await fetch("/api/quote?k="+encodeURIComponent(config.getPassword())+"&symbol="+encodeURIComponent(data.symbol)+"&exchange="+encodeURIComponent((data.exchanges || [])[0] || "")+"&range=1m&quote=0",{signal:signal});
+    if (!response.ok) throw new Error(response.status===429 ? "Market data is temporarily rate limited. Try again later or enter a reviewed market cap." : "A market price is unavailable for this listing. You can still enter a reviewed market cap.");
+    return response.json();
+  },node:node,source:source,link:link});
   window.Fundamentals = {
     attach: function (c) {
       config=c; workspace.attach(); forecast.attach();

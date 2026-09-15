@@ -22,15 +22,17 @@
     "Enterprise value is the present value of explicit FCFF plus terminal value. Equity residual = enterprise value + valuation-date excess cash/nonoperating assets − debt claims − other senior claims. Future ending cash is not added again. Per-share estimates are shown only for a positive equity residual. Scenario weights are analyst choices, not calibrated probabilities.",
     "Reverse DCF replaces all forecast revenue growth inputs with a single constant rate, while retaining the selected scenario’s other annual assumptions. It searches −50% to 100% growth using a grid and bisection and rejects multiple detected solutions. It is conditional on the chosen margins, reinvestment, discount rate and valuation bridge. Funding shortfalls are not automatically financed; financing terms, issuance dilution and distress costs could change the valuation.",
     "New drafts prefill debt from reported long-term debt including its current portion plus short-term borrowings, falling back to commercial paper only when short-term borrowings are unavailable. Both long- and short-term components are required; review overlapping or omitted debt and leases. Debt claims initially use the same book amounts. Excess cash initially reserves 2% of annual revenue and excludes investments. Other claims use consolidated equity less parent equity when available, but still require review for preferred stock and valuation adjustments. These are editable starting estimates, not verified valuation-date totals.",
-    "Missing valuation inputs leave only the affected outputs unavailable: the bridge is needed for equity value, current fully diluted shares for per-share value, and market capitalization for comparison/reverse DCF. Missing or invalid valuation settings do not prevent operating forecasts. Market cap can be reused from this issuer’s Valuation tab only when its entered date matches the model date. No live market data is inferred."
+    "Missing valuation inputs leave only the affected outputs unavailable: the bridge is needed for equity value, a reviewed share count for per-share value, and market capitalization for comparison/reverse DCF. Missing or invalid valuation settings do not prevent operating forecasts. Market cap can be reused from this issuer’s Valuation tab only when its entered date matches the model date.",
+    "Where a single SEC listing has an unambiguous common-share snapshot no older than 180 days, new drafts prefill reported common shares and label per-share values as before dilution. This is not fully diluted shares or a weighted-average count. The market-estimate button can multiply that snapshot by a matching daily USD price on the issuer’s exchange, no older than seven days and after the share disclosure. Both source dates are shown. Repurchases, issuance, splits, unlisted share classes and potential dilution can make these estimates unsuitable; review them before using the valuation. The button preserves existing entries. No price × diluted-shares market cap is inferred."
   ];
   window.ForecastWorkspace={create:function (ui) {
-    var node=ui.node, el=function (id) { return document.getElementById("fm-"+id); }, drafts=new Map(), entry;
+    var node=ui.node, el=function (id) { return document.getElementById("fm-"+id); }, drafts=new Map(), entry, marketGeneration=0, marketController;
     function today() { var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
     function candidates() { var d=ui.current(); return (d.ttm || []).slice(0,1).concat(d.periods || []); }
     function number(n,digits) { if (!Number.isFinite(n)) return "—"; var d=digits==null?1:digits; return (Math.abs(n)<Math.pow(10,-d)/2 ? 0 : n).toLocaleString(undefined,{maximumFractionDigits:d}); }
     function money(n) { if (!Number.isFinite(n)) return "—";var scale=Math.abs(n)>=1e6?1e6:Math.abs(n)>=1e3?1e3:1;return "$"+number(n/scale,2)+(scale===1e6?"T":scale===1e3?"B":"M"); }
-    function changed() { entry.result=null; el("results").hidden=true; el("csv").disabled=true; el("status").textContent="Assumptions changed. Run the model to update results."; el("storage").textContent="Draft changed in this tab. Save to keep it on this device."; readiness(); }
+    function cancelMarket() { marketGeneration++; if (marketController) {marketController.abort();el("market-status").textContent="Price request canceled because the draft changed. Existing inputs were kept.";} marketController=null; el("market-fill").disabled=false; }
+    function changed() { cancelMarket(); entry.result=null; el("results").hidden=true; el("csv").disabled=true; el("status").textContent="Assumptions changed. Run the model to update results."; el("storage").textContent="Draft changed in this tab. Save to keep it on this device."; readiness(); }
     function readiness() {
       var m=entry.model, missing=E.opening.filter(function (f) {var n=m.opening[f.id];return !f.optional && (!Number.isFinite(n) || n<f.min || n>f.max);});
       el("readiness").textContent=missing.length ? "Opening inputs to complete: "+missing.map(function (f) {return f.label;}).join(", ")+". Valuation inputs below are optional for the forecast." : "Opening financials are filled. Review them and the scenario assumptions, then run. Shares and market cap can be added later.";
@@ -39,6 +41,7 @@
       var cap=ui.marketCap && ui.marketCap();
       if (m.opening.marketCap!=null || !cap || cap.date!==m.asOf || !Number.isFinite(cap.value) || cap.value<=0) return 0;
       m.opening.marketCap=cap.value/1e6;
+      m.marketCapBasis="entered";
       m.references.marketCap={value:cap.value,unit:"USD",formula:"Member-entered market capitalization reused from Valuation, dated "+cap.date+". Not a live quote."};
       return 1;
     }
@@ -50,22 +53,25 @@
     function renderInputs() {
       var m=entry.model, data=ui.current();
       el("date").value=m.asOf; el("date").max=today(); el("horizon").value=m.horizon; el("case").value=entry.scenario; el("reviewed").checked=m.reviewed; el("notes").value=m.notes;
+      el("share-basis").value=m.shareBasis || "fully-diluted";
       el("baseline").textContent="Historical starting point: "+m.period.kind.toUpperCase()+" · "+m.period.start+" to "+m.period.end+". Model date: "+m.asOf+". All financial amounts use USD millions, except per-share values. Historical data retrieved "+m.retrievedAt+".";
       el("opening").replaceChildren();
       var p=candidates().find(function (p) { return p.start===m.period.start && p.end===m.period.end && p.kind===m.period.kind; }), suggestions=p ? E.suggestions(p) : {};
       var operating=node("div",null,"fm-input-grid"), optional=node("div",null,"fm-input-grid");
       el("opening").append(node("h4","Operating forecast"),operating,node("h4","Optional valuation inputs"),node("p","Complete the bridge for equity value, shares for per-share value, and market cap for comparison. You can run the forecast with these blank.","fd-muted"),optional);
       E.opening.forEach(function (f) {
-        var box=node("div"), label=node("label",f.label), input=numeric(m.opening[f.id],f,function (n) { m.opening[f.id]=n; delete m.references[f.id]; }); label.appendChild(input); box.appendChild(label);
+        var provenance=node("small"),box=node("div"), label=node("label",f.label), input=numeric(m.opening[f.id],f,function (n) { m.opening[f.id]=n; delete m.references[f.id]; if (f.id==="marketCap") m.marketCapBasis="entered"; provenance.replaceChildren(); }); label.appendChild(input); box.appendChild(label);
         var fact=p && f.field && p.values[f.field];
         if (fact) {
           var b=node("button","SEC: "+number(fact.value/1e6)+" · "+p.end,"fd-value"); b.type="button";
           b.addEventListener("click",function () { ui.source(f.field,p); }); box.appendChild(b);
         } else {
           var s=suggestions[f.id];
-          box.appendChild(node("small",s ? "Suggested starting point: "+number(s.value)+"m. "+s.note : f.optional ? f.id==="shares" ? "Optional · current fully diluted shares are needed only for per-share valuation." : f.id==="marketCap" ? "Optional · needed for market comparison and reverse DCF. Fill missing inputs can reuse a same-date entry from Valuation." : "Optional · enter a reviewed amount for equity valuation, including an explicit zero where appropriate." : "Not available in the selected SEC fields. Enter a reviewed amount."));
+          box.appendChild(node("small",s ? "Suggested starting point: "+number(s.value)+"m. "+s.note : f.optional ? f.id==="shares" ? "Optional · choose the share basis above. Reported common shares exclude potential dilution." : f.id==="marketCap" ? "Optional · needed for market comparison and reverse DCF. Use the market-estimate button or enter a reviewed amount." : "Optional · enter a reviewed amount for equity valuation, including an explicit zero where appropriate." : "Not available in the selected SEC fields. Enter a reviewed amount."));
           if (s) s.inputs.forEach(function (id) {var field=(data.fields || []).find(function (f) {return f.id===id;}),b=node("button","SEC: "+(field ? field.label : id)+" · "+p.end,"fd-value");b.type="button";b.addEventListener("click",function () {ui.source(id,p);});box.appendChild(b);});
-          if (f.id==="marketCap" && m.references.marketCap) box.appendChild(node("small",m.references.marketCap.formula));
+          if (f.id==="marketCap") provenance.textContent=m.references.marketCap ? m.references.marketCap.formula : m.marketCapBasis==="price-times-shares" ? "Imported market-cap estimate. Source metadata is unverified; review against current data." : "";
+          if (f.id==="shares" && m.references.shares) {var ref=m.references.shares;provenance.appendChild(ui.link("SEC common shares · "+ref.end+" · filed "+ref.filed,ref.url));}
+          box.appendChild(provenance);
         }
         (f.optional ? optional : operating).appendChild(box);
       });
@@ -109,7 +115,7 @@
       var m=entry.model,c=currentCase(), selected=result.cases[entry.scenario],v=selected.valuation;
       el("result-case").value=entry.scenario;
       el("results").hidden=false; el("csv").disabled=false; el("metrics").replaceChildren();
-      [result.weightedEquity==null ? [labels[entry.scenario]+" enterprise value",money(v.ev)] : ["Weighted equity residual",money(result.weightedEquity)],[labels[entry.scenario]+" value per current diluted share",v.perShare==null?"—":"$"+number(v.perShare,2)],["Terminal value / enterprise value",v.terminalShare==null?"—":number(v.terminalShare*100)+"%"]].forEach(function (r) { var card=node("div",null,"fd-metric"); card.appendChild(node("div",r[0],"fd-label")); card.appendChild(node("div",r[1],"fd-number mono")); el("metrics").appendChild(card); });
+      [result.weightedEquity==null ? [labels[entry.scenario]+" enterprise value",money(v.ev)] : ["Weighted equity residual",money(result.weightedEquity)],[labels[entry.scenario]+(m.shareBasis==="reported-common" ? " value / reported common share · before dilution" : " value per current diluted share"),v.perShare==null?"—":"$"+number(v.perShare,2)],["Terminal value / enterprise value",v.terminalShare==null?"—":number(v.terminalShare*100)+"%"]].forEach(function (r) { var card=node("div",null,"fd-metric"); card.appendChild(node("div",r[0],"fd-label")); card.appendChild(node("div",r[1],"fd-number mono")); el("metrics").appendChild(card); });
       el("scenarios").replaceChildren(table(["Scenario","Weight","Enterprise value (m)","Equity residual (m)","Value / share","Vs entered market cap","Peak funding gap (m)"],scenarioRows(result)));
       var diagnostics=(result.messages || []).slice(), availability=new Set();
       E.scenarios.forEach(function (name) {
@@ -133,7 +139,7 @@
       });
       var growths=[-1,-.5,0,.5,1].map(function (d) { return c.terminalGrowth+d; });
       var sensitivityKey=v.perShare!=null ? "perShare" : v.equity>0 ? "equity" : "ev";
-      el("sensitivity-label").textContent=(sensitivityKey==="perShare" ? "Equity value per current fully diluted share" : sensitivityKey==="equity" ? "Equity value · USD millions" : "Enterprise value · USD millions")+" for the selected scenario. Operating assumptions and terminal ROIC stay fixed. — marks unavailable combinations.";
+      el("sensitivity-label").textContent=(sensitivityKey==="perShare" ? m.shareBasis==="reported-common" ? "Value per reported common share · before dilution" : "Equity value per current fully diluted share" : sensitivityKey==="equity" ? "Equity value · USD millions" : "Enterprise value · USD millions")+" for the selected scenario. Operating assumptions and terminal ROIC stay fixed. — marks unavailable combinations.";
       el("sensitivity").replaceChildren(table(["WACC / growth"].concat(growths.map(function (g) { return number(g)+"%"; })),[-2,-1,0,1,2].map(function (d) {
         var w=c.wacc+d; return [number(w)+"%"].concat(growths.map(function (g) { var val=selected.errors.length ? {} : E.value(m,entry.scenario,selected.rows,{wacc:w,terminalGrowth:g}); return val.error || val[sensitivityKey]==null ? "—" : "$"+number(val[sensitivityKey],2); }));
       })));
@@ -158,6 +164,7 @@
     function csv() {
       if (!entry.result) return;
       var m=entry.model, out=[["Company",m.symbol,"CIK",m.cik],["Model version",1],["Historical period",m.period.start,m.period.end,m.period.kind],["Model date",m.asOf],["Historical retrieved",m.retrievedAt],["Units","USD millions; shares in millions; drivers as labeled"],["Assumption rationale",m.notes]];
+      out.push(["Share count basis",m.shareBasis || "fully-diluted"],["Market-cap basis",m.marketCapBasis || "entered"]);
       E.opening.forEach(function (f) { out.push(["Opening input",f.label,m.opening[f.id]]); });
       E.scenarios.forEach(function (name) {
         var c=m.cases[name],r=entry.result.cases[name],v=r.valuation;
@@ -173,6 +180,7 @@
       download("\uFEFF"+out.map(function (r) {return r.map(cell).join(",");}).join("\r\n"),"text/csv;charset=utf-8",m.symbol+"-financial-model.csv");
     }
     function view() {
+      cancelMarket(); el("market-status").textContent="";
       var data=ui.current(), options=candidates();
       var unavailable=!E.supported(data) || !options.length;
       el("unavailable").hidden=!unavailable; el("editor").hidden=unavailable;
@@ -193,6 +201,7 @@
       var e=drafts.get(String(data.cik)), section=node("section"); section.appendChild(node("h2","Forward financial model"));
       if (!e || !e.result) {section.appendChild(node("p","No current financial model results. Run the model after completing or changing assumptions."));return section;}
       var m=e.model;section.appendChild(node("p","Model date "+m.asOf+" · "+m.horizon+" forecast years · historical baseline "+m.period.start+" to "+m.period.end+". Analyst scenarios, not consensus forecasts. USD millions except per-share values."));
+      section.appendChild(node("p","Share basis: "+(m.shareBasis==="reported-common" ? "reported common shares, before potential dilution" : "reviewed fully diluted shares")+". Market-cap basis: "+(m.marketCapBasis==="price-times-shares" ? "estimate from a dated price × reported common shares" : "member-entered market capitalization")+"."));
       section.appendChild(table(["Scenario","Enterprise value (m)","Equity residual (m)","Value / share","Funding gap (m)"],E.scenarios.map(function (s) {var r=e.result.cases[s],v=r.valuation;return [labels[s],v.error || number(v.ev),number(v.equity),number(v.perShare,2),number(r.fundingGap)];})));
       var availability=new Set(e.result.messages || []); E.scenarios.forEach(function (s) {(e.result.cases[s].valuation.messages || []).forEach(function (message) {availability.add(message);});});
       if (availability.size) section.appendChild(node("p",Array.from(availability).join(" ")));
@@ -215,15 +224,36 @@
       el("result-case").addEventListener("change",function () {entry.scenario=el("result-case").value;el("case").value=entry.scenario;renderDrivers();renderResults();});
       el("horizon").addEventListener("change",function () {entry.model.horizon=Number(el("horizon").value);changed();renderDrivers();});
       el("date").addEventListener("change",function () {entry.model.asOf=el("date").value;changed();});
+      el("share-basis").addEventListener("change",function () {entry.model.shareBasis=el("share-basis").value;entry.model.reviewed=false;changed();renderInputs();});
       el("reviewed").addEventListener("change",function () {entry.model.reviewed=el("reviewed").checked;changed();});
       el("notes").addEventListener("input",function () {entry.model.notes=el("notes").value;changed();});
       el("fill").addEventListener("click",function () {var c=currentCase();c.years=c.years.map(function () {return Object.assign({},c.years[0]);});changed();renderDrivers();});
       el("reset").addEventListener("click",function () {entry.model=E.make(ui.current(),candidates()[Number(el("period").value)],today());reuseMarketCap(entry.model);changed();renderInputs();});
       el("prefill").addEventListener("click",function () {
         var m=entry.model, p=candidates().find(function (p) {return p.start===m.period.start && p.end===m.period.end && p.kind===m.period.kind;});
-        var count=(p ? E.fillMissing(m,p) : 0)+reuseMarketCap(m);
+        var count=(p ? E.fillMissing(m,p) : 0)+E.fillShares(m,ui.current())+reuseMarketCap(m);
         if (count) {m.reviewed=false;changed();renderInputs();}
         el("status").textContent=count ? "Filled "+count+" missing inputs. Existing entries were kept. Review the suggested amounts before running." : "No additional supported values are available for blank inputs. Market-cap reuse requires an entry dated the same day as the model.";
+      });
+      el("market-fill").addEventListener("click",async function () {
+        cancelMarket(); var target=entry,m=entry.model,data=ui.current(),filled=E.fillShares(m,data)+reuseMarketCap(m);
+        if (filled) {m.reviewed=false;changed();renderInputs();}
+        if (m.opening.marketCap!=null) {el("market-status").textContent="Share inputs checked. Existing market capitalization kept.";return;}
+        if (!E.shareSnapshot(data,m.asOf)) {el("market-status").textContent="No recent, unambiguous SEC share snapshot is available for this model date. Enter reviewed shares and market cap if needed.";return;}
+        var request=++marketGeneration, controller=new AbortController();marketController=controller;
+        var timer=setTimeout(function () {controller.abort();},12000);
+        el("market-fill").disabled=true;el("market-status").textContent="Loading a dated market price for "+data.symbol+"…";
+        try {
+          var quote=await ui.marketPrice(data,controller.signal);
+          if (request!==marketGeneration || entry!==target || entry.model!==m || String(ui.current().cik)!==m.cik) return;
+          var estimate=E.marketEstimate(data,m.asOf,quote);
+          if (estimate.error) {el("market-status").textContent=estimate.error;return;}
+          m.opening.marketCap=estimate.value;m.marketCapBasis="price-times-shares";
+          m.references.marketCap={derived:true,formula:estimate.formula,priceDate:estimate.priceDate,inputs:[estimate.shares]};
+          m.reviewed=false;changed();renderInputs();el("market-status").textContent="Filled the missing market-cap estimate. "+estimate.formula+" Review the inputs before running.";
+        } catch (e) {
+          if (request===marketGeneration && entry===target && String(ui.current().cik)===m.cik) el("market-status").textContent=e.name==="AbortError" ? "The price request timed out. Retry or enter a reviewed market cap." : e.message;
+        } finally {clearTimeout(timer);if (request===marketGeneration) {marketController=null;el("market-fill").disabled=false;}}
       });
       el("chart-metric").addEventListener("change",chart);
       el("csv").addEventListener("click",csv);

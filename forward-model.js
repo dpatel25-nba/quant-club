@@ -8,7 +8,7 @@
     ["ar","Accounts receivable","receivables",0,1e9], ["inventory","Inventory","inventory",0,1e9],
     ["ap","Accounts payable","payables",0,1e9], ["ppe","Modeled depreciable assets","ppe",0,1e9],
     ["debt","Total interest-bearing debt (book value)",null,0,1e9],
-    ["shares","Current fully diluted shares (millions)",null,.000001,1e9],
+    ["shares","Shares used for valuation (millions)",null,.000001,1e9],
     ["excessCash","Excess cash & nonoperating assets",null,0,1e9],
     ["debtClaims","Debt claims for valuation",null,0,1e9],
     ["otherClaims","Preferred, NCI & other senior claims",null,0,1e9],
@@ -31,6 +31,27 @@
     ["terminalROIC","Terminal return on invested capital",.1,100], ["weight","Scenario weight",0,100]
   ].map(function (r) { return {id:r[0],label:r[1],min:r[2],max:r[3],unit:"%"}; });
   function supported(data) { return !(Number(data.sic)>=6000 && Number(data.sic)<7000) && !/banking|insurance|commercial banks/i.test(data.industry || ""); }
+  function shareSnapshot(data,date) {
+    return (data.commonShareSnapshots || []).filter(function (s) {
+      var age=(Date.parse(date)-Date.parse(s.end))/86400000;
+      return s.symbol===data.symbol && s.filed<=date && s.end<=date && age>=0 && age<=180 && Number.isFinite(s.value) && s.value>0;
+    }).sort(function (a,b) {return b.end.localeCompare(a.end) || b.filed.localeCompare(a.filed);})[0] || null;
+  }
+  function fillShares(m,data) {
+    var s=shareSnapshot(data,m.asOf);
+    if (m.opening.shares!=null || !s) return 0;
+    m.opening.shares=s.value/1e6; m.shareBasis="reported-common"; m.references=m.references || {};
+    m.references.shares=JSON.parse(JSON.stringify(s));
+    return 1;
+  }
+  function marketEstimate(data,date,quote) {
+    var s=shareSnapshot(data,date), symbol=String(quote && quote.symbol || "");
+    if (!s) return {error:"No recent, unambiguous SEC common-share snapshot is available. Enter a reviewed market cap manually."};
+    if (!quote || symbol!==data.symbol || quote.currency!=="USD" || quote.interval!=="1day" || quote.type!=="Common Stock" || !(data.exchanges || []).some(function (e) {return e.toUpperCase()===String(quote.exchange || "").toUpperCase();}) || !Array.isArray(quote.points)) return {error:"A matching USD daily common-stock price on the issuer’s exchange is needed for this estimate."};
+    var rows=quote.points.filter(function (p) {return /^\d{4}-\d{2}-\d{2}$/.test(p.t || "") && Number.isFinite(p.c) && p.c>0 && p.t<=date;}).sort(function (a,b) {return b.t.localeCompare(a.t);}), p=rows[0];
+    if (!p || (Date.parse(date)-Date.parse(p.t))/86400000>7 || p.t<s.filed || p.t<s.end) return {error:"No price within seven days of the model date and after the share disclosure is available. Enter a dated market cap manually."};
+    return {value:p.c*s.value/1e6,price:p.c,priceDate:p.t,shares:s,formula:"Estimated market cap = daily price of $"+p.c+" on "+p.t+" × reported common shares as of "+s.end+" (filed "+s.filed+"). Shares may have changed through splits, repurchases or issuance. This is not provider-reported market cap."};
+  }
   function suggestions(period) {
     var v=period.values, out={};
     function amount(id) { var f=v[id]; return f && Number.isFinite(f.value) && f.value>=0 ? f.value/1e6 : null; }
@@ -93,8 +114,9 @@
       }
     });
     var model={version:1,cik:String(data.cik),symbol:data.symbol,period:{start:period.start,end:period.end,kind:period.kind},retrievedAt:data.retrievedAt,
-      asOf:date,horizon:5,opening:base,references:references,cases:cases,notes:"",reviewed:false};
+      asOf:date,horizon:5,opening:base,references:references,cases:cases,notes:"",reviewed:false,shareBasis:"fully-diluted",marketCapBasis:"entered"};
     fillMissing(model,period);
+    fillShares(model,data);
     return model;
   }
   function validate(m,today) {
@@ -105,6 +127,7 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0,10)!==date || (today && date>today)) errors.push("Enter a valid model date no later than today.");
     if (m.period && date<m.period.end) errors.push("The model date cannot precede the historical period end.");
     if (!m.reviewed) errors.push("Review the opening inputs and assumptions, then check the review box.");
+    if (m.shareBasis && !["fully-diluted","reported-common"].includes(m.shareBasis)) errors.push("Choose a supported share-count basis.");
     function check(obj,fields,label) {
       fields.forEach(function (f) { var n=obj && obj[f.id]; if (!Number.isFinite(n) || n<f.min || n>f.max) errors.push(label+f.label+": enter a number between "+f.min+" and "+f.max+"."); });
     }
@@ -120,7 +143,12 @@
     if (b.ap+b.debt>b.liabilities+.000001) errors.push("Opening debt and accounts payable exceed total liabilities.");
     return errors;
   }
-  function hasInput(m,id) { var f=opening.find(function (f) { return f.id===id; }), n=m.opening[id]; return Number.isFinite(n) && n>=f.min && n<=f.max; }
+  function hasInput(m,id) {
+    var f=opening.find(function (f) { return f.id===id; }), n=m.opening[id], ref=(m.references || {})[id];
+    if (ref && id==="shares" && m.shareBasis==="reported-common" && (ref.filed>m.asOf || ref.end>m.asOf || (Date.parse(m.asOf)-Date.parse(ref.end))/86400000>180)) return false;
+    if (ref && id==="marketCap" && m.marketCapBasis==="price-times-shares" && (ref.priceDate>m.asOf || (Date.parse(m.asOf)-Date.parse(ref.priceDate))/86400000>7)) return false;
+    return Number.isFinite(n) && n>=f.min && n<=f.max;
+  }
   function project(m,name,override) {
     var c=m.cases[name], b=m.opening, prev=Object.assign({equity:b.assets-b.liabilities},b), rows=[], errors=[];
     var otherAssets=b.assets-b.cash-b.ar-b.inventory-b.ppe, otherLiabilities=b.liabilities-b.ap-b.debt;
@@ -164,8 +192,10 @@
     var pv=rows.reduce(function (sum,r,i) { return sum+r.fcff/Math.pow(1+discount,i+1); },0), ev=pv+pvTerminal;
     var missing=["excessCash","debtClaims","otherClaims"].filter(function (id) { return !hasInput(m,id); }), messages=[];
     if (missing.length) messages.push("Equity valuation needs valid inputs for: "+missing.map(function (id) {return opening.find(function (f) {return f.id===id;}).label;}).join(", ")+". Enterprise value and projections are available.");
-    if (!hasInput(m,"shares")) messages.push("Add current fully diluted shares for per-share valuation. Historical weighted-average shares are not substituted.");
-    if (!hasInput(m,"marketCap")) messages.push("Add a positive market capitalization for market comparison and reverse DCF.");
+    if (!hasInput(m,"shares")) messages.push("Add a reviewed share count for per-share valuation. Any SEC snapshot must be available by the model date and no older than 180 days. Historical weighted-average shares are not substituted.");
+    if (m.shareBasis==="reported-common" && hasInput(m,"shares")) messages.push("Per-share value uses reported common shares and excludes potential dilution. Review changes since the share snapshot, including splits, repurchases and issuance.");
+    if (!hasInput(m,"marketCap")) messages.push("Add a positive market capitalization for market comparison and reverse DCF. Any estimated price must be on or before the model date and no older than seven days.");
+    if (m.marketCapBasis==="price-times-shares" && hasInput(m,"marketCap")) messages.push("Market comparison uses an estimated market cap from a dated price and reported common-share snapshot. It is not a provider-reported current market cap.");
     var equity=missing.length ? null : ev+b.excessCash-b.debtClaims-b.otherClaims;
     return {ev:ev,equity:equity,perShare:equity>0 && hasInput(m,"shares") ? equity/b.shares : null,upside:equity>0 && hasInput(m,"marketCap") ? equity/b.marketCap-1 : null,
       price:hasInput(m,"marketCap") && hasInput(m,"shares") ? b.marketCap/b.shares : null,pvExplicit:pv,pvTerminal:pvTerminal,terminal:terminal,terminalFcff:terminalFcff,terminalNopat:terminalNopat,
@@ -208,7 +238,9 @@
     if (span<320 || span>400 || (raw.period.kind==="ttm" && (span<350 || span>380))) throw new Error("The historical baseline must cover a supported full-year period.");
     var m={version:1,cik:String(cik),symbol:String(raw.symbol || "").slice(0,30),period:{start:String(raw.period.start || "").slice(0,10),end:raw.period.end,kind:raw.period.kind},
       retrievedAt:String(raw.retrievedAt || "").slice(0,40),asOf:String(raw.asOf || "").slice(0,10),horizon:raw.horizon,reviewed:false,
-      notes:String(raw.notes || "").slice(0,12000),opening:{},references:{},cases:{}};
+      notes:String(raw.notes || "").slice(0,12000),opening:{},references:{},cases:{},shareBasis:raw.shareBasis || "fully-diluted",marketCapBasis:raw.marketCapBasis || "entered"};
+    if (!["fully-diluted","reported-common"].includes(m.shareBasis)) throw new Error("Choose a supported share-count basis.");
+    if (!["entered","price-times-shares"].includes(m.marketCapBasis)) throw new Error("Choose a supported market-cap basis.");
     function copy(from,fields) { var out={}; fields.forEach(function (f) { var n=from && from[f.id]; if (n!==null && !Number.isFinite(n)) throw new Error("Invalid numeric input: "+f.label); out[f.id]=n; }); return out; }
     m.opening=copy(raw.opening,opening);
     scenarios.forEach(function (name) { var c=raw.cases && raw.cases[name]; if (!c || !Array.isArray(c.years) || c.years.length!==10) throw new Error("Each scenario requires ten driver rows."); m.cases[name]=copy(c,settings); m.cases[name].years=c.years.map(function (r) { return copy(r,drivers); }); });
@@ -216,5 +248,5 @@
     // require fresh review and use current SEC links in the interface.
     return m;
   }
-  window.ForwardModel={opening:opening,drivers:drivers,settings:settings,scenarios:scenarios,suggestions:suggestions,fillMissing:fillMissing,make:make,validate:validate,project:project,value:value,reverse:reverse,run:run,importModel:importModel,supported:supported};
+  window.ForwardModel={opening:opening,drivers:drivers,settings:settings,scenarios:scenarios,shareSnapshot:shareSnapshot,fillShares:fillShares,marketEstimate:marketEstimate,suggestions:suggestions,fillMissing:fillMissing,make:make,validate:validate,project:project,value:value,reverse:reverse,run:run,importModel:importModel,supported:supported};
 })();

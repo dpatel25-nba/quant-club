@@ -62,6 +62,7 @@ server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Qui
 threading.Thread(target=server.serve_forever, daemon=True).start()
 base = f"http://127.0.0.1:{server.server_port}"
 requests, pending = [], []
+market_pending, hold_market, market_failure = [], False, False
 
 
 def api(route):
@@ -90,6 +91,9 @@ def api(route):
         if symbol == "BANK":
             result["sic"]="6020"
             result["cik"]="0000000124"
+        if symbol == "AUTO":
+            result["cik"]="0000000125"
+            result["commonShareSnapshots"]=[{"symbol":"AUTO","value":100000000,"end":"2026-07-17","filed":"2026-07-31","url":"https://www.sec.gov/Archives/edgar/data/125/000000012526000001/0000000125-26-000001-index.html"}]
         if symbol == "FOREIGN":
             result.update(periods=[], quarterly=[], ttm=[], coverage="filings-only", message="Standardized USD annual financials are unavailable for this issuer.")
         route.fulfill(json=result)
@@ -97,6 +101,16 @@ def api(route):
         route.fulfill(json={"results": []})
     elif path == "/api/quote":
         symbol = q["symbol"][0]
+        if symbol == "AUTO":
+            assert q.get('quote')==['0'] and q.get('exchange')==['Nasdaq']
+            if hold_market:
+                market_pending.append(route)
+                return
+            if market_failure:
+                route.fulfill(status=429,json={'error':'Rate limited'})
+                return
+            route.fulfill(json={'symbol':'AUTO','type':'Common Stock','exchange':'NASDAQ','currency':'USD','interval':'1day','points':[{'t':'2026-09-14','c':20}]})
+            return
         route.fulfill(json={"symbol": symbol, "type": "Commodity" if "/" in symbol else "Common Stock", "name": symbol,
                             "currency": "USD", "exchange": "NASDAQ", "range": "1y", "label": "test period", "quote": None,
                             "points": [{"t": "2025-09-01", "c": 100}, {"t": "2025-09-02", "c": 101}]})
@@ -340,14 +354,14 @@ try:
         expect(page.locator('#fm-opening')).to_be_visible()
         expect(page.locator('#fm-opening')).to_contain_text('Suggested starting point')
         expect(page.locator('#fm-opening').get_by_label('Total interest-bearing debt (book value)',exact=True)).not_to_have_value('')
-        expect(page.locator('#fm-opening').get_by_label('Current fully diluted shares (millions)',exact=True)).to_have_value('')
+        expect(page.locator('#fm-opening').get_by_label('Shares used for valuation (millions)',exact=True)).to_have_value('')
         page.locator('#fm-opening').get_by_role('button',name=re.compile('^SEC: Long-term debt, including current portion')).first.click()
         expect(page.locator('#fd-source')).to_contain_text('LongTermDebt')
         page.locator('#fm-run').click()
         expect(page.locator('#fm-status')).to_contain_text('Review the opening')
         opening={"Revenue run rate":1000,"Total assets":1000,"Total liabilities":400,"Cash & equivalents":100,
                  "Accounts receivable":100,"Inventory":100,"Accounts payable":50,"Modeled depreciable assets":400,
-                 "Total interest-bearing debt (book value)":200,"Current fully diluted shares (millions)":100,
+                 "Total interest-bearing debt (book value)":200,"Shares used for valuation (millions)":100,
                  "Excess cash & nonoperating assets":50,"Debt claims for valuation":200,
                  "Preferred, NCI & other senior claims":0,"Market capitalization for comparison":1000}
         for label,value in opening.items():
@@ -376,7 +390,7 @@ try:
         expect(page.locator('#fm-projection-label')).to_contain_text('Downside')
         page.locator('#fm-result-case').select_option('base')
         # Valuation inputs are optional; partial results remain exportable and explained.
-        for field in ('Current fully diluted shares (millions)','Market capitalization for comparison','Debt claims for valuation'):
+        for field in ('Shares used for valuation (millions)','Market capitalization for comparison','Debt claims for valuation'):
             page.locator('#fm-opening').get_by_label(field,exact=True).fill('')
         page.locator('#fm-run').click()
         expect(page.locator('#fm-results')).to_be_visible()
@@ -402,7 +416,7 @@ try:
         page.locator('#fm-prefill').click()
         expect(page.locator('#fm-opening').get_by_label('Market capitalization for comparison',exact=True)).to_have_value('1000')
         expect(page.locator('#fm-opening')).to_contain_text('Not a live quote')
-        page.locator('#fm-opening').get_by_label('Current fully diluted shares (millions)',exact=True).fill('100')
+        page.locator('#fm-opening').get_by_label('Shares used for valuation (millions)',exact=True).fill('100')
         page.locator('#fm-opening').get_by_label('Debt claims for valuation',exact=True).fill('210')
         expect(page.locator('#fm-results')).to_be_hidden()
         expect(page.locator('#fm-csv')).to_be_disabled()
@@ -461,7 +475,7 @@ try:
         page.locator('[data-fd-view="forecast"]').click()
         expect(page.locator('#fm-results')).to_be_hidden()
         expect(page.locator('#fm-opening').get_by_label('Total interest-bearing debt (book value)',exact=True)).not_to_have_value('200')
-        expect(page.locator('#fm-opening').get_by_label('Current fully diluted shares (millions)',exact=True)).to_have_value('')
+        expect(page.locator('#fm-opening').get_by_label('Shares used for valuation (millions)',exact=True)).to_have_value('')
         # Issuer separation, reload persistence and storage failure preserve the draft.
         page.locator('[data-fd-view="notes"]').click()
         expect(page.locator("#fd-note-thesis")).to_have_value("")
@@ -508,6 +522,51 @@ try:
         page.locator('[data-fd-view="overview"]').click()
         page.locator("#v-fundamentals").screenshot(path=str(pathlib.Path(tempfile.gettempdir()) / "gpmc-fundamentals.png"))
         ticker=page.locator('#fd-ticker')
+        # Reported common shares and a price-based cap retain their estimate labels.
+        ticker.fill('AUTO')
+        page.locator('#fd-form').evaluate('f=>f.requestSubmit()')
+        expect(page.locator('#fd-name')).to_have_text('AUTO')
+        page.locator('[data-fd-view="forecast"]').click()
+        expect(page.locator('#fm-opening').get_by_label('Shares used for valuation (millions)',exact=True)).to_have_value('100')
+        expect(page.locator('#fm-share-basis')).to_have_value('reported-common')
+        auto_model={**model,'cik':'0000000125','symbol':'AUTO','shareBasis':'reported-common','opening':{**model['opening'],'shares':None,'marketCap':None}}
+        page.locator('#fm-import').set_input_files({'name':'auto.json','mimeType':'application/json','buffer':json.dumps(auto_model).encode()})
+        page.locator('#fm-market-fill').click()
+        expect(page.locator('#fm-market-status')).to_contain_text('2026-09-14')
+        expect(page.locator('#fm-opening').get_by_label('Market capitalization for comparison',exact=True)).to_have_value('2000')
+        expect(page.locator('#fm-reviewed')).not_to_be_checked()
+        page.locator('#fm-reviewed').check()
+        page.locator('#fm-run').click()
+        expect(page.locator('#fm-results')).to_be_visible()
+        expect(page.locator('#fm-metrics')).to_contain_text('before dilution')
+        expect(page.locator('#fm-availability')).to_contain_text('estimated market cap')
+        page.locator('[data-fd-view="report"]').click()
+        expect(page.locator('#fd-report-preview')).to_contain_text('before potential dilution')
+        page.locator('[data-fd-view="forecast"]').click()
+        cap=page.locator('#fm-opening').get_by_label('Market capitalization for comparison',exact=True)
+        cap.fill('1234')
+        count=len(requests)
+        page.locator('#fm-market-fill').click()
+        expect(cap).to_have_value('1234')
+        assert len(requests)==count,'filled cap should not trigger a price request'
+        cap.fill('')
+        market_failure=True
+        page.locator('#fm-market-fill').click()
+        expect(page.locator('#fm-market-status')).to_contain_text('rate limited')
+        expect(cap).to_have_value('')
+        expect(page.locator('#fm-market-fill')).to_be_enabled()
+        market_failure=False
+        hold_market=True
+        page.locator('#fm-market-fill').click()
+        expect(page.locator('#fm-market-status')).to_contain_text('Loading')
+        cap.fill('999')
+        expect(page.locator('#fm-market-status')).to_contain_text('canceled')
+        expect(page.locator('#fm-market-fill')).to_be_enabled()
+        for route in market_pending:
+            try: route.fulfill(json={'symbol':'AUTO','currency':'USD','exchange':'NASDAQ','type':'Common Stock','interval':'1day','points':[{'t':'2026-09-14','c':20}]})
+            except Exception: pass  # Fetch was deliberately aborted by the input edit.
+        expect(cap).to_have_value('999')
+        hold_market=False
         ticker.fill('BANK')
         page.locator('#fd-form').evaluate('f=>f.requestSubmit()')
         page.locator('[data-fd-view="forecast"]').click()

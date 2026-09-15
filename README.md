@@ -89,7 +89,9 @@ without additional providers or dependencies.
 **Financial model** adds a five-/ten-year operating-company forecast with
 independent base, upside and downside drivers. `forward-model.js` is the pure
 calculation engine; `forecast-workspace.js` and its CSS implement the editor,
-results, device storage and exports. No extra provider request is made.
+results, device storage and exports. Opening the model uses existing SEC data;
+the optional market-estimate button requests a daily price series through the
+existing quote endpoint (with `quote=0`), subject to its cache and plan limits.
 
 - Historical starting point: latest TTM or an available annual period. SEC
   references are separate from editable inputs. New drafts prefill operating
@@ -108,6 +110,22 @@ results, device storage and exports. No extra provider request is made.
   It can reuse an issuer's valid member-entered market cap from Valuation when
   that entry's date matches the model date. New drafts also reuse matching caps;
   saved/imported drafts are not automatically overwritten.
+- Remaining share inputs can use `dei:EntityCommonStockSharesOutstanding`,
+  returned separately from weighted-average financial-statement shares. Only
+  issuers with one disclosed ticker and nonconflicting instantaneous counts are
+  eligible. New drafts use the latest snapshot filed by the model date, no more
+  than 180 days old, and explicitly select **reported common shares, before
+  dilution**. Users can replace the number and choose reviewed fully diluted
+  shares. No option/convertible dilution is automatically inferred.
+- **Fill share & market estimates** fills only blanks. Market cap is an estimate
+  from the SEC common-share snapshot times a matching common-stock daily USD
+  price on the issuer's exchange. The price must be within seven days of the
+  model date and after the share disclosure. Dates, source filing and calculation
+  are visible. Subsequent splits, buybacks, issuance and unlisted share classes
+  require review. It never multiplies price by the user's diluted-share count.
+  Failed or mismatched prices leave the cap blank. Edits cancel pending requests;
+  late responses cannot overwrite edits or another issuer's draft. Share and
+  market-cap basis labels survive save/import and appear in results/exports.
 - Opening operating inputs and annual drivers are required for projections.
   The equity bridge, current fully diluted shares and comparison market cap are
   optional: missing/invalid values suppress only dependent outputs. No historical

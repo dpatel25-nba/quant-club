@@ -49,6 +49,17 @@ Object.values(gap.facts['us-gaap']).forEach(function(tag){Object.keys(tag.units)
 d=normalizeFinancials(gap,sub,'TEST','test');assert(d.periods[0].values.revenueGrowth===null && d.periods[0].values.roa===null,'missing consecutive year');
 assert(normalizeFinancials({},sub,'TEST','test').coverage==='filings-only','filings-only issuer');
 assert(filingURL('123','../../evil')===null && filingURL('evil','0000000123-25-000001')===null,'safe source URL');
+var shares={facts:{dei:{EntityCommonStockSharesOutstanding:{units:{shares:[
+ {end:'2026-07-17',filed:'2026-07-31',form:'10-Q',accn:'0000000123-26-000001',val:1000},
+ {end:'2026-07-17',filed:'2026-08-01',form:'10-Q/A',accn:'0000000123-26-000002',val:900},
+ {start:'2026-01-01',end:'2026-08-01',filed:'2026-08-02',form:'10-Q',accn:'0000000123-26-000003',val:800}
+]}}}}};
+var single=Object.assign({},sub,{tickers:['TEST']});
+var snapshots=normalizeFinancials(shares,single,'TEST','test').commonShareSnapshots;
+assert(snapshots.length===1 && snapshots[0].value===900 && snapshots[0].tag==='dei:EntityCommonStockSharesOutstanding' && snapshots[0].url,'instant common shares, amendments and provenance');
+assert(!normalizeFinancials(shares,Object.assign({},sub,{tickers:['TEST','TEST-B']}),'TEST','test').commonShareSnapshots.length,'multiple listings are not guessed');
+shares.facts.dei.EntityCommonStockSharesOutstanding.units.shares.push({end:'2026-07-17',filed:'2026-08-01',form:'10-Q/A',accn:'0000000123-26-000002',val:100});
+assert(!normalizeFinancials(shares,single,'TEST','test').commonShareSnapshots.length,'ambiguous same-date counts rejected');
 print('PASS: fiscal dates, amendments, currencies, annual/quarter separation, missing/zero values, ratios and provenance');
 
 var process={env:{TOOLS_PASSWORD:'test-password'}};
