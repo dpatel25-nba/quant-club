@@ -15,6 +15,12 @@ lib/sec-financials.js  fiscal-period normalization and ratio calculations
 fundamentals.js / fundamentals.css  company research interface
 ```
 
+The Research Tools workspace uses `research-tools.css`: warm gray surfaces,
+muted green accents, compact navigation and restrained panel shadows. Its
+sans-serif data layout remains distinct from the serif public pages. Theme
+variables are scoped to the active research section, with light/dark variants,
+visible keyboard focus and reduced-motion support.
+
 ## Fundamental Data
 
 Open `/#fundamentals` after unlocking Research Tools, or use **View company
