@@ -214,11 +214,9 @@ try:
         expect(page.locator("#v-fundamentals")).to_be_visible()
         expect(page.locator("#fd-name")).to_contain_text("Apple fixture")
 
-        # Recent filings, quarterly/TTM selection and row charts.
-        expect(page.locator("#fd-freshness")).to_contain_text("2026-06-30")
+        # Quarterly/TTM selection and row charts.
         page.locator("#fd-basis").select_option("quarterly")
         expect(page.locator("#fd-period-label")).to_contain_text("Quarterly financials · 2026-04-01 to 2026-06-30")
-        expect(page.locator("#fd-freshness")).to_be_hidden()
         page.locator('[data-fd-view="statements"]').click()
         page.locator('[data-fd-statement="cashflow"]').click()
         ocf=page.locator("#fd-statements-table tr").filter(has_text=re.compile("^Operating cash flow"))
@@ -482,6 +480,6 @@ try:
         expect(page.locator('#fm-editor')).to_be_hidden()
         assert not errors, errors
         browser.close()
-        print("PASS: fundamental workflows plus quarterly/TTM, row charts, freshness, entered-cap valuation, peer comparisons, partial failures, issuer deduplication, stale peer cancellation, allocation sources, note persistence/isolation/storage failure, safe HTML/PDF export, forward model/scenarios/reverse DCF/persistence/CSV/reports/sector restrictions and responsive layout")
+        print("PASS: fundamental workflows plus quarterly/TTM, row charts, entered-cap valuation, peer comparisons, partial failures, issuer deduplication, stale peer cancellation, allocation sources, note persistence/isolation/storage failure, safe HTML/PDF export, forward model/scenarios/reverse DCF/persistence/CSV/reports/sector restrictions and responsive layout")
 finally:
     server.shutdown()

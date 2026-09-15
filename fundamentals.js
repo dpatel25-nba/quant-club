@@ -130,10 +130,6 @@
       }); chart();
     }
     changes(latest);
-    var newerFiling=current.filings.find(function (f) { return /^10-[KQ](\/A)?$/.test(f.form) && f.reportDate && latest && f.reportDate>latest.end; });
-    el("freshness").hidden=!newerFiling;
-    el("freshness").replaceChildren();
-    if (newerFiling) { el("freshness").appendChild(node("span","A newer "+newerFiling.form+" covers the period ended "+newerFiling.reportDate+" (filed "+newerFiling.filed+"). ")); el("freshness").appendChild(link("Read the filing ↗",newerFiling.url)); }
     var links = el("research-links"); links.replaceChildren();
     [[/^10-K(?:\/A)?$/, "Latest annual report"], [/^10-Q(?:\/A)?$/, "Latest quarterly report"], [/^DEF 14A$/, "Latest proxy statement"]].forEach(function (pair) {
       var filing = current.filings.find(function (r) { return pair[0].test(r.form); });

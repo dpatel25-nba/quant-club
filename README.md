@@ -33,7 +33,7 @@ The statement views are income statement, balance sheet and cash flow. Ratios
 include growth, margins, returns on average equity/assets, liquidity and cash
 conversion. The reporting selector updates statements, charts, ratios and CSV
 exports together. Clicking a row name charts that metric. The Overview includes
-factual changes and a notice when a newer filing covers a more recent period.
+factual changes and links to the latest annual and quarterly reports.
 
 **Peer comparison** accepts up to four tickers alongside the current company.
 Companies are loaded sequentially, reuse the 15-minute client cache, and are
