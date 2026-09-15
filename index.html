@@ -322,6 +322,7 @@
 <link rel="stylesheet" href="/ticker-suggestions.css">
 <link rel="stylesheet" href="/fundamentals.css">
 <link rel="stylesheet" href="/research-tools.css">
+<link rel="stylesheet" href="/forecast-workspace.css">
 </head>
 <body>
 <div class="topbar">
@@ -782,6 +783,7 @@
         <button type="button" data-fd-view="allocation" aria-pressed="false">Capital allocation</button>
         <button type="button" data-fd-view="peers" aria-pressed="false">Peer comparison</button>
         <button type="button" data-fd-view="valuation" aria-pressed="false">Valuation</button>
+        <button type="button" data-fd-view="forecast" aria-pressed="false">Financial model</button>
         <button type="button" data-fd-view="filings" aria-pressed="false">Filings &amp; disclosures</button>
         <button type="button" data-fd-view="notes" aria-pressed="false">Research notes</button>
         <button type="button" data-fd-view="report" aria-pressed="false">Research report</button>
@@ -844,6 +846,7 @@
           <label><input type="checkbox" id="fd-report-peers" checked> Peer comparison</label>
           <label><input type="checkbox" id="fd-report-valuation" checked> Valuation</label>
           <label><input type="checkbox" id="fd-report-notes" checked> Research notes</label>
+          <label><input type="checkbox" id="fd-report-forecast" checked> Financial model summary</label>
         </div>
         <div class="fd-controls"><button class="btn" type="button" id="fd-report-print">Print / save PDF</button><button class="btn ghost" type="button" id="fd-report-download">Download report HTML</button></div>
         <p class="fd-muted">The downloaded HTML is a standalone report you can open or share. Included notes will be visible to anyone you share it with. Financial sources and calculation details appear at the end.</p>
@@ -866,6 +869,53 @@
         <p class="fd-status" id="fd-valuation-status" role="status" aria-live="polite">Enter a market capitalization and its date to begin.</p>
         <div class="fd-metrics" id="fd-valuation-metrics"></div>
         <p class="fd-muted">The earnings multiple uses parent net income and may differ from a quoted P/E, particularly for issuers with preferred stock. Enterprise-value multiples are not estimated from incomplete debt data.</p>
+      </div>
+      <div id="fd-forecast" hidden>
+        <h3>Forward financial model</h3>
+        <p class="fd-muted">Build five- or ten-year scenarios for an operating company. Historical SEC values provide a starting point; all forecasts and valuation assumptions are yours. This is a simplified linked model, with explicit cash funding checks.</p>
+        <p class="fd-notice" id="fm-unavailable" hidden></p>
+        <div id="fm-editor">
+          <div class="fd-controls"><label>Historical starting point<select id="fm-period"></select></label><button type="button" class="btn ghost" id="fm-reset">Start a new model from this period</button></div>
+          <p class="fd-muted" id="fm-baseline"></p>
+          <div class="fm-toolbar">
+            <label>Model / valuation date<input type="date" id="fm-date"></label>
+            <label>Forecast length<select id="fm-horizon"><option value="5">5 years</option><option value="10">10 years</option></select></label>
+            <label>Edit scenario<select id="fm-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label>
+          </div>
+          <details class="fd-method" open><summary>Opening financials &amp; valuation bridge · USD millions</summary>
+            <p>Review every opening amount as of the model date. Reported balance-sheet values are carried forward without a stub-period estimate. Update them when needed. Enter zero explicitly where appropriate. Fully diluted shares and debt claims are not inferred from incomplete SEC tags.</p>
+            <div class="fm-input-grid" id="fm-opening"></div>
+            <p>Excess cash/nonoperating assets and senior claims are valuation-date inputs. They are used once in the enterprise-to-equity bridge; projected ending cash is not added again. Do not include operating cash or overlap preferred/NCI claims with debt.</p>
+          </details>
+          <details class="fd-method" open><summary>Operating &amp; financing assumptions</summary>
+            <p>Starting estimates use historical ratios where available. The remaining placeholders assume a 25% tax rate, 10% depreciation, 45-day working-capital cycles, 5% interest, 2% minimum cash and no discretionary financing/payouts. Growth fades toward 3%; upside/downside begin ±2 percentage points from the base growth and gross margin. These are editable starting assumptions, not company guidance.</p>
+            <div class="fm-input-grid" id="fm-settings"></div>
+            <div class="fd-controls"><span class="fd-muted">Edit each year independently. Percentages use percentage points; cash amounts use USD millions.</span><button type="button" class="btn ghost" id="fm-fill">Apply this scenario’s Year 1 to all years</button></div>
+            <div class="fd-table-wrap" id="fm-drivers" tabindex="0" aria-label="Scrollable yearly forecasting assumptions"></div>
+          </details>
+          <label class="fm-notes-label">Assumption rationale &amp; market-cap source<textarea id="fm-notes" rows="3" maxlength="12000" placeholder="Explain the business thesis, valuation inputs, adjustments and sources."></textarea></label>
+          <label class="fm-review"><input id="fm-reviewed" type="checkbox"> I have reviewed the opening inputs, model date and scenario assumptions.</label>
+          <div class="fm-actions"><button class="btn" type="button" id="fm-run">Run financial model</button><button class="btn ghost" type="button" id="fm-save">Save on this device</button><button class="btn ghost" type="button" id="fm-json">Download model JSON</button><label class="fm-import">Import model JSON<input id="fm-import" type="file" accept=".json,application/json"></label><button class="btn ghost" type="button" id="fm-csv" disabled>Export projections CSV</button></div>
+          <p class="fd-muted">Saved models stay in this browser and are not shared with the club. Download JSON to keep a portable copy. Import replaces this issuer’s draft in the current tab; save explicitly to replace the device copy.</p>
+          <p class="fd-status" id="fm-storage" role="status"></p>
+          <div class="fd-status" id="fm-status" role="status" aria-live="polite"></div>
+          <div id="fm-results" hidden>
+            <div class="fd-metrics" id="fm-metrics"></div>
+            <div class="fd-table-wrap" id="fm-scenarios" tabindex="0" aria-label="Scenario valuation comparison"></div>
+            <p class="fd-notice" id="fm-diagnostics"></p>
+            <div class="fd-controls"><h3>Scenario paths · USD millions</h3><label>Chart metric<select id="fm-chart-metric"><option value="revenue">Revenue</option><option value="fcff">Cash flow used in DCF</option><option value="cash">Ending cash</option></select></label></div>
+            <div class="fd-chart-wrap"><svg id="fm-chart" role="img" aria-label="Projected scenario paths"></svg></div>
+            <div class="fd-controls"><h3>Linked projections</h3><label>View scenario<select id="fm-result-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label></div><p class="fd-muted" id="fm-projection-label"></p>
+            <div class="fd-table-wrap" id="fm-projections" tabindex="0" aria-label="Projected income statement, cash flow and balance sheet"></div>
+            <h3>Discount rate &amp; terminal growth sensitivity</h3><p class="fd-muted">Equity value per current fully diluted share for the selected scenario. Operating assumptions and terminal ROIC stay fixed. — marks invalid combinations or no positive equity residual.</p>
+            <div class="fd-table-wrap" id="fm-sensitivity" tabindex="0" aria-label="DCF sensitivity table"></div>
+            <h3>Reverse DCF</h3><p class="fd-muted" id="fm-reverse"></p>
+          </div>
+          <details class="fd-method"><summary>Model equations, conventions &amp; limitations</summary>
+            <div id="fm-method"></div>
+            <p><a href="https://pages.stern.nyu.edu/~adamodar/pdfiles/eqnotes/fcff.pdf" target="_blank" rel="noopener noreferrer">NYU Stern: free cash flow to the firm ↗</a> · <a href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/valquestions/termvalueexreturns.htm" target="_blank" rel="noopener noreferrer">Terminal growth, reinvestment and returns ↗</a></p>
+          </details>
+        </div>
       </div>
       <div id="fd-filings" hidden>
         <div class="fd-controls"><label>Filing type<select id="fd-filing-type"><option value="reports">Annual &amp; quarterly reports</option><option value="events">Current reports &amp; events</option><option value="governance">Proxy &amp; governance</option><option value="ownership">Insider &amp; ownership</option><option value="all">All supported filings</option></select></label><a id="fd-sec-all" target="_blank" rel="noopener noreferrer">Full history on SEC EDGAR ↗</a></div>
@@ -1099,6 +1149,8 @@
 <script src="/ticker-suggestions.js"></script>
 <script src="/fundamental-analysis.js"></script>
 <script src="/fundamental-workspace.js"></script>
+<script src="/forward-model.js"></script>
+<script src="/forecast-workspace.js"></script>
 <script src="/fundamentals.js"></script>
 <script>
 (function () {

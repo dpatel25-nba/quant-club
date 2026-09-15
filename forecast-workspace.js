@@ -1,0 +1,207 @@
+(function () {
+  "use strict";
+  var E=window.ForwardModel, labels={base:"Base",upside:"Upside",downside:"Downside"};
+  var rows=[
+    ["revenue","Revenue"],["cogs","Cost of revenue"],["grossProfit","Gross profit"],["rd","Research & development"],["sga","Selling, general & administrative"],["otherOpex","Other operating costs"],
+    ["ebitda","EBITDA"],["da","Depreciation"],["ebit","Operating income (EBIT)"],["interest","Interest expense"],["pretax","Income before tax"],["tax","Cash tax"],["netIncome","Net income (consolidated model)"],
+    ["sbc","Share-based compensation"],["deltaNwc","Change in operating working capital"],["cfo","Operating cash flow"],["capex","Capital expenditures"],["cfi","Investing cash flow"],
+    ["borrow","New borrowing"],["repay","Debt repayment"],["issuance","Cash equity issuance"],["dividends","Dividends"],["buybacks","Buybacks"],["cff","Financing cash flow"],
+    ["cash","Ending cash"],["ar","Accounts receivable"],["inventory","Inventory"],["ppe","Net modeled depreciable assets"],["otherAssets","Other assets (held constant)"],["assets","Total assets"],
+    ["ap","Accounts payable"],["debt","Interest-bearing debt"],["otherLiabilities","Other liabilities (held constant)"],["liabilities","Total liabilities"],["equity","Consolidated equity"],
+    ["balanceCheck","Assets − liabilities − equity"],["nopat","Operating income after tax (NOPAT)"],["fcff","FCFF used for DCF (SBC kept as expense)"],["fundingGap","Cash shortfall to minimum balance"]
+  ];
+  var method=[
+    "Revenue grows by the annual growth input. Gross profit = revenue × gross margin. EBIT = gross profit − R&D − SG&A − other operating costs. Gross margin and expense ratios must already include modeled depreciation and SBC. EBITDA adds back depreciation once; SBC is not added to EBITDA.",
+    "Receivables = revenue × receivable days / 365. Inventory and payables use cost of revenue × days / 365. Operating working capital = receivables + inventory − payables. This is narrower than total accounting working capital; other assets and liabilities stay constant.",
+    "Depreciation = opening modeled depreciable assets × depreciation rate. Capital spending enters the depreciation base in the next year. Opening net PP&E is a seed; adjust modeled depreciable assets and expense assumptions for amortization or other assets when appropriate. Acquisitions, disposals, impairments, leases and OCI have no separate schedules.",
+    "Interest = opening book debt × interest rate; borrowing and repayments change the next year’s interest base. Cash taxes apply only to positive pretax income. There are no deferred taxes, loss carryforwards or tax refunds. Dividends apply to positive net income. Financing is entered explicitly, with no automatic cash or debt plug.",
+    "Operating cash flow = net income + depreciation + SBC − change in operating working capital. Investing cash flow = −capex. Financing cash flow = borrowing − repayment + cash equity issuance − dividends − buybacks. Ending equity = opening consolidated equity + net income + SBC + equity issuance − dividends − buybacks. Opening consolidated equity is assets minus liabilities, including any noncontrolling equity.",
+    "NOPAT = EBIT − taxes on positive EBIT. FCFF for valuation = NOPAT + depreciation − capex − change in operating working capital. SBC remains an operating expense in this cash flow, even though accounting cash flow adds it back. Future SBC dilution is not also deducted; current fully diluted shares must include existing dilutive claims. No forecast EPS or share-count schedule is implied.",
+    "Each forecast year is a full year after the model date. Starting run rates and balances come from the selected historical period and require analyst review for the intervening time. No stub-period estimate or market-data update is inferred. Cash flows are discounted at year end using a constant scenario WACC.",
+    "Terminal NOPAT = final forecast NOPAT × (1 + terminal growth). Terminal reinvestment = terminal NOPAT × growth / terminal ROIC. Terminal FCFF = terminal NOPAT − reinvestment. Terminal value = terminal FCFF / (WACC − growth). Stable margins and taxes are assumed; the terminal reinvestment rule replaces the explicit capex and working-capital schedules.",
+    "Enterprise value is the present value of explicit FCFF plus terminal value. Equity residual = enterprise value + valuation-date excess cash/nonoperating assets − debt claims − other senior claims. Future ending cash is not added again. Per-share estimates are shown only for a positive equity residual. Scenario weights are analyst choices, not calibrated probabilities.",
+    "Reverse DCF replaces all forecast revenue growth inputs with a single constant rate, while retaining the selected scenario’s other annual assumptions. It searches −50% to 100% growth using a grid and bisection and rejects multiple detected solutions. It is conditional on the chosen margins, reinvestment, discount rate and valuation bridge. Funding shortfalls are not automatically financed; financing terms, issuance dilution and distress costs could change the valuation."
+  ];
+  window.ForecastWorkspace={create:function (ui) {
+    var node=ui.node, el=function (id) { return document.getElementById("fm-"+id); }, drafts=new Map(), entry;
+    function today() { var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+    function candidates() { var d=ui.current(); return (d.ttm || []).slice(0,1).concat(d.periods || []); }
+    function number(n,digits) { if (!Number.isFinite(n)) return "—"; var d=digits==null?1:digits; return (Math.abs(n)<Math.pow(10,-d)/2 ? 0 : n).toLocaleString(undefined,{maximumFractionDigits:d}); }
+    function money(n) { if (!Number.isFinite(n)) return "—";var scale=Math.abs(n)>=1e6?1e6:Math.abs(n)>=1e3?1e3:1;return "$"+number(n/scale,2)+(scale===1e6?"T":scale===1e3?"B":"M"); }
+    function changed() { entry.result=null; el("results").hidden=true; el("csv").disabled=true; el("status").textContent="Assumptions changed. Run the model to update results."; el("storage").textContent="Draft changed in this tab. Save to keep it on this device."; }
+    function numeric(value,f,fn,label) {
+      var input=node("input"); input.type="number"; input.step="any"; input.min=f.min; input.max=f.max; input.value=value==null?"":value;
+      input.setAttribute("aria-label",label || f.label); input.addEventListener("input",function () { fn(input.value===""?null:Number(input.value)); changed(); }); return input;
+    }
+    function currentCase() { return entry.model.cases[entry.scenario]; }
+    function renderInputs() {
+      var m=entry.model, data=ui.current();
+      el("date").value=m.asOf; el("date").max=today(); el("horizon").value=m.horizon; el("case").value=entry.scenario; el("reviewed").checked=m.reviewed; el("notes").value=m.notes;
+      el("baseline").textContent="Historical starting point: "+m.period.kind.toUpperCase()+" · "+m.period.start+" to "+m.period.end+". Model date: "+m.asOf+". All financial amounts use USD millions, except per-share values. Historical data retrieved "+m.retrievedAt+".";
+      el("opening").replaceChildren();
+      var p=candidates().find(function (p) { return p.start===m.period.start && p.end===m.period.end && p.kind===m.period.kind; });
+      E.opening.forEach(function (f) {
+        var box=node("div"), label=node("label",f.label), input=numeric(m.opening[f.id],f,function (n) { m.opening[f.id]=n; }); label.appendChild(input); box.appendChild(label);
+        var fact=p && f.field && p.values[f.field];
+        if (fact) {
+          var b=node("button","SEC: "+number(fact.value/1e6)+" · "+p.end,"fd-value"); b.type="button";
+          b.addEventListener("click",function () { ui.source(f.field,p); }); box.appendChild(b);
+        } else box.appendChild(node("small",f.field ? "Not available in the selected SEC fields. Enter a reviewed amount." : "Analyst input required; not inferred."));
+        el("opening").appendChild(box);
+      });
+      renderDrivers();
+    }
+    function renderDrivers() {
+      var c=currentCase(); el("settings").replaceChildren();
+      E.settings.forEach(function (f) { var label=node("label",labels[entry.scenario]+" · "+f.label+" (%)"); label.appendChild(numeric(c[f.id],f,function (n) { c[f.id]=n; })); el("settings").appendChild(label); });
+      var t=node("table",null,"fd-table fm-driver-table"), head=node("thead"), tr=node("tr"); tr.appendChild(node("th","Driver"));
+      for (var i=0;i<entry.model.horizon;i++) tr.appendChild(node("th","Year "+(i+1)));
+      head.appendChild(tr); t.appendChild(head); var body=node("tbody");
+      E.drivers.forEach(function (f) { var row=node("tr"), th=node("th",f.label+" ("+f.unit+")"); th.scope="row"; row.appendChild(th);
+        c.years.slice(0,entry.model.horizon).forEach(function (y,i) { var td=node("td"); td.appendChild(numeric(y[f.id],f,function (n) { y[f.id]=n; },labels[entry.scenario]+" Year "+(i+1)+" "+f.label)); row.appendChild(td); }); body.appendChild(row);
+      }); t.appendChild(body); el("drivers").replaceChildren(t);
+    }
+    function table(headers,data) {
+      var t=node("table",null,"fd-table"), head=node("thead"), r=node("tr"); headers.forEach(function (h) { var th=node("th",h); th.scope="col"; r.appendChild(th); }); head.appendChild(r); t.appendChild(head);
+      var body=node("tbody"); data.forEach(function (row) { var tr=node("tr"); row.forEach(function (v,i) { var cell=node(i?"td":"th",v); if (!i) cell.scope="row"; tr.appendChild(cell); }); body.appendChild(tr); }); t.appendChild(body); return t;
+    }
+    function scenarioRows(result) {
+      return E.scenarios.map(function (s) { var r=result.cases[s],v=r.valuation; return [labels[s],number(entry.model.cases[s].weight)+"%",v.error || number(v.ev),number(v.equity),number(v.perShare,2),v.upside==null?"—":number(v.upside*100)+"%",number(r.fundingGap)]; });
+    }
+    function svg(tag,attrs,text) { var n=document.createElementNS("http://www.w3.org/2000/svg",tag); Object.keys(attrs).forEach(function (k) { n.setAttribute(k,attrs[k]); }); if (text!=null) n.textContent=text; return n; }
+    function chart() {
+      if (!entry || !entry.result) return;
+      var s=el("chart"), metric=el("chart-metric").value, result=entry.result;
+      var values=E.scenarios.flatMap(function (c) { return result.cases[c].rows.map(function (r) { return r[metric]; }); });
+      var lo=Math.min.apply(null,[0].concat(values)),hi=Math.max.apply(null,[0].concat(values)),span=hi-lo || 1;
+      var y=function (v) { return 44+(hi-v)/span*155; }, x=function (i) { return 75+i/(entry.model.horizon-1)*570; };
+      s.replaceChildren(); s.setAttribute("viewBox","0 0 700 265"); s.setAttribute("aria-label","Scenario projections for "+metric+", USD millions"); s.appendChild(svg("title",{},"Scenario projections for "+metric+", USD millions"));
+      [lo,(lo+hi)/2,hi].forEach(function (v) { s.appendChild(svg("line",{x1:70,x2:655,y1:y(v),y2:y(v),stroke:"var(--border)"})); s.appendChild(svg("text",{x:65,y:y(v)+4,"text-anchor":"end",fill:"var(--muted)","font-size":11},number(v))); });
+      E.scenarios.forEach(function (name,j) {
+        var color=["var(--accent)","var(--good)","var(--bad)"][j], path=result.cases[name].rows.map(function (r,i) { return (i?"L":"M")+x(i)+" "+y(r[metric]); }).join(" ");
+        s.appendChild(svg("path",{d:path,fill:"none",stroke:color,"stroke-width":2.5,"stroke-dasharray":["none","7 3","2 3"][j]}));
+        s.appendChild(svg("text",{x:75+j*200,y:251,fill:color,"font-size":12},labels[name]+": "+number(result.cases[name].rows.at(-1)[metric])));
+      });
+      for (var i=0;i<entry.model.horizon;i++) s.appendChild(svg("text",{x:x(i),y:220,"text-anchor":"middle",fill:"var(--muted)","font-size":11},"Y"+(i+1)));
+    }
+    function renderResults() {
+      var result=entry.result; if (!result) return;
+      var m=entry.model,c=currentCase(), selected=result.cases[entry.scenario],v=selected.valuation;
+      el("result-case").value=entry.scenario;
+      el("results").hidden=false; el("csv").disabled=false; el("metrics").replaceChildren();
+      [["Weighted equity residual",money(result.weightedEquity)],[labels[entry.scenario]+" value per current diluted share",v.perShare==null?"—":"$"+number(v.perShare,2)],["Terminal value / enterprise value",v.terminalShare==null?"—":number(v.terminalShare*100)+"%"]].forEach(function (r) { var card=node("div",null,"fd-metric"); card.appendChild(node("div",r[0],"fd-label")); card.appendChild(node("div",r[1],"fd-number mono")); el("metrics").appendChild(card); });
+      el("scenarios").replaceChildren(table(["Scenario","Weight","Enterprise value (m)","Equity residual (m)","Value / share","Vs entered market cap","Peak funding gap (m)"],scenarioRows(result)));
+      var diagnostics=[];
+      E.scenarios.forEach(function (name) {
+        var r=result.cases[name],val=r.valuation;
+        if (val.error) diagnostics.push(labels[name]+": "+val.error);
+        if (r.fundingGap>.000001) diagnostics.push(labels[name]+": up to $"+number(r.fundingGap)+"m of additional cash is needed to meet the minimum balance. Funding and its dilution/costs are not modeled automatically.");
+        if (r.rows.some(function (x) { return x.equity<0; })) diagnostics.push(labels[name]+": projected book equity turns negative.");
+        if (!val.error && val.equity<=0) diagnostics.push(labels[name]+": modeled enterprise value and nonoperating assets do not cover senior claims; no positive per-share estimate is shown.");
+        if (!val.error && val.terminalShare>.8) diagnostics.push(labels[name]+": more than 80% of enterprise value comes from the terminal value.");
+      });
+      var maxResidual=Math.max.apply(null,E.scenarios.flatMap(function (s) { return result.cases[s].rows.map(function (r) { return Math.abs(r.balanceCheck); }); }));
+      diagnostics.push("Maximum balance-sheet residual: $"+number(maxResidual,6)+"m. Other assets and liabilities stay constant; balance checks verify arithmetic, not the realism of assumptions.");
+      el("diagnostics").textContent=diagnostics.join(" ");
+      el("projection-label").textContent=labels[entry.scenario]+" · USD millions · Year 1 is the full year after "+m.asOf+". Figures are modeled, not reported or analyst consensus.";
+      el("projections").replaceChildren(table(["Metric"].concat(selected.rows.map(function (r) { return "Year "+r.year; })),rows.map(function (f) { return [f[1]].concat(selected.rows.map(function (r) { return number(r[f[0]],f[0]==="balanceCheck"?6:1); })); })));
+      var projectionBody=el("projections").querySelector("tbody"), projectedRows=Array.from(projectionBody.children);
+      [["revenue","Income statement"],["sbc","Cash flow statement"],["cash","Balance sheet"],["nopat","Valuation cash flow"]].forEach(function (group) {
+        var tr=node("tr",null,"fm-statement-heading"),th=node("th",group[1]);th.colSpan=m.horizon+1;tr.appendChild(th);projectionBody.insertBefore(tr,projectedRows[rows.findIndex(function (r) {return r[0]===group[0];})]);
+      });
+      var growths=[-1,-.5,0,.5,1].map(function (d) { return c.terminalGrowth+d; });
+      el("sensitivity").replaceChildren(table(["WACC / growth"].concat(growths.map(function (g) { return number(g)+"%"; })),[-2,-1,0,1,2].map(function (d) {
+        var w=c.wacc+d; return [number(w)+"%"].concat(growths.map(function (g) { var val=selected.errors.length ? {} : E.value(m,entry.scenario,selected.rows,{wacc:w,terminalGrowth:g}); return val.error || val.perShare==null ? "—" : "$"+number(val.perShare,2); }));
+      })));
+      var reverse=selected.errors.length ? {error:"Resolve this scenario’s model errors before running reverse DCF."} : E.reverse(m,entry.scenario);
+      el("reverse").textContent=reverse.error || "A constant annual revenue growth rate of "+number(reverse.growth,2)+"% for "+m.horizon+" years matches your entered $"+number(m.opening.marketCap)+"m market capitalization, holding this scenario’s other assumptions fixed. This is an implied assumption, not a growth forecast."+(reverse.fundingGap>.000001 ? " That solution also requires up to $"+number(reverse.fundingGap)+"m of additional cash funding." : "");
+      chart();
+    }
+    function run() {
+      var m=entry.model, p=candidates().find(function (p) { return p.start===m.period.start && p.end===m.period.end; });
+      var latest=p ? Object.values(p.values).map(window.FundamentalAnalysis.filedDate).sort().pop() : "";
+      var result=E.run(m,today());
+      if (latest && m.asOf<latest) result={errors:["Use a model date on or after "+latest+", when the selected SEC inputs were available."]};
+      el("status").replaceChildren();
+      if (result.errors.length) {
+        entry.result=null; el("results").hidden=true; el("csv").disabled=true;
+        el("status").appendChild(node("p","Complete or correct these inputs:")); var list=node("ul"); result.errors.slice(0,30).forEach(function (x) { list.appendChild(node("li",x)); });
+        if (result.errors.length>30) list.appendChild(node("li",(result.errors.length-30)+" more input errors. Review the remaining scenario drivers.")); el("status").appendChild(list); return;
+      }
+      entry.result=result; el("status").textContent="Model updated. Review all three scenarios and the funding diagnostics below."; renderResults();
+    }
+    function download(text,type,filename) { var url=URL.createObjectURL(new Blob([text],{type:type})),a=node("a"); a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(function () {URL.revokeObjectURL(url);},1000); }
+    function csv() {
+      if (!entry.result) return;
+      var m=entry.model, out=[["Company",m.symbol,"CIK",m.cik],["Model version",1],["Historical period",m.period.start,m.period.end,m.period.kind],["Model date",m.asOf],["Historical retrieved",m.retrievedAt],["Units","USD millions; shares in millions; drivers as labeled"],["Assumption rationale",m.notes]];
+      E.opening.forEach(function (f) { out.push(["Opening input",f.label,m.opening[f.id]]); });
+      E.scenarios.forEach(function (name) {
+        var c=m.cases[name],r=entry.result.cases[name],v=r.valuation;
+        out.push([],["Scenario",name]); E.settings.forEach(function (f) {out.push([f.label,c[f.id],"%"]);});
+        out.push(["Driver"].concat(r.rows.map(function (r) {return "Year "+r.year;})));
+        E.drivers.forEach(function (f) {out.push([f.label+" ("+f.unit+")"].concat(c.years.slice(0,m.horizon).map(function (r) {return r[f.id];})));});
+        rows.forEach(function (f) {out.push([f[1]].concat(r.rows.map(function (r) {return r[f[0]];})));});
+        Object.keys(v).forEach(function (key) {out.push(["Valuation",key,v[key]]);});
+      });
+      out.push([],["Historical source references",JSON.stringify(m.references)],["Source note","Imported models have unverified inputs; inspect the selected SEC period for current filings."]);
+      method.forEach(function (p) {out.push(["Method",p]);});
+      function cell(x) { var s=x==null?"":String(x); if (typeof x!=="number" && /^[=+@\t\r-]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; }
+      download("\uFEFF"+out.map(function (r) {return r.map(cell).join(",");}).join("\r\n"),"text/csv;charset=utf-8",m.symbol+"-financial-model.csv");
+    }
+    function view() {
+      var data=ui.current(), options=candidates();
+      var unavailable=!E.supported(data) || !options.length;
+      el("unavailable").hidden=!unavailable; el("editor").hidden=unavailable;
+      if (unavailable) { el("unavailable").textContent=!E.supported(data)?"Financial-sector issuers need a sector-specific valuation and balance-sheet model. This operating-company model is unavailable for this issuer.":"An annual or trailing 12-month SEC period is needed to initialize a model."; return; }
+      el("period").replaceChildren(); options.forEach(function (p,i) {var o=node("option",p.kind.toUpperCase()+" · "+p.start+" to "+p.end);o.value=i;el("period").appendChild(o);});
+      var id=String(data.cik); entry=drafts.get(id);
+      if (!entry) {
+        entry={model:E.make(data,options[0],today()),scenario:"base",result:null};
+        try {var raw=localStorage.getItem("gpmc-forward-model-v1:"+id); if(raw){entry.model=E.importModel(JSON.parse(raw),id);el("storage").textContent="Loaded this device’s saved model. Review the inputs before running.";}else el("storage").textContent="New draft in this tab. Save or download it to keep a copy.";}
+        catch (_) {el("storage").textContent="Saved model could not be read. A new draft is shown; download a copy before closing if browser storage is unavailable.";}
+        drafts.set(id,entry);
+      } else el("storage").textContent="Current draft for "+data.symbol+". Save explicitly to update this device’s copy.";
+      var idx=options.findIndex(function (p) {return p.start===entry.model.period.start && p.end===entry.model.period.end && p.kind===entry.model.period.kind;});el("period").value=idx>=0?idx:0;
+      renderInputs(); el("results").hidden=!entry.result; el("csv").disabled=!entry.result;
+      if(entry.result) renderResults();else el("status").textContent="Review the opening inputs and all scenario assumptions, then run the model.";
+    }
+    window.ForecastReport=function (data) {
+      var e=drafts.get(String(data.cik)), section=node("section"); section.appendChild(node("h2","Forward financial model"));
+      if (!e || !e.result) {section.appendChild(node("p","No current financial model results. Run the model after completing or changing assumptions."));return section;}
+      var m=e.model;section.appendChild(node("p","Model date "+m.asOf+" · "+m.horizon+" forecast years · historical baseline "+m.period.start+" to "+m.period.end+". Analyst scenarios, not consensus forecasts. USD millions except per-share values."));
+      section.appendChild(table(["Scenario","Enterprise value (m)","Equity residual (m)","Value / share","Funding gap (m)"],E.scenarios.map(function (s) {var r=e.result.cases[s],v=r.valuation;return [labels[s],v.error || number(v.ev),number(v.equity),number(v.perShare,2),number(r.fundingGap)];})));
+      section.appendChild(node("p",m.notes || "No assumption rationale entered."));
+      section.appendChild(table(["Opening / bridge assumption","Value"],E.opening.map(function (f) {return [f.label,number(m.opening[f.id])];})));
+      E.scenarios.forEach(function (s) {var c=m.cases[s];section.appendChild(node("h3",labels[s]+" assumptions"));section.appendChild(node("p",E.settings.map(function (f) {return f.label+" "+number(c[f.id])+"%";}).join(" · ")));section.appendChild(table(["Driver","Year-by-year inputs (Y1 onward)"],E.drivers.map(function (f) {return [f.label+" ("+f.unit+")",c.years.slice(0,m.horizon).map(function (r) {return number(r[f.id]);}).join(" / ")];})));});
+      section.appendChild(node("p","Cash funding gaps are not automatically financed. Book equity and cash may become negative. Valuation omits financing issuance/dilution costs and assumes the operating plan can be funded. Download the model CSV for all linked projections and source references."));
+      method.forEach(function (p) {section.appendChild(node("p",p));});
+      var urls=new Set();
+      function collect(v) { if (!v) return; if (/^https:\/\/www\.sec\.gov\//.test(v.url || "")) urls.add(v.url); (v.inputs || v.sources || []).forEach(collect); }
+      Object.values(m.references).forEach(collect);
+      if (urls.size) { section.appendChild(node("h3","Model baseline sources"));var links=node("ul");urls.forEach(function (url) {var li=node("li");li.appendChild(ui.link(url,url));links.appendChild(li);});section.appendChild(links); }
+      section.querySelectorAll("table").forEach(function (t) {t.removeAttribute("class");});
+      return section;
+    };
+    return {view:view,attach:function () {
+      el("method").replaceChildren();method.forEach(function (p) {el("method").appendChild(node("p",p));});
+      el("run").addEventListener("click",run);
+      el("case").addEventListener("change",function () {entry.scenario=el("case").value;renderDrivers();renderResults();});
+      el("result-case").addEventListener("change",function () {entry.scenario=el("result-case").value;el("case").value=entry.scenario;renderDrivers();renderResults();});
+      el("horizon").addEventListener("change",function () {entry.model.horizon=Number(el("horizon").value);changed();renderDrivers();});
+      el("date").addEventListener("change",function () {entry.model.asOf=el("date").value;changed();});
+      el("reviewed").addEventListener("change",function () {entry.model.reviewed=el("reviewed").checked;changed();});
+      el("notes").addEventListener("input",function () {entry.model.notes=el("notes").value;changed();});
+      el("fill").addEventListener("click",function () {var c=currentCase();c.years=c.years.map(function () {return Object.assign({},c.years[0]);});changed();renderDrivers();});
+      el("reset").addEventListener("click",function () {entry.model=E.make(ui.current(),candidates()[Number(el("period").value)],today());changed();renderInputs();});
+      el("chart-metric").addEventListener("change",chart);
+      el("csv").addEventListener("click",csv);
+      el("json").addEventListener("click",function () {download(JSON.stringify(entry.model,null,2),"application/json",entry.model.symbol+"-financial-model.json");});
+      el("save").addEventListener("click",function () {try {localStorage.setItem("gpmc-forward-model-v1:"+entry.model.cik,JSON.stringify(entry.model));el("storage").textContent="Saved on this device · "+new Date().toLocaleString();}catch(_){el("storage").textContent="Not saved to this device. The draft remains in this tab; download JSON before closing.";}});
+      el("import").addEventListener("change",async function () {
+        var input=el("import"),file=input.files[0], target=entry;if(!file)return;
+        try {if(file.size>256000)throw new Error("Model files must be smaller than 256 KB.");var parsed=E.importModel(JSON.parse(await file.text()),target.model.cik);if(entry!==target || String(ui.current().cik)!==target.model.cik)throw new Error("Company changed during import. Return to the original issuer and try again.");entry.model=parsed;changed();renderInputs();el("storage").textContent="Imported into this tab. Source metadata is unverified; review against the current SEC filings and save explicitly to keep it.";}
+        catch(e){el("storage").textContent="Import failed: "+e.message;}finally{input.value="";}
+      });
+    }};
+  }};
+})();

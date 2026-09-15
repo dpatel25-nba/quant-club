@@ -289,12 +289,13 @@
   }
   function view(name) {
     section = name;
-    ["overview","statements","ratios","peers","valuation","filings","allocation","notes","report"].forEach(function (x) { el(x).hidden = x!==name; });
-    el("basis-controls").hidden=name==="filings" || name==="valuation" || name==="notes";
+    ["overview","statements","ratios","peers","valuation","filings","allocation","notes","report","forecast"].forEach(function (x) { el(x).hidden = x!==name; });
+    el("basis-controls").hidden=name==="filings" || name==="valuation" || name==="notes" || name==="forecast";
     document.querySelectorAll("[data-fd-view]").forEach(function (b) { b.setAttribute("aria-pressed",String(b.dataset.fdView===name)); });
     el("source").hidden = true;
     if (!current) return;
     workspace.view(name);
+    if (name==="forecast") forecast.view();
     if (name === "statements") table(statement,"statements-table");
     if (name === "ratios") table("ratios","ratios-table");
     if (name === "filings") filings();
@@ -364,9 +365,10 @@
     current:function () { return current; }, periods:periods,basisName:basisName,
     peers:function () { return peers; }, valuationFor:valuationFor, valuationPeriod:valuationPeriod
   });
+  var forecast=window.ForecastWorkspace.create({current:function () { return current; },node:node,source:source,link:link});
   window.Fundamentals = {
     attach: function (c) {
-      config=c; workspace.attach();
+      config=c; workspace.attach(); forecast.attach();
       el("form").addEventListener("submit",function (e) { e.preventDefault(); load(); });
       document.querySelectorAll("[data-fd-view]").forEach(function (b) { b.addEventListener("click",function () { view(b.dataset.fdView); }); });
       document.querySelectorAll("[data-fd-statement]").forEach(function (b) { b.addEventListener("click",function () {

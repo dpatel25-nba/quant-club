@@ -86,6 +86,62 @@ excluded before sharing. Neither export sends the report to a server or another
 member. `fundamental-workspace.js` implements allocation, notes and reports
 without additional providers or dependencies.
 
+**Financial model** adds a five-/ten-year operating-company forecast with
+independent base, upside and downside drivers. `forward-model.js` is the pure
+calculation engine; `forecast-workspace.js` and its CSS implement the editor,
+results, device storage and exports. No extra provider request is made.
+
+- Historical starting point: latest TTM or an available annual period. SEC
+  references are separate from editable inputs. Missing opening values, total
+  debt, current fully diluted shares, excess cash, valuation debt/other claims
+  and comparison market cap require explicit entries, including zero.
+- Annual drivers cover growth, gross margin, R&D, SG&A, other operating costs,
+  taxes, capex, depreciation, receivable/inventory/payable days, SBC, interest,
+  dividends, borrowing/repayment, cash issuance, buybacks and minimum cash.
+  Starting assumptions are labeled and must be reviewed before calculation.
+- Linked projections include income, cash flow and a **simplified consolidated
+  balance sheet**. Opening equity is assets minus liabilities. Other assets and
+  liabilities stay constant. Depreciation applies to opening modeled assets;
+  new capex depreciates from the next year. Debt interest uses opening book debt.
+  Taxes apply to positive income, without deferred taxes or loss carryforwards.
+  No separate segment, acquisition, lease, impairment, OCI or EPS schedules.
+- Cash funding gaps are exposed, without automatic debt/cash plugs. Negative
+  cash/book equity and excess debt repayment are diagnosed. Every year reports
+  assets minus liabilities minus equity. A balanced model can still be unfunded.
+- DCF discounts FCFF at year end. SBC remains an operating expense for valuation,
+  although accounting CFO adds it back with a matching equity increase. Existing
+  diluted shares are an analyst input; future SBC dilution is not deducted again.
+  Terminal reinvestment is terminal NOPAT × growth / ROIC. WACC and terminal ROIC
+  must exceed terminal growth; terminal NOPAT must be positive. Equity residual
+  adds valuation-date excess cash/nonoperating assets and subtracts senior
+  claims once. Future ending cash is not added to enterprise value again.
+- Sensitivity tables vary WACC and terminal growth. Reverse DCF solves a constant
+  revenue growth rate over the explicit forecast, retaining other assumptions.
+  It searches −50% through 100% on a grid with bisection, rejecting multiple
+  detected crossings and reporting a funding shortfall at the solution.
+  Scenario weights total 100%; they are user choices, not probabilities estimated
+  by the system. Invalid positive-weight cases disable the weighted value.
+- The model date is the projection origin; every projection is a full year after
+  that date. Historical balances/run rates need review for the intervening time;
+  there is no inferred stub or live market update. When the historical baseline
+  matches the current SEC response, its latest filing date constrains the model
+  date. Financial-sector issuers (SIC 6000–6999 or identified banks/insurers) are
+  blocked pending a separate sector template.
+- Save explicitly to localStorage (`gpmc-forward-model-v1:<CIK>`), export/import
+  versioned JSON, or export complete assumptions/projections/formulas as CSV.
+  Files are capped at 256 KB on import, issuer-matched and schema-checked. Imported
+  source metadata is discarded and inputs require fresh review. Saved reloads
+  use the same validation. Storage failures leave the draft available in memory.
+  Editing assumptions immediately invalidates results, CSV and report snapshots.
+  Financial model summaries and assumption schedules can be included in the
+  existing HTML/print-to-PDF research report.
+
+Method references: [NYU Stern FCFF](https://pages.stern.nyu.edu/~adamodar/pdfiles/eqnotes/fcff.pdf)
+and [terminal reinvestment](https://pages.stern.nyu.edu/~adamodar/New_Home_Page/valquestions/termvalueexreturns.htm).
+Run `python3 test/check_forward_model.py` for hand-calculated statements, DCF,
+reverse DCF and randomized accounting reconciliation; the Fundamental Data
+browser check also covers the model lifecycle, exports and mobile layout.
+
 Company name suggestions use the SEC ticker directory through
 `/api/fundamentals?q=...`, independently of Twelve Data credits. Submitting a
 ticker uses `/api/fundamentals?symbol=...`. Both require the tools password in the

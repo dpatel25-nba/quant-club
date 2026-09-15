@@ -1,0 +1,63 @@
+"""Independent arithmetic checks for the forward financial model, using JSCore."""
+import pathlib, subprocess, tempfile
+ROOT=pathlib.Path(__file__).resolve().parents[1]
+checks=r'''
+var E=window.ForwardModel;
+function assert(x,msg){if(!x)throw new Error(msg);}
+function near(a,b,msg){assert(Math.abs(a-b)<1e-7*Math.max(1,Math.abs(b)),msg+': '+a+' vs '+b);}
+var driver={growth:10,grossMargin:50,rd:5,sga:10,otherOpex:5,tax:25,capex:5,depreciation:10,dso:36.5,dio:73,dpo:36.5,sbc:2,interest:5,payout:25,borrow:20,repay:30,issuance:5,buybacks:10,minCash:2};
+var m={version:1,cik:'123',symbol:'TEST',period:{start:'2024-01-01',end:'2024-12-31',kind:'annual'},asOf:'2026-09-15',horizon:5,reviewed:true,notes:'',opening:{revenue:1000,assets:1000,liabilities:400,cash:100,ar:100,inventory:100,ap:50,ppe:400,debt:200,shares:100,excessCash:50,debtClaims:200,otherClaims:0,marketCap:1000},cases:{}};
+E.scenarios.forEach(function(s){m.cases[s]={wacc:10,terminalGrowth:2,terminalROIC:10,weight:s==='base'?50:25,years:Array.from({length:10},()=>Object.assign({},driver))};});
+var result=E.run(m,'2026-09-15');assert(!result.errors.length,'valid model');
+var r=result.cases.base.rows[0];
+Object.entries({revenue:1100,cogs:550,grossProfit:550,rd:55,sga:110,otherOpex:55,ebit:330,capex:55,da:40,ppe:415,ebitda:370,sbc:22,interest:10,pretax:320,tax:80,netIncome:240,nopat:247.5,ar:110,inventory:110,ap:55,nwc:165,deltaNwc:15,cfo:287,cfi:-55,dividends:60,cff:-75,cash:257,debt:190,equity:797,assets:1192,liabilities:395,balanceCheck:0,fcff:217.5,fundingGap:0}).forEach(([k,v])=>near(r[k],v,'Year 1 '+k));
+var v=result.cases.base.valuation, final=result.cases.base.rows[4];
+var expectedPV=result.cases.base.rows.reduce((s,r,i)=>s+r.fcff/(1.1**(i+1)),0);
+var expectedTerminal=final.nopat*1.02*.8/.08;
+near(v.terminal,expectedTerminal,'terminal reinvestment included');near(v.ev,expectedPV+expectedTerminal/1.1**5,'enterprise value');near(v.equity,v.ev+50-200,'bridge once');near(v.perShare,v.equity/100,'current diluted denominator');near(result.weightedEquity,v.equity,'scenario weights');
+assert(E.value(m,'base',result.cases.base.rows,{wacc:11}).perShare<v.perShare,'discount sensitivity');
+assert(E.value(m,'base',result.cases.base.rows,{wacc:2}).error,'WACC growth collision');
+function copy(){return JSON.parse(JSON.stringify(m));}
+var changed=copy();changed.cases.base.years.forEach(y=>y.sbc=3);
+var sbc=E.run(changed).cases.base;near(sbc.valuation.ev,v.ev,'no SBC valuation addback');assert(sbc.rows[0].cfo>r.cfo && sbc.rows[0].equity>r.equity,'SBC increases accounting cash and paid-in equity');
+changed=copy();changed.opening.otherClaims=100;near(E.run(changed).cases.base.valuation.equity,v.equity-100,'senior claims deducted once');
+changed=copy();changed.opening.shares=200;near(E.run(changed).cases.base.valuation.perShare,v.perShare/2,'diluted share sensitivity');
+changed=copy();changed.cases.base.years[0].repay=500;assert(E.run(changed).cases.base.valuation.error,'overpayment blocked');
+changed=copy();changed.cases.base.years[0].buybacks=1000;var gap=E.run(changed).cases.base;assert(gap.rows[0].cash<0 && gap.fundingGap>0,'negative cash exposed, no plug');near(gap.rows[0].balanceCheck,0,'unfunded statements still reconcile');
+changed=copy();changed.cases.base.years.forEach(y=>y.grossMargin=5);var loss=E.run(changed).cases.base;assert(loss.rows[0].tax===0 && loss.rows[0].nopat<0,'no tax refund on losses');assert(loss.valuation.error,'loss perpetuity unavailable');
+changed=copy();changed.cases.base.years[0].sbc=100;assert(E.run(changed).cases.base.errors.length,'noncash charges cannot exceed embedded expenses');
+changed=copy();changed.opening.debt=null;assert(E.run(changed).errors.length,'missing debt not zero');
+changed=copy();changed.opening.inventory=10000;assert(E.run(changed).errors.length,'inconsistent opening assets');
+changed=copy();changed.cases.base.weight=70;assert(E.run(changed).errors.length,'weights total 100');
+changed=copy();changed.cases.base.terminalROIC=1;assert(E.run(changed).errors.length,'growth needs reinvestment');
+changed=copy();changed.cases.downside.weight=0;changed.cases.base.weight=75;changed.cases.downside.years.forEach(y=>y.grossMargin=5);
+assert(E.run(changed).weightedEquity>0,'zero-weight invalid case does not poison weighted result');
+changed=copy();changed.asOf='2027-09-15';assert(E.run(changed,'2026-09-15').errors.length,'future model date');
+changed=copy();changed.reviewed=false;assert(E.run(changed).errors.length,'review required');
+changed=copy();changed.opening.marketCap=v.equity;near(E.reverse(changed,'base').growth,10,'reverse DCF recovers known growth');
+changed.opening.marketCap=1e10;assert(E.reverse(changed,'base').error,'unbracketed solution is explicit');
+var seed=E.make({cik:123,symbol:'TEST',retrievedAt:'2026-09-15',fields:[]},{start:'2025-01-01',end:'2025-12-31',kind:'annual',values:{revenue:{value:1e9},assets:{value:2e9},cash:{value:0}}},'2026-09-15');
+assert(seed.opening.cash===0 && seed.opening.debt===null && seed.opening.shares===null,'seed zero/missing/manual inputs');
+assert(seed.cases.base.years[0].grossMargin===null,'unavailable margin requires input');
+var imported=E.importModel(m,'123');assert(!imported.reviewed && Object.keys(imported.references).length===0,'import requires review and does not trust sources');
+try{E.importModel(m,'124');throw new Error('wrong issuer accepted');}catch(e){assert(e.message!=='wrong issuer accepted','issuer check');}
+changed=copy();changed.horizon=1e9;
+try{E.importModel(changed,'123');throw new Error('huge horizon accepted');}catch(e){assert(e.message!=='huge horizon accepted','bounded import horizon');}
+changed=copy();changed.period.end='2024-02-31';
+try{E.importModel(changed,'123');throw new Error('invalid date accepted');}catch(e){assert(e.message!=='invalid date accepted','import date validation');}
+assert(!E.supported({sic:6020}) && E.supported({sic:3571}),'sector restriction');
+// Randomized accounting identity, independently checking the cash bridge.
+var seedNum=42;function random(){seedNum=(seedNum*1664525+1013904223)>>>0;return seedNum/4294967296;}
+for(var trial=0;trial<100;trial++){
+ var x=copy();x.horizon=10;
+ x.cases.base.years.forEach(y=>{y.growth=-10+random()*30;y.grossMargin=35+random()*25;y.dso=random()*80;y.dio=random()*80;y.dpo=random()*80;y.borrow=random()*30;y.repay=0;y.issuance=random()*5;y.buybacks=random()*20;});
+ var p=E.project(x,'base');assert(!p.errors.length,'random projection inputs');
+ var cash=100;p.rows.forEach(y=>{near(y.assets,y.liabilities+y.equity,'random balance identity');near(y.cash,cash+y.cfo+y.cfi+y.cff,'random cash bridge');cash=y.cash;});
+}
+print('PASS: linked statements, independent DCF, terminal reinvestment, SBC, debt, dilution, funding gaps, reverse solver, import and randomized reconciliation');
+'''
+with tempfile.TemporaryDirectory() as tmp:
+    script=pathlib.Path(tmp)/'model.js';script.write_text('var window={};\n'+(ROOT/'forward-model.js').read_text()+'\n'+checks)
+    r=subprocess.run(['/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc',str(script)],capture_output=True,text=True)
+    assert r.returncode==0,r.stdout+r.stderr
+    print(r.stdout.strip())

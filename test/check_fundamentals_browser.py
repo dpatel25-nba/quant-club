@@ -87,6 +87,9 @@ def api(route):
             result["cik"] = "0000789019"
         if symbol != "AAPL":
             result["name"] = "Microsoft Corporation" if symbol == "MSFT" else symbol
+        if symbol == "BANK":
+            result["sic"]="6020"
+            result["cik"]="0000000124"
         if symbol == "FOREIGN":
             result.update(periods=[], quarterly=[], ttm=[], coverage="filings-only", message="Standardized USD annual financials are unavailable for this issuer.")
         route.fulfill(json=result)
@@ -333,6 +336,83 @@ try:
         page.evaluate("window.dispatchEvent(new Event('afterprint'))")
         expect(page.locator("#fd-print-document")).to_have_count(0)
         page.locator('[data-fd-view="peers"]').click()
+        # Forward model: manual opening review, three scenarios, linked statements,
+        # stale-result invalidation, JSON persistence/import, CSV and report integration.
+        page.locator('[data-fd-view="forecast"]').click()
+        expect(page.locator('#fm-opening')).to_be_visible()
+        page.locator('#fm-run').click()
+        expect(page.locator('#fm-status')).to_contain_text('Review the opening')
+        opening={"Revenue run rate":1000,"Total assets":1000,"Total liabilities":400,"Cash & equivalents":100,
+                 "Accounts receivable":100,"Inventory":100,"Accounts payable":50,"Modeled depreciable assets":400,
+                 "Total interest-bearing debt (book value)":200,"Current fully diluted shares (millions)":100,
+                 "Excess cash & nonoperating assets":50,"Debt claims for valuation":200,
+                 "Preferred, NCI & other senior claims":0,"Market capitalization for comparison":1000}
+        for label,value in opening.items():
+            page.locator('#fm-opening').get_by_label(label,exact=True).fill(str(value))
+        driver={"Revenue growth":10,"Gross margin":50,"R&D / revenue":5,"SG&A / revenue":10,"Other operating costs / revenue":5,
+                "Cash tax rate":25,"Capex / revenue":5,"Depreciation / opening depreciable assets":10,
+                "Receivable days":36.5,"Inventory days":73,"Payable days":36.5,
+                "SBC / revenue (included in operating costs)":2,"Interest / opening debt":5,
+                "Dividends / positive net income":25,"New borrowing":20,"Debt repayment":30,"Cash equity issuance":5,
+                "Cash buybacks":10,"Minimum cash / revenue":2}
+        for case,label in [('base','Base'),('upside','Upside'),('downside','Downside')]:
+            page.locator('#fm-case').select_option(case)
+            for field,value in driver.items():
+                page.get_by_label(label+' Year 1 '+field,exact=True).fill(str(value))
+            page.locator('#fm-fill').click()
+        page.locator('#fm-case').select_option('base')
+        page.locator('#fm-date').fill('2026-09-15')
+        page.locator('#fm-reviewed').check()
+        page.locator('#fm-run').click()
+        expect(page.locator('#fm-results')).to_be_visible()
+        expect(page.locator('#fm-projections')).to_contain_text('217.5')
+        expect(page.locator('#fm-diagnostics')).to_contain_text('residual: $0m')
+        expect(page.locator('#fm-reverse')).to_contain_text('constant annual revenue growth')
+        expect(page.locator('#fm-scenarios tbody tr')).to_have_count(3)
+        page.locator('#fm-result-case').select_option('downside')
+        expect(page.locator('#fm-projection-label')).to_contain_text('Downside')
+        page.locator('#fm-result-case').select_option('base')
+        page.locator('#fm-opening').get_by_label('Debt claims for valuation',exact=True).fill('210')
+        expect(page.locator('#fm-results')).to_be_hidden()
+        expect(page.locator('#fm-csv')).to_be_disabled()
+        page.locator('#fm-run').click()
+        page.locator('#fm-save').click()
+        expect(page.locator('#fm-storage')).to_contain_text('Saved on this device')
+        with page.expect_download() as model_download:
+            page.locator('#fm-json').click()
+        model=json.loads(pathlib.Path(model_download.value.path()).read_text())
+        assert model['opening']['debtClaims']==210 and len(model['cases']['base']['years'])==10
+        wrong={**model,'cik':'999999'}
+        page.locator('#fm-import').set_input_files({'name':'wrong.json','mimeType':'application/json','buffer':json.dumps(wrong).encode()})
+        expect(page.locator('#fm-storage')).to_contain_text('Import failed')
+        model['notes']='Model rationale <img src=x onerror="window.modelInjected=true">'
+        page.locator('#fm-import').set_input_files({'name':'model.json','mimeType':'application/json','buffer':json.dumps(model).encode()})
+        expect(page.locator('#fm-storage')).to_contain_text('Imported into this tab')
+        expect(page.locator('#fm-reviewed')).not_to_be_checked()
+        expect(page.locator('#fm-results')).to_be_hidden()
+        page.locator('#fm-reviewed').check()
+        page.locator('#fm-run').click()
+        with page.expect_download() as projections_download:
+            page.locator('#fm-csv').click()
+        exported_csv=pathlib.Path(projections_download.value.path()).read_text(encoding='utf-8-sig')
+        assert '217.5' in exported_csv and 'Terminal' in exported_csv and 'Assets − liabilities − equity' in exported_csv
+        page.locator('[data-fd-view="report"]').click()
+        expect(page.locator('#fd-report-preview')).to_contain_text('Forward financial model')
+        expect(page.locator('#fd-report-preview')).to_contain_text(model['notes'])
+        assert page.evaluate('window.modelInjected') is None
+        page.locator('#fd-report-forecast').uncheck()
+        expect(page.locator('#fd-report-preview')).not_to_contain_text('Forward financial model')
+        page.locator('#fd-report-forecast').check()
+        page.locator('[data-fd-view="forecast"]').click()
+        page.locator('#fm-horizon').select_option('10')
+        page.locator('#fm-run').click()
+        expect(page.locator('#fm-projections thead th')).to_have_count(11)
+        page.locator('#fm-save').click()
+        for width in (320,390,768,1280):
+            page.set_viewport_size({'width':width,'height':1000})
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),('financial model',width,page.evaluate("""() => [...document.querySelectorAll('#fd-forecast *')].filter(e=>{let b=e.getBoundingClientRect();return b.height && b.right>innerWidth+1 && !e.closest('.fd-table-wrap,.fd-chart-wrap');}).map(e=>[e.tagName,e.id,e.className,e.getBoundingClientRect().right]).slice(0,12)"""))
+        page.locator('#fd-forecast').screenshot(path=str(pathlib.Path(tempfile.gettempdir())/'gpmc-forward-model.png'))
+        page.locator('[data-fd-view="peers"]').click()
         # A peer response arriving after a company change cannot repopulate it.
         pending.clear()
         page.locator("#fd-peer-symbols").fill("SLOW")
@@ -346,6 +426,9 @@ try:
         expect(page.locator("#fd-peer-table")).to_be_empty()
         expect(page.locator("#fd-peer-go")).to_be_enabled()
 
+        page.locator('[data-fd-view="forecast"]').click()
+        expect(page.locator('#fm-results')).to_be_hidden()
+        expect(page.locator('#fm-opening').get_by_label('Total interest-bearing debt (book value)',exact=True)).to_have_value('')
         # Issuer separation, reload persistence and storage failure preserve the draft.
         page.locator('[data-fd-view="notes"]').click()
         expect(page.locator("#fd-note-thesis")).to_have_value("")
@@ -359,6 +442,11 @@ try:
         expect(page.locator("#fd-result")).to_be_visible()
         page.locator('[data-fd-view="notes"]').click()
         expect(page.locator("#fd-note-thesis")).to_have_value(thesis)
+        page.locator('[data-fd-view="forecast"]').click()
+        expect(page.locator('#fm-opening').get_by_label('Debt claims for valuation',exact=True)).to_have_value('210')
+        expect(page.locator('#fm-horizon')).to_have_value('10')
+        expect(page.locator('#fm-reviewed')).not_to_be_checked()
+        page.locator('[data-fd-view="notes"]').click()
         page.evaluate("""() => {
           const original=Storage.prototype.setItem;
           Storage.prototype.setItem=function(k,v){if(k.startsWith('gpmc-research-notes'))throw new Error('Quota exceeded');return original.call(this,k,v);};
@@ -386,8 +474,14 @@ try:
             assert box["x"] + box["width"] <= width + 1
         page.locator('[data-fd-view="overview"]').click()
         page.locator("#v-fundamentals").screenshot(path=str(pathlib.Path(tempfile.gettempdir()) / "gpmc-fundamentals.png"))
+        ticker=page.locator('#fd-ticker')
+        ticker.fill('BANK')
+        page.locator('#fd-form').evaluate('f=>f.requestSubmit()')
+        page.locator('[data-fd-view="forecast"]').click()
+        expect(page.locator('#fm-unavailable')).to_contain_text('sector-specific')
+        expect(page.locator('#fm-editor')).to_be_hidden()
         assert not errors, errors
         browser.close()
-        print("PASS: fundamental workflows plus quarterly/TTM, row charts, freshness, entered-cap valuation, peer comparisons, partial failures, issuer deduplication, stale peer cancellation, allocation sources, note persistence/isolation/storage failure, safe HTML/PDF export and responsive layout")
+        print("PASS: fundamental workflows plus quarterly/TTM, row charts, freshness, entered-cap valuation, peer comparisons, partial failures, issuer deduplication, stale peer cancellation, allocation sources, note persistence/isolation/storage failure, safe HTML/PDF export, forward model/scenarios/reverse DCF/persistence/CSV/reports/sector restrictions and responsive layout")
 finally:
     server.shutdown()

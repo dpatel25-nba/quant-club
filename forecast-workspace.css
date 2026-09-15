@@ -1,0 +1,29 @@
+#fd-forecast { min-width: 0; }
+.fm-toolbar, .fm-actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; margin: 20px 0; }
+.fm-toolbar label, .fm-input-grid label, .fm-notes-label { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
+.fm-input-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; margin: 18px 0; }
+.fm-input-grid input, .fm-toolbar input, .fm-toolbar select, .fm-notes-label textarea, .fm-driver-table input { width: 100%; min-width: 0; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); padding: 9px 10px; border-radius: 6px; font: inherit; font-size: 13px; }
+.fm-input-grid small, .fm-input-grid .fd-value { display: block; font-size: 10px; margin-top: 6px; line-height: 1.6; }
+.fm-input-grid .fd-value { text-align: left; color: var(--accent); }
+.fm-driver-table td { min-width: 110px; padding: 7px; }
+.fm-driver-table input { min-width: 85px; font-variant-numeric: tabular-nums; }
+.fm-driver-table th:first-child { min-width: 230px; }
+.fm-notes-label { margin-top: 24px; }
+.fm-notes-label textarea { resize: vertical; line-height: 1.7; }
+.fm-review { display: flex; gap: 10px; align-items: start; font-size: 13px; margin-top: 20px; }
+.fm-review input { margin-top: 5px; }
+.fm-import { display: grid; gap: 5px; max-width: 240px; font-size: 12px; color: var(--muted); }
+.fm-import input { max-width: 100%; font: inherit; }
+#fm-chart { display: block; width: 100%; min-width: 620px; height: auto; }
+#fm-results > h3 { margin-top: 28px; font-size: 17px; }
+#fm-scenarios td { max-width: 320px; white-space: normal; }
+#fm-period { max-width: 100%; }
+#fm-status ul { padding-left: 20px; font-size: 12px; }
+@media(max-width: 800px) { .fm-input-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width: 500px) { .fm-input-grid { grid-template-columns: 1fr; } .fm-toolbar { align-items: stretch; } .fm-toolbar label { flex: 1 1 140px; } }
+
+#fd-forecast .fd-controls > label { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+#fm-period { min-width: 0; }
+.fm-import { max-width: min(240px,100%); }
+
+#fm-projections .fm-statement-heading th { background: var(--accent-soft); color: var(--accent); font-weight: 650; padding-block: 10px; position: static; }

@@ -165,6 +165,7 @@
         paragraph(record.updated ? "Last edited "+record.updated : "No saved notes yet.");
         noteFields.forEach(function (f) { doc.appendChild(node("h3",f[1])); paragraph(record.values[f[0]] || "No notes entered."); });
       }
+      if (el("report-forecast").checked && window.ForecastReport) doc.appendChild(window.ForecastReport(data));
       heading("Sources & calculation notes"); paragraph(data.methodology);
       doc.appendChild(ui.link("Full SEC filing history for "+data.symbol,data.secURL));
       var ol=node("ol"); sources.forEach(function (s) { var li=node("li"); li.appendChild(ui.link(s.label+(s.filed ? " · filed "+s.filed : "")+" · "+s.url,s.url)); ol.appendChild(li); }); doc.appendChild(ol);
@@ -195,7 +196,7 @@
           text+=noteFields.map(function (f) { return "## "+f[1]+"\n\n"+(record.values[f[0]] || "No notes entered."); }).join("\n\n");
           saveFile(text,"text/markdown;charset=utf-8",data.symbol+"-research-notes.md");
         });
-        ["history","allocation","peers","valuation","notes"].forEach(function (id) { el("report-"+id).addEventListener("change",report); });
+        ["history","allocation","peers","valuation","notes","forecast"].forEach(function (id) { el("report-"+id).addEventListener("change",report); });
         el("report-download").addEventListener("click",function () { saveFile(reportHTML(),"text/html;charset=utf-8",ui.current().symbol+"-research-report.html"); });
         el("report-print").addEventListener("click",printReport);
       }
