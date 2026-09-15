@@ -93,6 +93,17 @@ results, device storage and exports. Opening the model uses existing SEC data;
 the optional market-estimate button requests a daily price series through the
 existing quote endpoint (with `quote=0`), subject to its cache and plan limits.
 
+The workspace separates **Setup**, **Assumptions** and **Results**. Setup groups
+opening balances and optional valuation inputs, with expandable sources and
+estimate explanations. Assumptions group annual drivers in a scrolling table
+with fixed headers, followed by valuation settings. Running a valid model opens
+Results, which explains headline values, highlights the selected scenario and
+current sensitivity cell, and lists model checks. Full annual statements expand
+on demand. Edits invalidate stale results without clearing the draft.
+Inputs display shorter numbers by default; **Full precision in inputs** reveals
+the stored values. Display rounding never changes the model. Charts adapt to
+mobile widths, while wide financial tables remain horizontally scrollable.
+
 - Historical starting point: latest TTM or an available annual period. SEC
   references are separate from editable inputs. New drafts prefill operating
   balances and supported debt estimates. Debt uses long-term debt including its

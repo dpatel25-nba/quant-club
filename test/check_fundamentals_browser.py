@@ -352,9 +352,12 @@ try:
         # stale-result invalidation, JSON persistence/import, CSV and report integration.
         page.locator('[data-fd-view="forecast"]').click()
         expect(page.locator('#fm-opening')).to_be_visible()
+        expect(page.locator('[data-fm-panel="results"]')).to_be_disabled()
+        expect(page.locator('#fm-assumptions-panel')).to_be_hidden()
         expect(page.locator('#fm-opening')).to_contain_text('Suggested starting point')
         expect(page.locator('#fm-opening').get_by_label('Total interest-bearing debt (book value)',exact=True)).not_to_have_value('')
         expect(page.locator('#fm-opening').get_by_label('Shares used for valuation (millions)',exact=True)).to_have_value('')
+        page.locator('#fm-opening details').filter(has_text='SEC: Long-term debt, including current portion').first.locator('summary').click()
         page.locator('#fm-opening').get_by_role('button',name=re.compile('^SEC: Long-term debt, including current portion')).first.click()
         expect(page.locator('#fd-source')).to_contain_text('LongTermDebt')
         page.locator('#fm-run').click()
@@ -372,16 +375,32 @@ try:
                 "SBC / revenue (included in operating costs)":2,"Interest / opening debt":5,
                 "Dividends / positive net income":25,"New borrowing":20,"Debt repayment":30,"Cash equity issuance":5,
                 "Cash buybacks":10,"Minimum cash / revenue":2}
+        page.locator('[data-fm-go="assumptions"]').click()
+        expect(page.locator('#fm-setup-panel')).to_be_hidden()
+        expect(page.locator('#fm-drivers .fm-statement-heading')).to_have_count(4)
+        precise=page.get_by_label('Base Year 1 Gross margin',exact=True)
+        page.locator('#fm-precision').check()
+        original_margin=float(precise.input_value())
+        page.locator('#fm-precision').uncheck()
+        assert abs(float(precise.input_value())-original_margin)<=.005
+        with page.expect_download() as precision_download:
+            page.locator('#fm-json').click()
+        precision_model=json.loads(pathlib.Path(precision_download.value.path()).read_text())
+        assert precision_model['cases']['base']['years'][0]['grossMargin']==original_margin,'display rounding must not change the model'
         for case,label in [('base','Base'),('upside','Upside'),('downside','Downside')]:
             page.locator('#fm-case').select_option(case)
             for field,value in driver.items():
                 page.get_by_label(label+' Year 1 '+field,exact=True).fill(str(value))
             page.locator('#fm-fill').click()
         page.locator('#fm-case').select_option('base')
+        page.locator('[data-fm-panel="setup"]').click()
         page.locator('#fm-date').fill('2026-09-15')
         page.locator('#fm-reviewed').check()
         page.locator('#fm-run').click()
         expect(page.locator('#fm-results')).to_be_visible()
+        expect(page.locator('[data-fm-panel="results"]')).to_have_attribute('aria-pressed','true')
+        expect(page.locator('#fm-results-title')).to_be_focused()
+        expect(page.locator('#fm-projection-detail')).not_to_have_attribute('open','')
         expect(page.locator('#fm-projections')).to_contain_text('217.5')
         expect(page.locator('#fm-diagnostics')).to_contain_text('residual: $0m')
         expect(page.locator('#fm-reverse')).to_contain_text('constant annual revenue growth')
@@ -390,6 +409,7 @@ try:
         expect(page.locator('#fm-projection-label')).to_contain_text('Downside')
         page.locator('#fm-result-case').select_option('base')
         # Valuation inputs are optional; partial results remain exportable and explained.
+        page.locator('[data-fm-panel="setup"]').click()
         for field in ('Shares used for valuation (millions)','Market capitalization for comparison','Debt claims for valuation'):
             page.locator('#fm-opening').get_by_label(field,exact=True).fill('')
         page.locator('#fm-run').click()
@@ -404,6 +424,7 @@ try:
         expect(page.locator('#fd-report-preview')).to_contain_text('Equity valuation needs')
         page.locator('[data-fd-view="forecast"]').click()
         # Mismatched market-cap dates are not silently reused, and overrides survive prefill.
+        page.locator('[data-fm-panel="setup"]').click()
         page.locator('#fm-prefill').click()
         expect(page.locator('#fm-opening').get_by_label('Market capitalization for comparison',exact=True)).to_have_value('')
         expect(page.locator('#fm-opening').get_by_label('Total interest-bearing debt (book value)',exact=True)).to_have_value('200')
@@ -450,13 +471,19 @@ try:
         expect(page.locator('#fd-report-preview')).not_to_contain_text('Forward financial model')
         page.locator('#fd-report-forecast').check()
         page.locator('[data-fd-view="forecast"]').click()
+        page.locator('[data-fm-panel="setup"]').click()
         page.locator('#fm-horizon').select_option('10')
         page.locator('#fm-run').click()
         expect(page.locator('#fm-projections thead th')).to_have_count(11)
         page.locator('#fm-save').click()
         for width in (320,390,768,1280):
             page.set_viewport_size({'width':width,'height':1000})
-            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),('financial model',width,page.evaluate("""() => [...document.querySelectorAll('#fd-forecast *')].filter(e=>{let b=e.getBoundingClientRect();return b.height && b.right>innerWidth+1 && !e.closest('.fd-table-wrap,.fd-chart-wrap');}).map(e=>[e.tagName,e.id,e.className,e.getBoundingClientRect().right]).slice(0,12)"""))
+            for panel in ('setup','assumptions','results'):
+                page.locator('[data-fm-panel="'+panel+'"]').click()
+                assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),('financial model',panel,width,page.evaluate("""() => [...document.querySelectorAll('#fd-forecast *')].filter(e=>{let b=e.getBoundingClientRect();return b.height && b.right>innerWidth+1 && !e.closest('.fd-table-wrap,.fd-chart-wrap');}).map(e=>[e.tagName,e.id,e.className,e.getBoundingClientRect().right]).slice(0,12)"""))
+            assert page.locator('#fm-chart').evaluate('e => e.getBoundingClientRect().width <= e.parentElement.clientWidth+1')
+        page.locator('#fm-projection-detail > summary').click()
+        expect(page.locator('#fm-projections')).to_be_visible()
         page.locator('#fd-forecast').screenshot(path=str(pathlib.Path(tempfile.gettempdir())/'gpmc-forward-model.png'))
         page.locator('[data-fd-view="peers"]').click()
         # A peer response arriving after a company change cannot repopulate it.
@@ -543,6 +570,7 @@ try:
         page.locator('[data-fd-view="report"]').click()
         expect(page.locator('#fd-report-preview')).to_contain_text('before potential dilution')
         page.locator('[data-fd-view="forecast"]').click()
+        page.locator('[data-fm-panel="setup"]').click()
         cap=page.locator('#fm-opening').get_by_label('Market capitalization for comparison',exact=True)
         cap.fill('1234')
         count=len(requests)

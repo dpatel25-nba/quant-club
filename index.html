@@ -870,56 +870,58 @@
         <p class="fd-muted">The earnings multiple uses parent net income and may differ from a quoted P/E, particularly for issuers with preferred stock. Enterprise-value multiples are not estimated from incomplete debt data.</p>
       </div>
       <div id="fd-forecast" hidden>
-        <h3>Forward financial model</h3>
-        <p class="fd-muted">Build five- or ten-year scenarios for an operating company. Historical SEC values provide a starting point; all forecasts and valuation assumptions are yours. This is a simplified linked model, with explicit cash funding checks.</p>
+        <div class="fm-heading"><div><span class="fm-eyebrow">Company research</span><h3>Financial model</h3><p>Explore how operating assumptions translate into cash flow and company value.</p></div><div class="fm-display-controls"><span class="fm-unit-label">Financial amounts in USD millions</span><label><input type="checkbox" id="fm-precision"> Full precision in inputs</label></div></div>
         <p class="fd-notice" id="fm-unavailable" hidden></p>
         <div id="fm-editor">
-          <div class="fd-controls"><label>Historical starting point<select id="fm-period"></select></label><button type="button" class="btn ghost" id="fm-reset">Start a new model from this period</button></div>
-          <p class="fd-muted" id="fm-baseline"></p>
-          <div class="fm-toolbar">
-            <label>Model / valuation date<input type="date" id="fm-date"></label>
-            <label>Forecast length<select id="fm-horizon"><option value="5">5 years</option><option value="10">10 years</option></select></label>
-            <label>Edit scenario<select id="fm-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label>
-          </div>
-          <details class="fd-method" open><summary>Opening financials &amp; valuation bridge · USD millions</summary>
-            <p>Financials and supported debt estimates are prefilled from SEC data. Cash reserves and valuation adjustments use labeled starting assumptions. Review amounts as of the model date; historical balances are carried forward without an interim estimate.</p>
-            <div class="fd-controls"><button type="button" class="btn ghost" id="fm-prefill">Fill missing inputs</button><span class="fd-muted">Keeps your existing entries. Also reuses a same-date market cap entered in Valuation.</span></div>
-            <p class="fd-status" id="fm-readiness" role="status"></p>
-            <div class="fd-controls"><label>Share count basis<select id="fm-share-basis"><option value="fully-diluted">Reviewed fully diluted shares</option><option value="reported-common">Reported common shares · before dilution</option></select></label><button type="button" class="btn ghost" id="fm-market-fill">Fill share &amp; market estimates</button></div>
-            <p class="fd-muted">Uses a recent SEC common-share snapshot and a dated daily USD price where available. Estimates exclude potential dilution and may miss subsequent share changes. Existing entries are kept.</p>
-            <p class="fd-status" id="fm-market-status" role="status" aria-live="polite"></p>
-            <div id="fm-opening"></div>
-            <p>Excess cash/nonoperating assets and senior claims are valuation-date inputs. They are used once in the enterprise-to-equity bridge; projected ending cash is not added again. Do not include operating cash or overlap preferred/NCI claims with debt.</p>
-          </details>
-          <details class="fd-method" open><summary>Operating &amp; financing assumptions</summary>
-            <p>Starting estimates use historical ratios where available. The remaining placeholders assume a 25% tax rate, 10% depreciation, 45-day working-capital cycles, 5% interest, 2% minimum cash and no discretionary financing/payouts. Growth fades toward 3%; upside/downside begin ±2 percentage points from the base growth and gross margin. These are editable starting assumptions, not company guidance.</p>
-            <div class="fm-input-grid" id="fm-settings"></div>
-            <div class="fd-controls"><span class="fd-muted">Edit each year independently. Percentages use percentage points; cash amounts use USD millions.</span><button type="button" class="btn ghost" id="fm-fill">Apply this scenario’s Year 1 to all years</button></div>
-            <div class="fd-table-wrap" id="fm-drivers" tabindex="0" aria-label="Scrollable yearly forecasting assumptions"></div>
-          </details>
-          <label class="fm-notes-label">Assumption rationale &amp; market-cap source<textarea id="fm-notes" rows="3" maxlength="12000" placeholder="Explain the business thesis, valuation inputs, adjustments and sources."></textarea></label>
-          <label class="fm-review"><input id="fm-reviewed" type="checkbox"> I have reviewed the opening inputs, model date and scenario assumptions.</label>
-          <div class="fm-actions"><button class="btn" type="button" id="fm-run">Run financial model</button><button class="btn ghost" type="button" id="fm-save">Save on this device</button><button class="btn ghost" type="button" id="fm-json">Download model JSON</button><label class="fm-import">Import model JSON<input id="fm-import" type="file" accept=".json,application/json"></label><button class="btn ghost" type="button" id="fm-csv" disabled>Export projections CSV</button></div>
-          <p class="fd-muted">Saved models stay in this browser and are not shared with the club. Download JSON to keep a portable copy. Import replaces this issuer’s draft in the current tab; save explicitly to replace the device copy.</p>
-          <p class="fd-status" id="fm-storage" role="status"></p>
-          <div class="fd-status" id="fm-status" role="status" aria-live="polite"></div>
-          <div id="fm-results" hidden>
-            <p class="fd-notice" id="fm-availability" hidden></p>
+          <nav class="fm-navigation" aria-label="Financial model sections">
+            <button type="button" data-fm-panel="setup" aria-controls="fm-setup-panel" aria-pressed="true"><span>01</span> Setup</button>
+            <button type="button" data-fm-panel="assumptions" aria-controls="fm-assumptions-panel" aria-pressed="false"><span>02</span> Assumptions</button>
+            <button type="button" data-fm-panel="results" aria-controls="fm-results" aria-pressed="false" disabled><span>03</span> Results</button>
+          </nav>
+          <section id="fm-setup-panel" aria-label="Model setup">
+            <div class="fm-card">
+              <div class="fm-section-heading"><div><h4>Starting point</h4><p>Choose the historical financials and forecast period.</p></div></div>
+              <div class="fm-toolbar">
+                <label class="fm-period-field">Historical financials<select id="fm-period"></select></label>
+                <label>Model date<input type="date" id="fm-date"></label>
+                <label>Forecast length<select id="fm-horizon"><option value="5">5 years</option><option value="10">10 years</option></select></label>
+              </div>
+              <div class="fm-baseline-row"><p id="fm-baseline"></p><button type="button" class="btn ghost" id="fm-reset">Start new model</button></div>
+            </div>
+            <div class="fm-card">
+              <div class="fm-section-heading"><div><h4>Opening financials</h4><p>Review the starting balances. Expand a source to inspect a reported value or estimate.</p></div><button type="button" class="btn ghost" id="fm-prefill">Fill missing inputs</button></div>
+              <p class="fm-readiness" id="fm-readiness" role="status"></p>
+              <div id="fm-opening"></div>
+              <div class="fm-market-tools"><label>Share count basis<select id="fm-share-basis"><option value="fully-diluted">Reviewed fully diluted shares</option><option value="reported-common">Reported common shares · before dilution</option></select></label><button type="button" class="btn ghost" id="fm-market-fill">Fill share &amp; market estimates</button></div>
+              <p class="fd-status" id="fm-market-status" role="status" aria-live="polite"></p>
+              <details class="fm-help"><summary>How the starting estimates work</summary><p>Historical balances are carried forward to the model date without an interim estimate. Debt, cash reserves and valuation adjustments use editable assumptions. Share and market estimates use a recent SEC common-share snapshot and a dated USD price, exclude potential dilution, and may miss later share changes. Fill actions keep existing entries.</p><p>Excess cash and senior claims adjust enterprise value to equity value once. Do not include operating cash or double-count claims. Projected ending cash is not added again.</p></details>
+            </div>
+            <div class="fm-card"><label class="fm-notes-label">Research notes &amp; assumption rationale<textarea id="fm-notes" rows="3" maxlength="12000" placeholder="What drives your outlook? Record the assumptions and sources you want to revisit."></textarea></label></div>
+            <div class="fm-next"><span>Next: review how the business develops.</span><button type="button" class="btn ghost" data-fm-go="assumptions">Review assumptions →</button></div>
+          </section>
+          <section id="fm-assumptions-panel" aria-label="Forecast assumptions" hidden>
+            <div class="fm-card">
+              <div class="fm-section-heading"><div><h4>Operating assumptions</h4><p>Edit one scenario at a time. Each column represents a full forecast year.</p></div><label>Edit scenario<select id="fm-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label></div>
+              <details class="fm-help"><summary>Starting assumptions &amp; units</summary><p>Historical ratios seed the model where available. Other defaults use 25% tax, 10% depreciation, 45-day working-capital cycles, 5% interest, 2% minimum cash and no discretionary financing or payouts. Growth fades toward 3%; upside/downside begin ±2 percentage points from base growth and gross margin. These are starting assumptions, not company guidance.</p><p>Percentages use percentage points: enter 10 for 10%. Cash amounts are in USD millions.</p></details>
+              <div class="fm-table-toolbar"><span>Scroll for all years. Display rounding does not change the calculations.</span><button type="button" class="btn ghost" id="fm-fill">Apply Year 1 to all years</button></div>
+              <div class="fd-table-wrap" id="fm-drivers" tabindex="0" aria-label="Scrollable yearly forecasting assumptions"></div>
+            </div>
+            <div class="fm-card"><div class="fm-section-heading"><div><h4>Valuation assumptions</h4><p>Set the discount rate, long-term economics and scenario weight. These affect valuation, not the operating forecast.</p></div></div><div class="fm-input-grid" id="fm-settings"></div></div>
+          </section>
+          <section id="fm-results" aria-label="Model results" hidden>
+            <div class="fm-section-heading fm-results-heading"><div><h4 tabindex="-1" id="fm-results-title">Your model results</h4><p id="fm-result-context"></p></div><label>View scenario<select id="fm-result-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label></div>
             <div class="fd-metrics" id="fm-metrics"></div>
-            <div class="fd-table-wrap" id="fm-scenarios" tabindex="0" aria-label="Scenario valuation comparison"></div>
-            <p class="fd-notice" id="fm-diagnostics"></p>
-            <div class="fd-controls"><h3>Scenario paths · USD millions</h3><label>Chart metric<select id="fm-chart-metric"><option value="revenue">Revenue</option><option value="fcff">Cash flow used in DCF</option><option value="cash">Ending cash</option></select></label></div>
-            <div class="fd-chart-wrap"><svg id="fm-chart" role="img" aria-label="Projected scenario paths"></svg></div>
-            <div class="fd-controls"><h3>Linked projections</h3><label>View scenario<select id="fm-result-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label></div><p class="fd-muted" id="fm-projection-label"></p>
-            <div class="fd-table-wrap" id="fm-projections" tabindex="0" aria-label="Projected income statement, cash flow and balance sheet"></div>
-            <h3>Discount rate &amp; terminal growth sensitivity</h3><p class="fd-muted" id="fm-sensitivity-label"></p>
-            <div class="fd-table-wrap" id="fm-sensitivity" tabindex="0" aria-label="DCF sensitivity table"></div>
-            <h3>Reverse DCF</h3><p class="fd-muted" id="fm-reverse"></p>
-          </div>
-          <details class="fd-method"><summary>Model equations, conventions &amp; limitations</summary>
-            <div id="fm-method"></div>
-            <p><a href="https://pages.stern.nyu.edu/~adamodar/pdfiles/eqnotes/fcff.pdf" target="_blank" rel="noopener noreferrer">NYU Stern: free cash flow to the firm ↗</a> · <a href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/valquestions/termvalueexreturns.htm" target="_blank" rel="noopener noreferrer">Terminal growth, reinvestment and returns ↗</a></p>
-          </details>
+            <div class="fm-card"><div class="fm-section-heading"><div><h4>Scenario comparison</h4><p>Compare value and funding needs across the three operating cases. Amounts are USD millions unless labeled per share.</p></div></div><div class="fd-table-wrap" id="fm-scenarios" tabindex="0" aria-label="Scenario valuation comparison"></div></div>
+            <div class="fm-card"><div class="fm-section-heading"><div><h4>How the business develops</h4><p>Annual scenario paths · USD, abbreviated as M / B / T.</p></div><label>Show<select id="fm-chart-metric"><option value="revenue">Revenue</option><option value="fcff">Cash flow for valuation</option><option value="cash">Ending cash</option></select></label></div><div class="fd-chart-wrap"><svg id="fm-chart" role="img" aria-label="Projected scenario paths"></svg></div></div>
+            <div class="fm-card fm-diagnostics"><h4>Checks &amp; interpretation</h4><div id="fm-diagnostics"></div><div id="fm-availability" hidden></div></div>
+            <div class="fm-card"><div class="fm-section-heading"><div><h4>Valuation sensitivity</h4><p>How the selected scenario changes with the discount rate and long-term growth.</p></div></div><p class="fd-muted" id="fm-sensitivity-label"></p><div class="fd-table-wrap" id="fm-sensitivity" tabindex="0" aria-label="DCF sensitivity table"></div></div>
+            <div class="fm-card"><h4>What growth does the market price imply?</h4><p class="fm-explanation">Reverse DCF solves for the growth rate that matches your market-cap input, holding other assumptions fixed.</p><p id="fm-reverse"></p></div>
+            <details class="fm-card fm-statements" id="fm-projection-detail"><summary>Annual financial statements <span>Income statement, cash flow &amp; balance sheet</span></summary><p class="fd-muted" id="fm-projection-label"></p><div class="fd-table-wrap" id="fm-projections" tabindex="0" aria-label="Projected income statement, cash flow and balance sheet"></div></details>
+          </section>
+          <div class="fm-runbar"><label class="fm-review"><input id="fm-reviewed" type="checkbox"> I have reviewed the inputs, model date and scenario assumptions.</label><button class="btn" type="button" id="fm-run">Run financial model</button></div>
+          <div class="fd-status" id="fm-status" role="status" aria-live="polite"></div>
+          <div class="fm-filebar"><div class="fm-actions"><button class="btn ghost" type="button" id="fm-save">Save on this device</button><button class="btn ghost" type="button" id="fm-json">Download model JSON</button><label class="fm-import">Import model JSON<input id="fm-import" type="file" accept=".json,application/json"></label><button class="btn ghost" type="button" id="fm-csv" disabled>Export projections CSV</button></div><p class="fd-status" id="fm-storage" role="status"></p><p class="fm-explanation">Saved models stay in this browser. Download JSON for a portable copy; CSV contains the calculated projections. Import replaces the current draft.</p></div>
+          <details class="fm-help fm-methodology"><summary>Model equations &amp; limitations</summary><div id="fm-method"></div><p><a href="https://pages.stern.nyu.edu/~adamodar/pdfiles/eqnotes/fcff.pdf" target="_blank" rel="noopener noreferrer">NYU Stern: free cash flow to the firm ↗</a> · <a href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/valquestions/termvalueexreturns.htm" target="_blank" rel="noopener noreferrer">Terminal growth and reinvestment ↗</a></p></details>
         </div>
       </div>
       <div id="fd-filings" hidden>
