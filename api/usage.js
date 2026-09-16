@@ -1,3 +1,4 @@
+import { requireToolsAuth } from "../lib/tools-auth.js";
 // Diagnostic endpoint: what plan does the provider think this key is on?
 //
 // After upgrading a plan it is easy to be looking at the wrong thing — a
@@ -10,6 +11,7 @@
 const PROVIDER = "https://api.twelvedata.com";
 
 export default async function handler(req, res) {
+  if (!(await requireToolsAuth(req, res))) return;
   const key = process.env.TWELVE_DATA_KEY;
   if (!key) {
     return res.status(500).json({ error: "No TWELVE_DATA_KEY is set on the server." });

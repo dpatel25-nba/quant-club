@@ -28,6 +28,9 @@ intervals = {"1h": "1min", "1d": "5min", "1m": "1day", "1y": "1day", "5y": "1wee
 
 
 def market(route):
+    if urlparse(route.request.url).path == "/api/auth":
+        route.fulfill(json={"mode":"legacy","user":None})
+        return
     q = parse_qs(urlparse(route.request.url).query)
     requests.append(q)
     symbol, period = q["symbol"][0], q.get("range", ["1m"])[0]

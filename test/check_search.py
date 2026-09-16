@@ -7,8 +7,9 @@ import tempfile
 root = pathlib.Path(__file__).resolve().parents[1]
 source = (root / "api/search.js").read_text()
 # The fallback digest must match the site's existing gate. No live password is used.
-assert re.search(r'=== "([a-f0-9]{64})"', source).group(1) == re.search(r'var PW_HASH = "([a-f0-9]{64})"', (root / "index.html").read_text()).group(1)
+assert re.search(r"LEGACY_DIGEST = '([a-f0-9]{64})'", (root / "lib/tools-auth.js").read_text()).group(1) == re.search(r'var PW_HASH = "([a-f0-9]{64})"', (root / "index.html").read_text()).group(1)
 source = re.sub(r'^import .*?;\n', '', source).replace('export default async function handler', 'async function handler')
+source += (root / "test/auth-fixture.js").read_text()
 checks = r'''
 var process={env:{TOOLS_PASSWORD:'test-password',TWELVE_DATA_KEY:'test-provider-key'}};
 var calls=[], data, http=200, fail=false;

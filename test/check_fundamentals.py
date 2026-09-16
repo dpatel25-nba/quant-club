@@ -8,8 +8,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 JSC = "/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
 model = (ROOT / "lib/sec-financials.js").read_text().replace("export ", "")
 api = (ROOT / "api/fundamentals.js").read_text()
-assert re.search(r'=== "([a-f0-9]{64})"', api).group(1) == re.search(r'var PW_HASH = "([a-f0-9]{64})"', (ROOT / "index.html").read_text()).group(1)
+assert re.search(r"LEGACY_DIGEST = '([a-f0-9]{64})'", (ROOT / "lib/tools-auth.js").read_text()).group(1) == re.search(r'var PW_HASH = "([a-f0-9]{64})"', (ROOT / "index.html").read_text()).group(1)
 api = re.sub(r'^import .*?;\n', '', api, flags=re.M).replace("export default async function handler", "async function handler")
+api += (ROOT / "test/auth-fixture.js").read_text()
 checks = r'''
 function assert(ok,msg){if(!ok)throw new Error(msg);}
 function near(a,b,msg){assert(Math.abs(a-b)<1e-9,msg);}

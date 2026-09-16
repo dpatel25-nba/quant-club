@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { requireToolsAuth } from "../lib/tools-auth.js";
 import { normalizeFinancials } from "../lib/sec-financials.js";
 
 const cache = new Map();
@@ -37,10 +37,7 @@ async function secJSON(url, ttl) {
 export default async function handler(req,res) {
   res.setHeader("Cache-Control","private, no-store");
   if (req.method !== "GET") { res.setHeader("Allow","GET"); return res.status(405).json({error:"Method not allowed."}); }
-  const password = String(req.headers?.["x-tools-password"] || "");
-  const authorized = process.env.TOOLS_PASSWORD ? password === process.env.TOOLS_PASSWORD
-    : password && createHash("sha256").update(password).digest("hex") === "336ad1d0b5bb4d9ff433f7b9271fa2b9c0e0a243366ddbadde6629c0efc4e4fd";
-  if (!authorized) return res.status(401).json({error:"Unlock Research Tools to view fundamental data."});
+  if (!(await requireToolsAuth(req, res))) return;
   const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const symbol = typeof req.query.symbol === "string" ? req.query.symbol.trim().toUpperCase() : "";
   if (query ? query.length<2 || query.length>48 || /[\x00-\x1f\x7f]/.test(query) : !/^[A-Z0-9.\-]{1,16}$/.test(symbol)) {

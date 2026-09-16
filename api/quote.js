@@ -1,3 +1,4 @@
+import { requireToolsAuth } from "../lib/tools-auth.js";
 // Serverless proxy for market data (runs on Vercel, same account as the NBA site).
 //
 // The whole reason this file exists is the API key. A static page calling the
@@ -6,10 +7,7 @@
 // key lives in a Vercel environment variable, the browser only ever talks to
 // this endpoint, and the key never leaves the server.
 //
-// It also solves two smaller problems for free: CORS (the browser is calling
-// our own origin, so there is nothing to negotiate) and caching (identical
-// lookups inside the cache window cost no API calls at all, which matters on a
-// free tier of 800 requests a day).
+// Same-origin requests also avoid browser CORS restrictions.
 
 const PROVIDER = "https://api.twelvedata.com";
 
@@ -41,22 +39,9 @@ function monthRange(m) {
   return { from: `${m}-01`, to: `${m}-${String(last).padStart(2, "0")}` };
 }
 
-// The UI gate is convenience; THIS is the gate. A password living in page
-// JavaScript can be read by anyone with View Source, so the tools are also shut
-// here, where the check cannot be edited away in a browser. Set TOOLS_PASSWORD
-// in Vercel to change it — and do change it if this repository is public, since
-// the fallback below is readable on GitHub.
-function gated(req, res) {
-  const want = process.env.TOOLS_PASSWORD || "mikeyscheese";
-  const got = String(req.query.k || "");
-  if (got === want) return false;
-  res.status(401).json({ error: "This tool is for club members. Enter the "
-                              + "password on the Research Tools tab." });
-  return true;
-}
-
+// Every request is authenticated before contacting the data provider.
 export default async function handler(req, res) {
-  if (gated(req, res)) return;
+  if (!(await requireToolsAuth(req, res, true))) return;
   const key = process.env.TWELVE_DATA_KEY;
   if (!key) {
     // Never echo configuration detail beyond the fact that it is missing.
@@ -153,28 +138,8 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: `Not enough history for ${symbol}.` });
     }
 
-    // EDGE CACHE — the single biggest lever on credit usage, because it is
-    // shared across everyone using the site rather than per browser.
-    //
-    // The length is set by how often the underlying bars can actually change.
-    // A daily bar is fixed once the session closes, so holding it for hours
-    // costs nothing in accuracy: the second person to look up AAPL over 1Y
-    // today spends no credits at all. In a club everybody looks at the same
-    // handful of names, which is exactly the pattern this rewards.
-    //
-    // stale-while-revalidate lets the edge serve the cached copy INSTANTLY
-    // while refreshing behind the scenes, so nobody waits on a slow upstream.
-    const TTL = {
-      "1min":   60,        // intraday, moving now
-      "5min":   300,       // still today's session
-      "1day":   6 * 3600,  // fixed once the close is in
-      "1week":  12 * 3600,
-      "1month": 24 * 3600,
-    };
-    // A closed calendar month can never change, so it is cached hard.
-    const ttl = month ? 7 * 24 * 3600 : (TTL[spec.interval] || 900);
-    res.setHeader("Cache-Control",
-      `public, s-maxage=${ttl}, stale-while-revalidate=${ttl * 4}`);
+    // Keep protected responses out of shared caches.
+    res.setHeader("Cache-Control", "private, no-store");
 
     return res.status(200).json({
       symbol,

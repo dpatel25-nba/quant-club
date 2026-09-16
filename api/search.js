@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { requireToolsAuth } from "../lib/tools-auth.js";
 
 const SYMBOL_OK = /^[A-Za-z0-9.:/\-]{1,16}$/;
 const EXCHANGE_OK = /^[A-Za-z0-9 ._&()\-]{1,48}$/;
@@ -9,11 +9,7 @@ export default async function handler(req, res) {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed." });
   }
-  const password = String(req.headers?.["x-tools-password"] || "");
-  const authorized = process.env.TOOLS_PASSWORD
-    ? password === process.env.TOOLS_PASSWORD
-    : password && createHash("sha256").update(password).digest("hex") === "336ad1d0b5bb4d9ff433f7b9271fa2b9c0e0a243366ddbadde6629c0efc4e4fd";
-  if (!authorized) return res.status(401).json({ error: "Unlock Research Tools to search more symbols." });
+  if (!(await requireToolsAuth(req, res))) return;
   const query = String(req.query.q || "").trim();
   if (query.length < 2 || query.length > 48 || /[\x00-\x1f\x7f]/.test(query)) {
     return res.status(400).json({ error: "Enter between 2 and 48 characters." });

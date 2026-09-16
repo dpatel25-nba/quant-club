@@ -1,10 +1,12 @@
 """Exercise the quote proxy with fake credentials and mocked upstream data."""
 import pathlib
+import re
 import subprocess
 import tempfile
 
 root = pathlib.Path(__file__).resolve().parents[1]
 source = (root / "api/quote.js").read_text().replace("export default async function handler", "async function handler")
+source = re.sub(r'^import .*?;\n', '', source, flags=re.M) + (root / "test/auth-fixture.js").read_text()
 checks = r'''
 var process = {env: {TOOLS_PASSWORD: 'test-password', TWELVE_DATA_KEY: 'test-key'}};
 var calls = [], responseBody;

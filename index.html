@@ -323,6 +323,7 @@
 <link rel="stylesheet" href="/fundamentals.css">
 <link rel="stylesheet" href="/research-tools.css">
 <link rel="stylesheet" href="/forecast-workspace.css">
+<link rel="stylesheet" href="/research-auth.css">
 </head>
 <body>
 <div class="topbar">
@@ -619,11 +620,16 @@
         Tools for individual research and club portfolio discussions.</p>
     </div>
     <div class="panel" id="lock">
-      <div class="eyebrow">Members only</div>
-      <h2  style="margin:8px 0 6px;font-size:21px">Research tools</h2>
-      <div class="note" style="margin:0 0 14px">These tools are for club members.
-        Enter the password to continue.</div>
-      <form class="search" id="lockForm">
+      <div class="eyebrow">Member access</div>
+      <h2>Sign in to Research Tools</h2>
+      <p id="account-description">Checking member access…</p>
+      <form id="account-form" hidden>
+        <label>Email address<input id="account-email" type="email" autocomplete="username" required maxlength="254" placeholder="you@example.com"></label>
+        <label>Password<input id="account-password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+        <button class="btn" id="account-submit" type="submit">Sign in</button>
+        <p class="account-help">Accounts are provided to approved members. Contact the club organizers if you need access or a password reset.</p>
+      </form>
+      <form class="search" id="lockForm" hidden>
         <input id="pw" type="password" placeholder="Password" autocomplete="off"
                aria-label="Password"
                style="flex:1 1 220px;padding:12px 14px;font-size:16px;
@@ -632,9 +638,12 @@
         <button class="btn" type="submit">Unlock</button>
       </form>
       <div class="note err" id="pwMsg" style="color:var(--bad)" hidden></div>
+      <p id="account-message" role="status" aria-live="polite"></p>
+      <button id="account-retry" type="button">Check account sign-in</button>
     </div>
 
     <div id="toolsWrap" hidden>
+  <div id="account-bar" hidden><span>Signed in as <strong id="account-email-label"></strong></span><button class="btn ghost" id="account-logout" type="button">Sign out</button><span id="account-session-status" role="status"></span></div>
   <nav class="tabs" role="tablist">
     <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
     <button class="tab" data-v="fundamentals" role="tab" aria-controls="v-fundamentals">Fundamental Data</button>
@@ -1153,6 +1162,7 @@
   </footer>
 </div>
 
+<script src="/research-auth.js"></script>
 <script src="/ticker-suggestions.js"></script>
 <script src="/fundamental-analysis.js"></script>
 <script src="/fundamental-workspace.js"></script>
@@ -2233,17 +2243,8 @@
 
   // ======================= ACCESS ==========================================
   //
-  // Two layers, and only one of them is real.
-  //
-  // This one is convenience: it keeps the tools out of sight and avoids
-  // spending API credits on passers-by. The password is stored here as a
-  // SHA-256 hash rather than plaintext so it is not simply readable in View
-  // Source — but anyone determined can still edit the JavaScript in a browser
-  // and walk straight past it. Client-side checks are never security.
-  //
-  // The gate that counts is in api/quote.js and api/factors.js, which refuse to
-  // return data without the password. Bypassing this screen therefore gets an
-  // empty tool rather than free data.
+  // The server checks every protected request. This legacy UI gate stays
+  // available until individual accounts are configured in the deployment.
   var PW_HASH = "336ad1d0b5bb4d9ff433f7b9271fa2b9c0e0a243366ddbadde6629c0efc4e4fd";
   var pwKey = "";
 
@@ -2255,11 +2256,11 @@
     });
   }
 
-  function unlock(pw) {
+  function unlock(pw, account) {
     pwKey = pw;
     // Held for the tab only, not localStorage: a shared library machine should
     // not stay unlocked for whoever sits down next.
-    try { sessionStorage.setItem("gpmc", pw); } catch (e) {}
+    try { if (!account) sessionStorage.setItem("gpmc", pw); } catch (e) {}
     el("lock").hidden = true;
     el("toolsWrap").hidden = false;
     if (el("v-style-rotation").classList.contains("on") && window.StyleRotation) window.StyleRotation.open(pwKey);
@@ -2282,12 +2283,21 @@
     });
   });
 
+  function restoreLegacyAccess() {
   try {
     var saved = sessionStorage.getItem("gpmc");
     if (saved) {
       sha256Hex(saved).then(function (h) { if (h === PW_HASH) unlock(saved); });
     }
   } catch (e) {}
+
+  }
+  if (window.ResearchAuth) window.ResearchAuth.start({
+    onAccount: function () { unlock("__session__", true); },
+    onSignedOut: function () { pwKey="";el("lock").hidden=false;el("toolsWrap").hidden=true; },
+    onLegacy: restoreLegacyAccess
+  });
+  else restoreLegacyAccess();
 
   // Outer navigation. Kept separate from the inner tool tabs so the two
   // levels cannot interfere: the club sections switch .mview, the research

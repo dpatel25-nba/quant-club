@@ -66,6 +66,9 @@ market_pending, hold_market, market_failure = [], False, False
 
 
 def api(route):
+    if urlparse(route.request.url).path == "/api/auth":
+        route.fulfill(json={"mode":"legacy","user":None})
+        return
     path = urlparse(route.request.url).path
     q = parse_qs(urlparse(route.request.url).query)
     requests.append((path, q))

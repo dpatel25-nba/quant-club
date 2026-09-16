@@ -1,5 +1,6 @@
 (function () {
   "use strict";
+  function accountStorageKey(key) { return window.ResearchAuth ? window.ResearchAuth.storageKey(key) : key; }
   var E=window.ForwardModel, labels={base:"Base",upside:"Upside",downside:"Downside"};
   var rows=[
     ["revenue","Revenue"],["cogs","Cost of revenue"],["grossProfit","Gross profit"],["rd","Research & development"],["sga","Selling, general & administrative"],["otherOpex","Other operating costs"],
@@ -210,7 +211,7 @@
       var id=String(data.cik); entry=drafts.get(id);
       if (!entry) {
         entry={model:E.make(data,options[0],today()),scenario:"base",result:null};
-        try {var raw=localStorage.getItem("gpmc-forward-model-v1:"+id); if(raw){entry.model=E.importModel(JSON.parse(raw),id);el("storage").textContent="Loaded this device’s saved model. Review the inputs before running.";}else {reuseMarketCap(entry.model);el("storage").textContent="New draft in this tab. Save or download it to keep a copy.";}}
+        try {var raw=localStorage.getItem(accountStorageKey("gpmc-forward-model-v1:"+id)); if(raw){entry.model=E.importModel(JSON.parse(raw),id);el("storage").textContent="Loaded this device’s saved model. Review the inputs before running.";}else {reuseMarketCap(entry.model);el("storage").textContent="New draft in this tab. Save or download it to keep a copy.";}}
         catch (_) {el("storage").textContent="Saved model could not be read. A new draft is shown; download a copy before closing if browser storage is unavailable.";}
         drafts.set(id,entry);
       } else el("storage").textContent="Current draft for "+data.symbol+". Save explicitly to update this device’s copy.";
@@ -282,7 +283,7 @@
       el("chart-metric").addEventListener("change",chart);
       el("csv").addEventListener("click",csv);
       el("json").addEventListener("click",function () {download(JSON.stringify(entry.model,null,2),"application/json",entry.model.symbol+"-financial-model.json");});
-      el("save").addEventListener("click",function () {try {localStorage.setItem("gpmc-forward-model-v1:"+entry.model.cik,JSON.stringify(entry.model));el("storage").textContent="Saved on this device · "+new Date().toLocaleString();}catch(_){el("storage").textContent="Not saved to this device. The draft remains in this tab; download JSON before closing.";}});
+      el("save").addEventListener("click",function () {try {localStorage.setItem(accountStorageKey("gpmc-forward-model-v1:"+entry.model.cik),JSON.stringify(entry.model));el("storage").textContent="Saved on this device · "+new Date().toLocaleString();}catch(_){el("storage").textContent="Not saved to this device. The draft remains in this tab; download JSON before closing.";}});
       el("import").addEventListener("change",async function () {
         var input=el("import"),file=input.files[0], target=entry;if(!file)return;
         try {if(file.size>256000)throw new Error("Model files must be smaller than 256 KB.");var parsed=E.importModel(JSON.parse(await file.text()),target.model.cik);if(entry!==target || String(ui.current().cik)!==target.model.cik)throw new Error("Company changed during import. Return to the original issuer and try again.");entry.model=parsed;changed();renderInputs();el("storage").textContent="Imported into this tab. Source metadata is unverified; review against the current SEC filings and save explicitly to keep it.";}

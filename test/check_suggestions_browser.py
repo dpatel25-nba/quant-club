@@ -29,6 +29,9 @@ searches, quotes, pending = [], [], []
 
 
 def market(route):
+    if urlparse(route.request.url).path == "/api/auth":
+        route.fulfill(json={"mode":"legacy","user":None})
+        return
     query = parse_qs(urlparse(route.request.url).query)
     if urlparse(route.request.url).path == "/api/search":
         q = query["q"][0]

@@ -1,5 +1,6 @@
 (function () {
   "use strict";
+  function accountStorageKey(key) { return window.ResearchAuth ? window.ResearchAuth.storageKey(key) : key; }
   var noteFields=[["thesis","Investment thesis"],["catalysts","Catalysts"],["risks","Risks"],["questions","Open questions"],["assumptions","Valuation assumptions"]];
   var allocationFields=["ocf","capex","fcf","acquisitions","dividends","distributions","buybacks","sbc","shares","longDebt","currentLongDebt","noncurrentDebt"];
   // The same self-contained styles are used for the preview and downloaded report.
@@ -12,7 +13,7 @@
       a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); },1000);
     }
-    function key() { return "gpmc-research-notes-v1:"+ui.current().cik; }
+    function key() { return accountStorageKey("gpmc-research-notes-v1:"+ui.current().cik); }
     function readNotes() {
       var id=key(); if (notes.has(id)) return notes.get(id);
       var record={values:{},updated:"",error:""};

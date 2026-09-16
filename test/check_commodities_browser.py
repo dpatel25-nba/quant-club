@@ -25,6 +25,9 @@ blocked = False
 
 
 def market(route):
+    if urlparse(route.request.url).path == "/api/auth":
+        route.fulfill(json={"mode":"legacy","user":None})
+        return
     q = parse_qs(urlparse(route.request.url).query)
     symbol = q["symbol"][0]
     requests.append(q)

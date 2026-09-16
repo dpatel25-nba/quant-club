@@ -34,7 +34,7 @@ def main():
     frontend = (ROOT/'style-rotation.js').read_text()
     for identifier in re.findall(r"el\('(sr-[^']+)'\)", frontend):
         assert identifier in ids, identifier
-    assert 'x-tools-password' in api and 'private, no-store' in api
+    assert 'requireToolsAuth' in api and 'private, no-store' in api
     assert 'req.query' not in api
     assert not list(ROOT.glob('**/style-rotation-data.json')), 'public snapshot file'
     stub = r'''
@@ -124,25 +124,7 @@ print('PASS: 216 scenarios, SVG/chart P&L reconciliation, auth headers, caching,
 print('PASS: 54 outlook/correlation scenarios × five ranking choices, composite arithmetic, dates and heatmap cells');
 '''
     run(stub+setup+frontend+probes)
-    # Execute the server handler with deterministic crypto and response adapters.
-    # Real SHA-256 fixtures originate in Python; Node's crypto stays unmodified
-    # in production. The test asserts gate control flow and no-store responses.
-    handler = api.split('const SNAPSHOT = ', 1)[0]
-    handler = re.sub(r"import .*?from 'node:crypto';", '', handler).replace('export default ', '')
-    fixtures = {s: hashlib.sha256(s.encode()).hexdigest() for s in ('', 'wrong', 'configured-secret')}
-    server = 'var hashes = '+json.dumps(fixtures)+';\n'+r'''
-function createHash(){return {update:function(v){this.v=v;return this;},digest:function(){return hashes[this.v];}};}
-function timingSafeEqual(a,b){return a===b;}
-var Buffer={from:function(s){return s;}}, process={env:{TOOLS_PASSWORD:'configured-secret'}}, SNAPSHOT={schema:1};
-function response(){return {headers:{},setHeader:function(k,v){this.headers[k]=v;},status:function(s){this.code=s;return this;},json:function(b){this.body=b;return this;}};}
-function assert(c,m){if(!c)throw new Error(m);}
-'''+handler+r'''
-['','wrong','configured-secret'].forEach(function(p){var res=response();handler({method:'GET',headers:{'x-tools-password':p}},res);assert(res.code===(p==='configured-secret'?200:401),'server gate');assert(res.headers['Cache-Control']==='private, no-store','cache policy');});
-var res=response();handler({method:'POST',headers:{}},res);assert(res.code===405,'method allowed');
-process.env={};res=response();handler({method:'GET',headers:{'x-tools-password':'wrong'}},res);assert(res.code===401,'fallback open');
-print('PASS: server authorization, method checks and private cache policy');
-'''
-    run(server)
+    # Production auth and this API's gate are exercised by test/check_auth.mjs.
     print('PASS: export coverage, payload budget, unique IDs and source integration')
 
 
