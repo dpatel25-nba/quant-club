@@ -138,6 +138,15 @@
       [result.weightedEquity==null ? [labels[entry.scenario]+" enterprise value",money(v.ev),"Operating business value before cash and senior-claim adjustments."] : ["Weighted equity value",money(result.weightedEquity),"The three scenarios combined using your assigned weights."],[labels[entry.scenario]+" value per share",v.perShare==null?"—":"$"+number(v.perShare,2),m.shareBasis==="reported-common"?"Reported common shares · before dilution.":"Based on your reviewed fully diluted share count."],["Value beyond the forecast",v.terminalShare==null?"—":number(v.terminalShare*100)+"%","Terminal value as a share of enterprise value. Higher means more reliance on long-term assumptions."]].forEach(function (r) { var card=node("div",null,"fd-metric"); card.appendChild(node("div",r[0],"fd-label")); card.appendChild(node("div",r[1],"fd-number mono"));card.appendChild(node("div",r[2],"fm-metric-caption"));el("metrics").appendChild(card); });
       el("scenarios").replaceChildren(table(["Scenario","Weight","Enterprise value (m)","Equity value (m)","Value / share","Vs market cap","Peak funding gap (m)"],scenarioRows(result)));
       el("scenarios").querySelectorAll("tbody tr").forEach(function (row,i) {row.setAttribute("aria-current",String(E.scenarios[i]===entry.scenario));});
+      var dotKey=v.perShare!=null ? "perShare" : v.equity!=null ? "equity" : "ev";
+      var dotFormat=dotKey==="perShare" ? function (n) {return "$"+number(n,2);} : money;
+      var reference=dotKey==="perShare" ? v.price : dotKey==="equity" && Number.isFinite(v.upside) ? m.opening.marketCap : null;
+      window.ResearchVisuals.dots(el("scenario-dots"),["downside","base","upside"].map(function (name) {var val=result.cases[name].valuation;return {label:labels[name],value:val.error ? null : val[dotKey],selected:name===entry.scenario,detail:number(m.cases[name].weight)+"% assigned weight"};}),{format:dotFormat,reference:reference,referenceLabel:dotKey==="perShare" ? "Market-cap input / modeled shares" : "Market-cap input"});
+      el("scenario-dots-label").textContent=(dotKey==="perShare" ? m.shareBasis==="reported-common" ? "Value per reported common share, before dilution." : "Value per reviewed fully diluted share." : dotKey==="equity" ? "Equity value · USD, abbreviated as M / B / T." : "Enterprise value · USD, abbreviated as M / B / T.")+" Scenario assumptions, not probabilities or a confidence interval.";
+      el("value-context").textContent=labels[entry.scenario]+" scenario · present values in USD, abbreviated as M / B / T."+(!v.error && v.equity==null ? " Equity-bridge inputs are incomplete; showing enterprise value only." : "");
+      var bridge=v.error ? [] : [{label:"Forecast cash flows",value:v.pvExplicit},{label:"Terminal value",value:v.pvTerminal},{label:"Enterprise value",value:v.ev,total:true}];
+      if (!v.error && v.equity!=null) bridge=bridge.concat([{label:"Excess cash / assets",value:m.opening.excessCash},{label:"Debt claims",value:-m.opening.debtClaims},{label:"Other claims",value:-m.opening.otherClaims},{label:"Equity residual",value:v.equity,total:true}]);
+      window.ResearchVisuals.waterfall(el("value-waterfall"),bridge,{title:labels[entry.scenario]+" valuation bridge",format:money,empty:v.error || "Complete the valuation inputs to see this breakdown."});
       var diagnostics=(result.messages || []).slice(), availability=new Set();
       E.scenarios.forEach(function (name) {
         var r=result.cases[name],val=r.valuation;
@@ -161,9 +170,11 @@
       var growths=[-1,-.5,0,.5,1].map(function (d) { return c.terminalGrowth+d; });
       var sensitivityKey=v.perShare!=null ? "perShare" : v.equity>0 ? "equity" : "ev";
       el("sensitivity-label").textContent=(sensitivityKey==="perShare" ? m.shareBasis==="reported-common" ? "Value per reported common share · before dilution" : "Equity value per current fully diluted share" : sensitivityKey==="equity" ? "Equity value · USD millions" : "Enterprise value · USD millions")+" for the selected scenario. Operating assumptions and terminal ROIC stay fixed. — marks unavailable combinations.";
+      var sensitivityValues=[];
       el("sensitivity").replaceChildren(table(["WACC / growth"].concat(growths.map(function (g) { return number(g)+"%"; })),[-2,-1,0,1,2].map(function (d) {
-        var w=c.wacc+d; return [number(w)+"%"].concat(growths.map(function (g) { var val=selected.errors.length ? {} : E.value(m,entry.scenario,selected.rows,{wacc:w,terminalGrowth:g}); return val.error || val[sensitivityKey]==null ? "—" : "$"+number(val[sensitivityKey],2); }));
+        var w=c.wacc+d, values=[];sensitivityValues.push(values); return [number(w)+"%"].concat(growths.map(function (g) { var val=selected.errors.length ? {} : E.value(m,entry.scenario,selected.rows,{wacc:w,terminalGrowth:g}); var n=val.error || val[sensitivityKey]==null ? null : val[sensitivityKey];values.push(n);return n==null ? "—" : "$"+number(n,2); }));
       })));
+      window.ResearchVisuals.heatmap(el("sensitivity"),sensitivityValues);
       el("sensitivity").querySelector("tbody tr:nth-child(3) td:nth-child(4)").classList.add("fm-current-cell");
       var reverse=selected.errors.length ? {error:"Resolve this scenario’s model errors before running reverse DCF."} : E.reverse(m,entry.scenario);
       el("reverse").textContent=reverse.error || "A constant annual revenue growth rate of "+number(reverse.growth,2)+"% for "+m.horizon+" years matches your entered $"+number(m.opening.marketCap)+"m market capitalization, holding this scenario’s other assumptions fixed. This is an implied assumption, not a growth forecast."+(reverse.fundingGap>.000001 ? " That solution also requires up to $"+number(reverse.fundingGap)+"m of additional cash funding." : "");

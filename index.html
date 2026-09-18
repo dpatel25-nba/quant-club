@@ -324,6 +324,7 @@
 <link rel="stylesheet" href="/research-tools.css">
 <link rel="stylesheet" href="/forecast-workspace.css">
 <link rel="stylesheet" href="/research-auth.css">
+<link rel="stylesheet" href="/research-visuals.css">
 </head>
 <body>
 <div class="topbar">
@@ -807,6 +808,7 @@
           <div class="fd-chart-wrap" tabindex="0" aria-label="Scrollable financial history chart"><svg id="fd-chart" role="img" aria-label="Financial performance"></svg></div>
           <p class="fd-muted">Select a statement row name to chart its history, or a value to inspect its source. Free cash flow is operating cash flow less capital expenditures.</p>
         </div>
+        <div class="rv-card" id="fd-cash-visual" hidden><div class="rv-heading"><div><h3>From operating cash to free cash flow</h3><p id="fd-cash-context"></p></div></div><div id="fd-cash-waterfall"></div><p class="rv-caption">Operating cash flow less capital expenditures. This does not include dividends, buybacks or financing.</p><div class="rv-sources" id="fd-cash-sources"></div></div>
         <div class="fd-links" id="fd-research-links"></div>
       </div>
       <div id="fd-statements" hidden>
@@ -864,6 +866,7 @@
         <p class="fd-muted">Compare this company with up to four peers you choose. Each column shows its own fiscal dates; matching reporting bases may still cover different dates. Companies with the same SEC issuer are shown once.</p>
         <form class="search" id="fd-peer-form"><input class="fd-input" id="fd-peer-symbols" aria-label="Peer tickers separated by commas" placeholder="Peer tickers, e.g. MSFT, GOOGL, AMZN" maxlength="80"><button class="btn" id="fd-peer-go" type="submit">Compare peers</button></form>
         <p class="fd-status" id="fd-peer-status" role="status" aria-live="polite">Choose companies you consider comparable.</p>
+        <div class="rv-card" id="fd-peer-visual" hidden><div class="rv-heading"><div><h3>Peers at a glance</h3><p>One common scale. Each company keeps its own reporting dates; this is a comparison, not an investment ranking.</p></div><label>Compare metric<select id="fd-peer-metric"><option value="netMargin">Net margin</option><option value="revenueGrowth">Revenue growth</option><option value="operatingMargin">Operating margin</option><option value="fcfMargin">Free cash flow margin</option></select></label></div><div id="fd-peer-dots"></div></div>
         <div class="fd-table-wrap" id="fd-peer-table" tabindex="0" aria-label="Scrollable peer comparison"></div>
       </div>
       <div id="fd-valuation" hidden>
@@ -920,10 +923,11 @@
           <section id="fm-results" aria-label="Model results" hidden>
             <div class="fm-section-heading fm-results-heading"><div><h4 tabindex="-1" id="fm-results-title">Your model results</h4><p id="fm-result-context"></p></div><label>View scenario<select id="fm-result-case"><option value="base">Base</option><option value="upside">Upside</option><option value="downside">Downside</option></select></label></div>
             <div class="fd-metrics" id="fm-metrics"></div>
-            <div class="fm-card"><div class="fm-section-heading"><div><h4>Scenario comparison</h4><p>Compare value and funding needs across the three operating cases. Amounts are USD millions unless labeled per share.</p></div></div><div class="fd-table-wrap" id="fm-scenarios" tabindex="0" aria-label="Scenario valuation comparison"></div></div>
+            <div class="fm-card"><div class="fm-section-heading"><div><h4>Scenario comparison</h4><p>Compare value and funding needs across the three operating cases. Amounts are USD millions unless labeled per share.</p></div></div><div id="fm-scenario-dots"></div><p class="rv-caption" id="fm-scenario-dots-label"></p><div class="fd-table-wrap" id="fm-scenarios" tabindex="0" aria-label="Scenario valuation comparison"></div></div>
             <div class="fm-card"><div class="fm-section-heading"><div><h4>How the business develops</h4><p>Annual scenario paths · USD, abbreviated as M / B / T.</p></div><label>Show<select id="fm-chart-metric"><option value="revenue">Revenue</option><option value="fcff">Cash flow for valuation</option><option value="cash">Ending cash</option></select></label></div><div class="fd-chart-wrap"><svg id="fm-chart" role="img" aria-label="Projected scenario paths"></svg></div></div>
+            <div class="rv-card"><div class="rv-heading"><div><h4>What makes up the valuation?</h4><p id="fm-value-context"></p></div></div><div id="fm-value-waterfall"></div><p class="rv-caption">Forecast cash flows and terminal value are discounted to the model date. Additions and deductions connect business value to the equity residual.</p></div>
             <div class="fm-card fm-diagnostics"><h4>Checks &amp; interpretation</h4><div id="fm-diagnostics"></div><div id="fm-availability" hidden></div></div>
-            <div class="fm-card"><div class="fm-section-heading"><div><h4>Valuation sensitivity</h4><p>How the selected scenario changes with the discount rate and long-term growth.</p></div></div><p class="fd-muted" id="fm-sensitivity-label"></p><div class="fd-table-wrap" id="fm-sensitivity" tabindex="0" aria-label="DCF sensitivity table"></div></div>
+            <div class="fm-card"><div class="fm-section-heading"><div><h4>Valuation sensitivity</h4><p>How the selected scenario changes with the discount rate and long-term growth.</p></div></div><p class="fd-muted" id="fm-sensitivity-label"></p><div class="fd-table-wrap" id="fm-sensitivity" tabindex="0" aria-label="DCF sensitivity table"></div><p class="rv-heat-legend">Lower value <span aria-hidden="true"></span> Higher value · within this grid</p></div>
             <div class="fm-card"><h4>What growth does the market price imply?</h4><p class="fm-explanation">Reverse DCF solves for the growth rate that matches your market-cap input, holding other assumptions fixed.</p><p id="fm-reverse"></p></div>
             <details class="fm-card fm-statements" id="fm-projection-detail"><summary>Annual financial statements <span>Income statement, cash flow &amp; balance sheet</span></summary><p class="fd-muted" id="fm-projection-label"></p><div class="fd-table-wrap" id="fm-projections" tabindex="0" aria-label="Projected income statement, cash flow and balance sheet"></div></details>
           </section>
@@ -1168,6 +1172,7 @@
 <script src="/fundamental-workspace.js"></script>
 <script src="/forward-model.js"></script>
 <script src="/forecast-workspace.js"></script>
+<script src="/research-visuals.js"></script>
 <script src="/fundamentals.js"></script>
 <script>
 (function () {

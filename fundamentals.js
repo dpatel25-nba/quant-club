@@ -127,7 +127,20 @@
         card.appendChild(node("div",compact(v ? v.value : null,f.unit),"fd-number mono"));
         card.appendChild(node("div",v ? v.derived ? "Calculated · inspect source in statements" : "Reported · filed " + v.filed : "Not available in standard tags","fd-caption"));
         el("metrics").appendChild(card);
+        var history=periods().slice().reverse().map(function (p) {return {label:p.end,value:p.values[id] ? p.values[id].value : null};});
+        card.appendChild(window.ResearchVisuals.sparkline(history,function (n) {return compact(n,f.unit);}));
+        var trend=node("button","Explore trend ↗","rv-trend-button");trend.type="button";trend.setAttribute("aria-label","Explore "+f.label+" trend");
+        trend.addEventListener("click",function () {el("trend-metric").value=id;chart();el("trend-box").scrollIntoView({block:"center"});});
+        card.appendChild(node("div","Trend uses its own scale · "+basisName().toLowerCase(),"fd-caption"));card.appendChild(trend);
       }); chart();
+    }
+    el("cash-visual").hidden=!latest;
+    if (latest) {
+      el("cash-context").textContent=basisName()+" · "+latest.start+" to "+latest.end+" · USD";
+      var cashFields=[["ocf","Operating cash",1],["capex","Capital spending",-1],["fcf","Free cash flow",1]];
+      window.ResearchVisuals.waterfall(el("cash-waterfall"),cashFields.map(function (r,i) {var v=latest.values[r[0]];return {label:r[1],value:v ? v.value*r[2] : null,total:i===2};}),{title:"Operating to free cash flow",format:function (n) {return compact(n,"USD");},empty:"Operating cash flow and capital expenditure data are needed for this breakdown. Missing values are not treated as zero."});
+      el("cash-sources").replaceChildren();
+      cashFields.forEach(function (r) {if (!latest.values[r[0]]) return;var b=node("button","Inspect "+field(r[0]).label,"fd-value");b.type="button";b.addEventListener("click",function () {source(r[0],latest);});el("cash-sources").appendChild(b);});
     }
     changes(latest);
     var links = el("research-links"); links.replaceChildren();
@@ -184,7 +197,17 @@
       el("valuation-metrics").appendChild(card);
     });
   }
+  function peerVisual() {
+    el("peer-visual").hidden=!peers.length;
+    if (!peers.length) {el("peer-dots").replaceChildren();return;}
+    var id=el("peer-metric").value, f=field(id);
+    window.ResearchVisuals.dots(el("peer-dots"),peers.map(function (entry) {
+      var p=entry.data && analysis.periods(entry.data,basis)[0], v=p && p.values[id];
+      return {label:entry.data ? entry.data.symbol : entry.symbol,value:v ? v.value : null,selected:entry.data && entry.data.cik===current.cik,detail:p ? basisName()+" · "+p.start+" to "+p.end : entry.error || "No period available"};
+    }),{format:function (n) {return compact(n,f.unit);}});
+  }
   function renderPeers() {
+    peerVisual();
     if (!peers.length) { el("peer-table").replaceChildren(); return; }
     var t=node("table",null,"fd-table"), head=node("thead"), row=node("tr"), th=node("th","Metric"); th.scope="col"; row.appendChild(th);
     peers.forEach(function (entry) {
@@ -388,6 +411,7 @@
         document.querySelectorAll('[data-fd-view="statements"], [data-fd-view="ratios"]').forEach(function (b) { b.disabled=!periods().length; });
         overview(); view(section); renderPeers();
       });
+      el("peer-metric").addEventListener("change",function () {if(current)peerVisual();});
       el("peer-form").addEventListener("submit",function (e) { e.preventDefault(); if (current) comparePeers(); });
       el("market-date").max=today();
       el("valuation-form").addEventListener("submit",function (e) {

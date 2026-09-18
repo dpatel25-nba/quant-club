@@ -144,6 +144,12 @@ try:
         expect(page.locator("#fd-metrics")).to_contain_text("$0")
         expect(page.locator("#fd-chart")).to_have_attribute("aria-label", re.compile("2025-09-30"))
 
+        expect(page.locator('#fd-metrics .rv-spark')).to_have_count(6)
+        assert page.locator('#fd-cash-waterfall rect').evaluate_all('(bars)=>bars.map(b=>Number(b.dataset.value))') == [30000000000,-8000000000,22000000000]
+        page.get_by_role('button',name='Explore Revenue trend',exact=True).click()
+        expect(page.locator('#fd-trend-metric')).to_have_value('revenue')
+        page.locator('#fd-cash-sources button').last.click()
+        expect(page.locator('#fd-source')).to_contain_text('22,000,000,000')
         page.locator('[data-fd-view="statements"]').click()
         expect(page.locator("#fd-statements-table thead")).to_contain_text("2021-09-30")
         first = page.locator("#fd-statements-table tbody tr").first
@@ -299,6 +305,13 @@ try:
         expect(page.locator("#fd-peer-table")).to_contain_text("20.00×")
         page.locator("#fd-basis").select_option("quarterly")
         expect(page.locator("#fd-peer-table thead")).to_contain_text("2026-04-01 to 2026-06-30")
+        expect(page.locator('#fd-peer-dots')).to_contain_text('2026-04-01 to 2026-06-30')
+        expect(page.locator('#fd-peer-dots .rv-dot-row')).to_have_count(3)
+        expect(page.locator('#fd-peer-dots .rv-dot-row').last).to_contain_text('Unavailable')
+        before_visual_change=len(requests)
+        page.locator('#fd-peer-metric').select_option('revenueGrowth')
+        expect(page.locator('#fd-peer-dots .rv-dot-row').first).to_contain_text('6.7%')
+        assert len(requests)==before_visual_change,'Visual controls must not fetch more data'
         # Allocation calculations, source controls and company research/report workflow.
         page.locator('[data-fd-view="allocation"]').click()
         expect(page.locator("#fd-allocation-period")).to_contain_text("Quarterly")
@@ -408,7 +421,16 @@ try:
         expect(page.locator('#fm-diagnostics')).to_contain_text('residual: $0m')
         expect(page.locator('#fm-reverse')).to_contain_text('constant annual revenue growth')
         expect(page.locator('#fm-scenarios tbody tr')).to_have_count(3)
+        expect(page.locator('#fm-value-waterfall rect')).to_have_count(7)
+        bridge=page.locator('#fm-value-waterfall rect').evaluate_all('(bars)=>bars.map(b=>Number(b.dataset.value))')
+        assert abs(bridge[0]+bridge[1]-bridge[2])<1e-6
+        assert abs(sum(bridge[2:6])-bridge[6])<1e-6
+        expect(page.locator('#fm-scenario-dots .rv-dot-row')).to_have_count(3)
+        expect(page.locator('#fm-sensitivity .rv-heat-cell')).to_have_count(25)
+        intensities=page.locator('#fm-sensitivity .rv-heat-cell').evaluate_all('(cells)=>cells.map(c=>c.style.getPropertyValue("--rv-intensity"))')
+        assert len(set(intensities))>1,'Sensitivity colors must encode value differences'
         page.locator('#fm-result-case').select_option('downside')
+        expect(page.locator('#fm-value-context')).to_contain_text('Downside')
         expect(page.locator('#fm-projection-label')).to_contain_text('Downside')
         page.locator('#fm-result-case').select_option('base')
         # Valuation inputs are optional; partial results remain exportable and explained.
@@ -421,6 +443,8 @@ try:
         expect(page.locator('#fm-csv')).to_be_enabled()
         expect(page.locator('#fm-availability')).to_contain_text('Equity valuation needs')
         expect(page.locator('#fm-sensitivity-label')).to_contain_text('Enterprise value')
+        expect(page.locator('#fm-value-waterfall rect')).to_have_count(3)
+        expect(page.locator('#fm-value-context')).to_contain_text('enterprise value only')
         expect(page.locator('#fm-reverse')).to_contain_text('Reverse DCF needs')
         expect(page.locator('#fm-diagnostics')).not_to_contain_text('do not cover senior claims')
         page.locator('[data-fd-view="report"]').click()

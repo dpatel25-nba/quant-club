@@ -29,6 +29,24 @@ research tab. It contains five annual periods and up to eight quarterly and
 trailing 12-month periods, 40 reported financial fields,
 two calculated cash/balance measures, 15 ratios, a selectable historical chart,
 per-value sources and calculations, CSV export, and a filtered filing library.
+The Overview also includes six compact history charts with links to the full
+metric chart, plus an operating-cash-flow-to-FCF waterfall with source controls.
+Trend cards use individual scales and break lines at missing observations. The
+waterfall preserves negative cash flows and requires all reconciliation inputs.
+
+Peer comparison adds a metric selector and a common-scale dot plot for growth
+and margins. Fiscal dates and failed/missing peers stay visible. Financial-model
+results include scenario valuation markers, an entered-market-cap reference
+when available, a discounted-cash-flow-to-equity waterfall, and a shaded
+sensitivity grid. Incomplete equity bridges stop at enterprise value. Heatmap
+intensity is relative within the current grid, not a probability or recommendation.
+The original tables and source controls remain available; these interactive
+visuals consume no additional API requests. `research-visuals.js` and its CSS
+provide the shared rendering layer without changing the calculation engines.
+The new visuals are on-screen aids; existing report/CSV export contents are
+unchanged. Run `test/check_visuals_browser.py` and the fundamental browser suite
+for display edge cases, reconciliation and integration coverage.
+
 The statement views are income statement, balance sheet and cash flow. Ratios
 include growth, margins, returns on average equity/assets, liquidity and cash
 conversion. The reporting selector updates statements, charts, ratios and CSV
