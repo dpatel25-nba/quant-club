@@ -325,6 +325,7 @@
 <link rel="stylesheet" href="/forecast-workspace.css">
 <link rel="stylesheet" href="/research-auth.css">
 <link rel="stylesheet" href="/research-visuals.css">
+<link rel="stylesheet" href="/portfolio-workspace.css">
 </head>
 <body>
 <div class="topbar">
@@ -951,11 +952,26 @@
 
   <section class="view" id="v-portfolio">
     <div class="panel">
-      <div class="eyebrow">Holdings</div>
+      <div class="bt-heading"><div><div class="eyebrow">Portfolio research</div><h2>How would your portfolio have performed?</h2><p class="fd-muted">Choose holdings and target weights, set a historical window, and compare the result with a benchmark. USD stocks and ETFs · up to 12 holdings.</p></div></div>
+      <div class="bt-examples"><label>Start with an example<select id="bt-example"><option value="large">Large-cap stock mix</option><option value="equal">Equal-weight stock mix</option><option value="market">US stock market · VTI</option><option value="global">US &amp; international stock ETFs</option></select></label><button type="button" class="btn ghost" id="bt-load-example">Load example</button><span class="fd-muted">Illustrative portfolios, not recommendations.</span></div>
+      <div class="eyebrow">Your holdings · weights in %</div>
       <div id="rows" style="margin-top:10px"></div>
       <button class="btn ghost" id="addRow" type="button"
               style="padding:9px 14px;font-size:13px">+ Add holding</button>
       <div class="wsum" id="wsum"></div>
+      <div class="bt-settings" id="bt-settings">
+        <label>Starting capital (USD)<input id="bt-capital" type="number" min="1" max="1000000000" step="any" value="10000"></label>
+        <label>Start date<input id="bt-start" type="date" required></label>
+        <label>End date<input id="bt-end" type="date" required></label>
+        <label>Rebalancing<select id="bt-rebalance"><option value="hold">Buy and hold</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annually</option></select></label>
+        <label>Trading cost (basis points)<input id="bt-cost" type="number" min="0" max="100" step="any" value="0"></label>
+        <label>Benchmark ticker (optional)<input id="bt-benchmark" value="SPY" placeholder="SPY" maxlength="16" spellcheck="false"></label>
+      </div>
+      <p class="bt-basis"><strong>Price-return backtest.</strong> Uses split-adjusted daily closes. Dividends, fund distributions and coupons are excluded, so this is not total investment return. Both portfolio and benchmark use this same basis.</p>
+      <p class="fd-muted">Weights must total 100%. Costs apply to every dollar bought or sold, including entry; 10 bps = 0.10%. Rebalancing occurs at the first available close of a new calendar month, quarter or year. Dates must end before today; maximum window is 12 years.</p>
+      <div class="bt-actions"><button class="btn" type="button" id="bt-run">Run backtest</button><button class="btn ghost" type="button" id="bt-cancel" hidden>Cancel</button><button class="btn ghost" type="button" id="bt-csv" disabled>Download backtest CSV</button></div>
+      <p id="bt-status" class="fd-status" role="status" aria-live="polite">Choose your portfolio and run a historical backtest.</p>
+      <div class="bt-risk-controls"><h3>Risk &amp; correlation analysis</h3><p class="fd-muted">The original risk analysis is also available below. It uses its own range and rebalancing settings.</p>
       <div class="search" style="margin-top:4px">
         <button class="btn" id="build" type="button">Analyse portfolio</button>
         <select id="pMode" aria-label="Rebalancing"
@@ -972,6 +988,17 @@
           <option value="all">All time</option>
         </select>
       </div>
+      </div>
+    </div>
+    <div id="bt-results" hidden>
+      <div class="bt-heading"><div><div class="eyebrow">Historical simulation</div><h2 id="bt-results-title" tabindex="-1">Portfolio backtest</h2><p class="fd-muted" id="bt-context"></p></div></div>
+      <div class="fd-metrics" id="bt-metrics"></div>
+      <div class="bt-card"><h3>Growth of your starting capital</h3><div class="bt-legend"><span>Portfolio</span><span id="bt-benchmark-legend"></span></div><div class="bt-chart-scroll" tabindex="0" aria-label="Scrollable portfolio growth chart"><svg class="bt-chart" id="bt-growth" role="img"></svg></div><p class="fd-muted" id="bt-comparison"></p><label class="fd-muted" for="bt-date">Inspect a date · drag the slider or use arrow keys</label><input id="bt-date" type="range" min="0" max="0" step="1" value="0"><p class="fd-muted" id="bt-readout" aria-live="polite"></p></div>
+      <div class="bt-card"><h3>Declines from previous peaks</h3><p class="fd-muted">Drawdown includes entry costs and subsequent trading costs. The starting capital is the initial peak.</p><div class="bt-chart-scroll" tabindex="0" aria-label="Scrollable portfolio drawdown chart"><svg class="bt-chart" id="bt-drawdown" role="img"></svg></div></div>
+      <div class="bt-card"><div class="bt-heading"><h3>Monthly price returns</h3><label class="fd-muted">Show<select id="bt-monthly-series"><option value="portfolio">Portfolio</option><option value="benchmark">Benchmark</option></select></label></div><div class="fd-table-wrap" id="bt-months" tabindex="0" aria-label="Monthly price-return heatmap"></div><p class="fd-muted">* First and last months are boundary months and may be partial. — means outside the tested window. Returns include modeled costs; color shows sign and magnitude.</p></div>
+      <div class="bt-card"><h3>Where the result came from</h3><div class="fd-table-wrap" id="bt-holdings" tabindex="0" aria-label="Holding returns and ending allocations"></div><p class="fd-muted" id="bt-pnl-note"></p></div>
+      <details class="bt-card bt-method"><summary>Data coverage &amp; rebalance log</summary><p>Every instrument is tested on the same dates. The shared start can be later than requested when a holding has less history. Internal missing dates are rejected rather than filled.</p><div class="fd-table-wrap" id="bt-coverage" tabindex="0" aria-label="Historical data coverage"></div><h3>Rebalance executions</h3><div class="fd-table-wrap" id="bt-rebalance-log" tabindex="0" aria-label="Simulated rebalance trades"></div></details>
+      <details class="bt-card bt-method"><summary>How this backtest works</summary><p>Initial purchases occur at the first shared daily close. Fractional holdings are allowed. Positions drift between rebalances; trading costs reduce the capital available to buy the target allocation. The benchmark is bought and held with the same starting capital and entry-cost rate. Final positions are valued without a liquidation fee.</p><p>No deposits, withdrawals, taxes, dividends or cash interest are modeled. CAGR uses elapsed calendar time; volatility uses sample daily returns and 252 sessions per year. Monthly returns compound to the displayed cumulative return. Holding P&amp;L less total costs reconciles to the portfolio’s change in value.</p><p>This tests today’s chosen holdings over available history. Selecting surviving stocks or choosing weights after seeing historical results introduces survivorship and hindsight bias. Available provider history is not a historical index-constituent database. These results do not establish future performance.</p><p>Source: <a href="https://support.twelvedata.com/en/articles/5179064-are-the-prices-adjusted" target="_blank" rel="noopener noreferrer">Twelve Data split-adjustment documentation ↗</a>.</p></details>
     </div>
     <div class="panel" style="margin-top:18px">
       <div class="msg" id="pMsg">Add holdings and click Analyse.</div>
@@ -1174,6 +1201,8 @@
 <script src="/forecast-workspace.js"></script>
 <script src="/research-visuals.js"></script>
 <script src="/fundamentals.js"></script>
+<script src="/portfolio-backtest.js"></script>
+<script src="/portfolio-workspace.js"></script>
 <script>
 (function () {
   "use strict";
@@ -1675,7 +1704,7 @@
     if (!window.TickerSuggestions) return function () {};
     return window.TickerSuggestions.attach({prefix:input.id,getPassword:function () { return pwKey; },selectionHint:"use this ticker.",
       onEdit:function () { delete input.dataset.selectedSymbol; delete input.dataset.exchange; },
-      onSelect:function (item) { input.dataset.selectedSymbol=item.symbol; input.dataset.exchange=item.exchange || ""; }
+      onSelect:function (item) { input.dataset.selectedSymbol=item.symbol; input.dataset.exchange=item.exchange || ""; if(input.closest("#rows") && window.PortfolioWorkspace)window.PortfolioWorkspace.invalidate(); }
     });
   }
   function pRows() {
@@ -1697,12 +1726,13 @@
     tickerInput.setAttribute("aria-label","Holding ticker "+holdingId);
     var detach=function () {};
     d.querySelector(".x").addEventListener("click", function () {
-      detach(); d.remove(); sumW();
+      detach(); d.remove(); sumW(); if(window.PortfolioWorkspace)window.PortfolioWorkspace.invalidate();
     });
     d.querySelector(".wt").addEventListener("input", sumW);
     el("rows").appendChild(d);
     detach=attachResearchTicker(tickerInput);
     sumW();
+    if(window.PortfolioWorkspace)window.PortfolioWorkspace.invalidate();
   }
 
   function sumW() {
@@ -1710,10 +1740,10 @@
     var t = hs.reduce(function (a, h) { return a + h.w; }, 0);
     var e = el("wsum");
     if (!hs.length) { e.textContent = ""; return; }
-    var off = Math.abs(t - 100) > 0.5;
+    var off = Math.abs(t - 100) > 0.000001;
     e.className = "wsum" + (off ? " bad" : "");
     e.textContent = "Weights total " + t.toFixed(1) + "%" +
-      (off ? " — they will be rescaled to 100% for the analysis." : ".");
+      (off ? " — backtests require 100%; risk analysis rescales these weights." : ".");
   }
 
   function pSay(t, err) {
@@ -2245,6 +2275,11 @@
   el("addRow").addEventListener("click", function () { addRow("", ""); });
   el("build").addEventListener("click", analysePortfolio);
   ["AAPL", "MSFT", "JNJ", "XOM"].forEach(function (t, i) { addRow(t, [40, 30, 20, 10][i]); });
+  if(window.PortfolioWorkspace)window.PortfolioWorkspace.attach({
+    getPassword:function () {return pwKey;},
+    getHoldings:function () {return Array.from(document.querySelectorAll("#rows .hrow")).map(function (r) {var t=r.querySelector(".tk");return {symbol:t.value,exchange:selectedExchange(t),weight:parseFloat(r.querySelector(".wt").value)};});},
+    setHoldings:function (holdings) {Array.from(document.querySelectorAll("#rows .x")).forEach(function (b) {b.click();});holdings.forEach(function (h) {addRow(h[0],h[1]);});}
+  });
 
   // ======================= ACCESS ==========================================
   //
@@ -2270,7 +2305,7 @@
     el("toolsWrap").hidden = false;
     if (el("v-style-rotation").classList.contains("on") && window.StyleRotation) window.StyleRotation.open(pwKey);
     if (el("v-fundamentals").classList.contains("on") && window.Fundamentals) window.Fundamentals.open();
-    else if (!state.symbol) load();
+    else if (!state.symbol && el("v-lookup").classList.contains("on")) load();
   }
 
   el("lockForm").addEventListener("submit", function (e) {
@@ -2330,10 +2365,10 @@
   });
   function restoreSection() {
     var hash = window.location ? window.location.hash.slice(1) : "";
-    var name = hash === "style-rotation" || hash === "fundamentals" ? "tools" : hash === "membership-teams" ? "membership" : hash || "overview";
+    var name = hash === "style-rotation" || hash === "fundamentals" || hash === "portfolio" ? "tools" : hash === "membership-teams" ? "membership" : hash || "overview";
     goto(name, false);
     if (hash === "membership-teams") document.getElementById("membership-teams").scrollIntoView();
-    if (hash === "style-rotation" || hash === "fundamentals") {
+    if (hash === "style-rotation" || hash === "fundamentals" || hash === "portfolio") {
       Array.prototype.forEach.call(document.querySelectorAll('.tab[data-v="' + hash + '"]'), function (tab) { tab.click(); });
     }
   }
@@ -2348,8 +2383,8 @@
       if (b.dataset.v === "style-rotation" && window.StyleRotation) window.StyleRotation.open(pwKey);
       if (b.dataset.v === "fundamentals" && window.Fundamentals) window.Fundamentals.open();
       if (window.TickerSuggestions) window.TickerSuggestions.close();
-      if (window.history && window.location && (b.dataset.v === "fundamentals" || window.location.hash === "#fundamentals")) {
-        window.history.replaceState(null, "", b.dataset.v === "fundamentals" ? "#fundamentals" : "#tools");
+      if (window.history && window.location && (["fundamentals","portfolio"].includes(b.dataset.v) || ["#fundamentals","#portfolio"].includes(window.location.hash))) {
+        window.history.replaceState(null, "", ["fundamentals","portfolio"].includes(b.dataset.v) ? "#"+b.dataset.v : "#tools");
       }
     });
   });

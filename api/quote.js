@@ -60,8 +60,19 @@ export default async function handler(req, res) {
   }
   // A single calendar month, for the month drill-down.
   const month = String(req.query.month || "").trim();
+  const backtest = range === "backtest";
+  const start = String(req.query.start || ""), end = String(req.query.end || "");
   let spec, dateQ = "";
-  if (month) {
+  if (backtest) {
+    const validDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(d)) && new Date(d).toISOString().slice(0,10) === d;
+    if (month || !validDate(start) || !validDate(end) || start < "1900-01-01" || start >= end || end >= new Date().toISOString().slice(0,10) || Date.parse(end)-Date.parse(start) > 4383*86400000) {
+      return res.status(400).json({error:"Choose valid historical start/end dates, ending before today, within a 12-year window."});
+    }
+    spec = {interval:"1day", outputsize:5000, label:start+" to "+end};
+    dateQ = `&start_date=${start}&end_date=${end}&adjust=splits`;
+  } else if (start || end) {
+    return res.status(400).json({error:"Custom dates require the backtest range."});
+  } else if (month) {
     if (!MONTH_OK.test(month)) {
       return res.status(400).json({ error: "Month must look like 2024-03." });
     }
@@ -77,7 +88,7 @@ export default async function handler(req, res) {
 
   // The quote endpoint costs a second credit. The client only asks for it when
   // the SYMBOL changes, because none of its fields depend on the chart range.
-  const wantQuote = String(req.query.quote || "1") !== "0";
+  const wantQuote = !backtest && String(req.query.quote || "1") !== "0";
   const exchangeQ = exchange ? `&exchange=${encodeURIComponent(exchange)}` : "";
 
   const series = `${PROVIDER}/time_series?symbol=${encodeURIComponent(symbol)}`
@@ -129,10 +140,13 @@ export default async function handler(req, res) {
 
     // Provider returns newest-first; charts read left to right.
     const numeric = value => value == null || String(value).trim() === "" || !Number.isFinite(Number(value)) ? null : Number(value);
+    if (backtest && (sJson.values.length >= 5000 || sJson.values.some(v => !/^\d{4}-\d{2}-\d{2}$/.test(v.datetime) || numeric(v.close) == null || numeric(v.close) <= 0))) {
+      return res.status(502).json({error:"Historical data is invalid or may be truncated. Try a shorter period or a different instrument."});
+    }
     const points = sJson.values
       .map(v => ({ t: v.datetime, o: numeric(v.open), h: numeric(v.high), l: numeric(v.low), c: numeric(v.close), v: Number(v.volume || 0) }))
-      .filter(p => Number.isFinite(p.c))
-      .reverse();
+      .filter(p => Number.isFinite(p.c) && (!backtest || p.t >= start && p.t <= end))
+      .sort((a,b) => String(a.t).localeCompare(String(b.t)));
 
     if (points.length < 2) {
       return res.status(404).json({ error: `Not enough history for ${symbol}.` });
@@ -146,8 +160,9 @@ export default async function handler(req, res) {
       range,
       month: month || null,
       interval: spec.interval,
+      ...(backtest ? {start, end, adjustment:"splits", returnBasis:"price"} : {}),
       label: spec.label,
-      currency: sJson.meta?.currency || sJson.meta?.currency_quote || "USD",
+      currency: sJson.meta?.currency || sJson.meta?.currency_quote || (backtest ? "" : "USD"),
       exchange: sJson.meta?.exchange || "",
       // Asset type drives the annualisation factor downstream: crypto trades
       // every day of the year, equities about 252 days, forex about 260.

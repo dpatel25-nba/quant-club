@@ -538,6 +538,62 @@ lags by several weeks and the most recent days are missing. And it is DAILY, so
 weekly or monthly price series will not line up — the tab says so rather than
 quietly regressing mismatched frequencies.
 
+## Portfolio backtesting
+
+Research Tools → Portfolio Builder (`/#portfolio`) includes a historical
+backtest alongside the existing risk analysis. Choose an illustrative example
+or enter 1–12 USD stocks/ETFs with positive weights totaling 100%, then select
+dates, starting capital, optional benchmark, rebalancing frequency, and trading
+costs. Daily historical windows can span up to 12 years and must end before
+today. No new environment variables or dependencies are needed.
+
+Results include ending value, price return, calendar-time CAGR, annualized
+volatility, maximum drawdown, trading costs, interactive growth/drawdown charts,
+a monthly return heatmap, holding contributions and weight drift, a rebalance
+log, and a CSV export. Changing holdings or assumptions invalidates old results.
+Successful history requests are cached in the browser for 15 minutes, including
+when a later request fails. A benchmark already held in the portfolio can reuse
+the same price history.
+
+**Return basis:** these are split-adjusted **price returns**, excluding dividends
+and coupon income. This is especially consequential for income funds. The
+backtest requests `adjust=splits` explicitly; it does not estimate total returns.
+See Twelve Data's [adjustment documentation](https://support.twelvedata.com/en/articles/5179064-are-the-prices-adjusted)
+and [historical-data limits](https://support.twelvedata.com/en/articles/5214728-getting-historical-data).
+
+**Simulation:** fractional, long-only holdings are purchased at the first shared
+daily close. Buy-and-hold fixes share counts; monthly, quarterly and annual
+rebalancing occurs at the first shared close of each new calendar period, after
+that day's price movement. Costs apply to each dollar bought or sold. Initial
+investment is `capital / (1 + fee)`; subsequent rebalances solve
+`value_after + fee * sum(abs(target_weight * value_after - holding_value)) = value_before`.
+The benchmark is bought and held on identical dates with the same entry-cost
+rate. There are no subsequent cash flows, taxes, cash interest, or final
+liquidation costs. Gross holding P&L minus trading costs reconciles to the net
+change in portfolio value.
+
+**History and statistics:** the engine requires at least 21 shared observations,
+reports any trimming at the window boundaries, and rejects mismatched internal
+dates, gaps longer than seven days, invalid prices, unknown/non-USD currencies,
+and potentially truncated history. Missing prices are never filled. Drawdown
+starts from original capital and therefore includes entry costs. CAGR uses
+elapsed calendar days / 365.25. Volatility is sample daily standard deviation
+times √252; the first return includes the entry fee. Monthly returns compound
+from starting capital; first and last months are marked as potentially partial.
+Selecting today's surviving companies retrospectively introduces survivorship
+and hindsight bias. The tool does not reconstruct historical index constituents.
+
+`portfolio-backtest.js` contains the deterministic calculation engine;
+`portfolio-workspace.js` and `.css` provide the interface. The authenticated
+`/api/quote?range=backtest&start=YYYY-MM-DD&end=YYYY-MM-DD` endpoint retrieves daily
+history without a separate quote request. Validation runs before provider calls.
+
+Checks: `node --experimental-default-type=module test/check_portfolio_backtest.mjs`
+tests hand-calculated results, cost conservation, date alignment and absence of
+future-price influence; `python3 test/check_quote.py` covers the endpoint;
+`test/check_backtest_browser.py` uses Playwright and synthetic prices to check
+the workflow, mobile/dark layouts, cancellation, caching, errors and CSV export.
+
 ## The portfolio statistics
 
 **Diversification** is `1 − σₚ / Σ wᵢσᵢ`, displayed as "x% lower vol".

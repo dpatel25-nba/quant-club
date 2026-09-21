@@ -69,6 +69,23 @@ async function request(query) {
   calls=[];
   var invalid=await request({k:'test-password',symbol:'XAU/USD&apikey=bad'});
   assert(invalid.code===400 && calls.length===0,'invalid symbol reached provider');
+  responseBody={meta:{type:'ETF',currency:'USD'},values:[{datetime:'2024-01-03',close:'102'},{datetime:'2024-01-02',close:'100'}]};
+  calls=[];
+  var backtest=await request({k:'test-password',symbol:'SPY',range:'backtest',start:'2024-01-01',end:'2024-12-31'});
+  assert(backtest.code===200 && calls.length===1,'backtests need one history call, no quote');
+  assert(calls[0].includes('interval=1day&outputsize=5000') && calls[0].includes('start_date=2024-01-01&end_date=2024-12-31&adjust=splits'),'bounded split-adjusted daily request');
+  assert(backtest.body.adjustment==='splits' && backtest.body.returnBasis==='price','explicit price-return basis');
+  assert(backtest.headers['Cache-Control']==='private, no-store','private historical response');
+  for(var dates of [['2024-02-30','2024-12-31'],['2025-01-01','2024-01-01'],['1900-01-01','2024-01-01'],['2024-01-01','2099-01-01']]) {
+    calls=[];var invalid=await request({k:'test-password',symbol:'SPY',range:'backtest',start:dates[0],end:dates[1]});
+    assert(invalid.code===400 && !calls.length,'invalid dates reached provider');
+  }
+  assert((await request({k:'test-password',symbol:'SPY',start:'2024-01-01',end:'2024-12-31'})).code===400,'dates require explicit backtest mode');
+  responseBody={meta:{type:'ETF'},values:[{datetime:'2024-01-02',close:'100'},{datetime:'2024-01-03',close:'102'}]};
+  backtest=await request({k:'test-password',symbol:'SPY',range:'backtest',start:'2024-01-01',end:'2024-12-31'});
+  assert(backtest.body.currency==='' && backtest.body.points[0].t==='2024-01-02','unknown currency cannot be assumed USD; sort dates');
+  responseBody.values[1].close=null;
+  assert((await request({k:'test-password',symbol:'SPY',range:'backtest',start:'2024-01-01',end:'2024-12-31'})).code===502,'missing backtest close cannot silently disappear');
   print('PASS: symbols, OHLC, interval/month metadata, missing/zero/negative prices, authentication and provider errors');
 })().catch(function(e) {print('FAIL: '+e.message);});
 '''
