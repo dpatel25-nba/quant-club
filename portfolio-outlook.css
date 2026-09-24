@@ -1,0 +1,9 @@
+#v-portfolio-outlook .po-intro { margin-bottom: 18px; }
+#v-portfolio-outlook .po-intro h2 { margin: 8px 0 12px; }
+#v-portfolio-outlook .po-intro p { max-width: 86ch; line-height: 1.65; }
+#v-portfolio-outlook .po-links { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin-top: 18px; }
+#v-portfolio-outlook .po-links a { overflow-wrap: anywhere; color: var(--text); text-underline-offset: 3px; }
+#v-portfolio-outlook .po-frame { display: block; width: 100%; height: 1300px; border: 1px solid var(--border); border-radius: 14px; background: #f4f6f2; }
+@media (max-width: 850px) {
+  #v-portfolio-outlook .po-frame { height: 2500px; }
+}

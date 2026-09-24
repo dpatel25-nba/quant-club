@@ -326,6 +326,7 @@
 <link rel="stylesheet" href="/research-auth.css">
 <link rel="stylesheet" href="/research-visuals.css">
 <link rel="stylesheet" href="/portfolio-workspace.css">
+<link rel="stylesheet" href="/portfolio-outlook.css">
 </head>
 <body>
 <div class="topbar">
@@ -650,6 +651,7 @@
     <button class="tab on" data-v="lookup" role="tab">Ticker Lookup</button>
     <button class="tab" data-v="fundamentals" role="tab" aria-controls="v-fundamentals">Fundamental Data</button>
     <button class="tab" data-v="portfolio" role="tab">Portfolio Builder</button>
+    <button class="tab" data-v="portfolio-outlook" role="tab" aria-controls="v-portfolio-outlook">Portfolio Outlook</button>
     <button class="tab" data-v="compare" role="tab">Compare</button>
     <button class="tab" data-v="factors" role="tab">Factors</button>
     <button class="tab" data-v="style-rotation" role="tab" aria-controls="v-style-rotation">Style Rotation</button>
@@ -1065,6 +1067,17 @@
       <div class="msg" id="fMsg">Enter a ticker to measure its factor exposures.</div>
       <div id="fOut" hidden></div>
     </div>
+  </section>
+
+  <section class="view" id="v-portfolio-outlook" aria-label="Portfolio outlook research demo">
+    <div class="panel po-intro">
+      <div class="eyebrow">Portfolio Lab · Synthetic demo</div>
+      <h2>Explore possible portfolio outcomes</h2>
+      <p>Change allocations, forecast horizons, rebalancing and trading costs. Compare simulated portfolio paths with a specified economic scenario.</p>
+      <p class="note"><strong>Research prototype using fabricated securities and economic histories.</strong> These results demonstrate the simulator; they are not forecasts for real stocks. The advanced ensemble has not demonstrated an advantage over its historical baseline.</p>
+      <div class="po-links"><a class="btn ghost" href="/portfolio-lab/">Open full-screen demo ↗</a><a href="/portfolio-lab/RESEARCH.md">Research review</a><a href="/portfolio-lab/VALIDATION.md">Validation results</a><a href="/portfolio-lab/source.zip" download>Download Python project</a><a href="/portfolio-lab/simulation.zip" download>Download simulation files</a></div>
+    </div>
+    <iframe id="portfolio-outlook-frame" class="po-frame" title="Interactive Portfolio Lab synthetic simulation" data-src="/portfolio-lab/" sandbox="allow-scripts" loading="lazy" referrerpolicy="no-referrer"></iframe>
   </section>
 
   <section class="view" id="v-style-rotation" aria-label="Style Rotation research">
@@ -2296,6 +2309,13 @@
     });
   }
 
+  function openPortfolioOutlook() {
+    var frame = el("portfolio-outlook-frame");
+    if (!el("toolsWrap").hidden && el("v-portfolio-outlook").classList.contains("on") && !frame.getAttribute("src")) {
+      frame.setAttribute("src", frame.dataset.src);
+    }
+  }
+
   function unlock(pw, account) {
     pwKey = pw;
     // Held for the tab only, not localStorage: a shared library machine should
@@ -2303,6 +2323,7 @@
     try { if (!account) sessionStorage.setItem("gpmc", pw); } catch (e) {}
     el("lock").hidden = true;
     el("toolsWrap").hidden = false;
+    openPortfolioOutlook();
     if (el("v-style-rotation").classList.contains("on") && window.StyleRotation) window.StyleRotation.open(pwKey);
     if (el("v-fundamentals").classList.contains("on") && window.Fundamentals) window.Fundamentals.open();
     else if (!state.symbol && el("v-lookup").classList.contains("on")) load();
@@ -2365,10 +2386,10 @@
   });
   function restoreSection() {
     var hash = window.location ? window.location.hash.slice(1) : "";
-    var name = hash === "style-rotation" || hash === "fundamentals" || hash === "portfolio" ? "tools" : hash === "membership-teams" ? "membership" : hash || "overview";
+    var name = ["style-rotation", "fundamentals", "portfolio", "portfolio-outlook"].includes(hash) ? "tools" : hash === "membership-teams" ? "membership" : hash || "overview";
     goto(name, false);
     if (hash === "membership-teams") document.getElementById("membership-teams").scrollIntoView();
-    if (hash === "style-rotation" || hash === "fundamentals" || hash === "portfolio") {
+    if (["style-rotation", "fundamentals", "portfolio", "portfolio-outlook"].includes(hash)) {
       Array.prototype.forEach.call(document.querySelectorAll('.tab[data-v="' + hash + '"]'), function (tab) { tab.click(); });
     }
   }
@@ -2382,9 +2403,10 @@
         v.classList.toggle("on", v.id === "v-" + b.dataset.v); });
       if (b.dataset.v === "style-rotation" && window.StyleRotation) window.StyleRotation.open(pwKey);
       if (b.dataset.v === "fundamentals" && window.Fundamentals) window.Fundamentals.open();
+      if (b.dataset.v === "portfolio-outlook") openPortfolioOutlook();
       if (window.TickerSuggestions) window.TickerSuggestions.close();
-      if (window.history && window.location && (["fundamentals","portfolio"].includes(b.dataset.v) || ["#fundamentals","#portfolio"].includes(window.location.hash))) {
-        window.history.replaceState(null, "", ["fundamentals","portfolio"].includes(b.dataset.v) ? "#"+b.dataset.v : "#tools");
+      if (window.history && window.location && (["fundamentals","portfolio","portfolio-outlook"].includes(b.dataset.v) || ["#fundamentals","#portfolio","#portfolio-outlook"].includes(window.location.hash))) {
+        window.history.replaceState(null, "", ["fundamentals","portfolio","portfolio-outlook"].includes(b.dataset.v) ? "#"+b.dataset.v : "#tools");
       }
     });
   });

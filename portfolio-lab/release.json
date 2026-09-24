@@ -1,0 +1,102 @@
+{
+  "data_kind": "synthetic",
+  "as_of": "2026-08-31",
+  "paths_per_scenario": 1500,
+  "horizon_months": 12,
+  "assets": [
+    "DEMO_GROWTH",
+    "DEMO_BROAD",
+    "DEMO_DEFENSIVE",
+    "DEMO_CYCLICAL"
+  ],
+  "source_manifest": {
+    "version": "0.1.0",
+    "command": "demo",
+    "as_of": "2026-08-31",
+    "config": {
+      "horizon": 12,
+      "paths": 1500,
+      "seed": 42,
+      "window": 120,
+      "min_train": 60,
+      "ewma_decay": 0.94,
+      "block_length": 3.0,
+      "correlation_shrinkage": 0.1
+    },
+    "assets": [
+      "DEMO_GROWTH",
+      "DEMO_BROAD",
+      "DEMO_DEFENSIVE",
+      "DEMO_CYCLICAL"
+    ],
+    "factors": [
+      "DEMO_MARKET",
+      "DEMO_QUALITY"
+    ],
+    "macro_states": [
+      "growth",
+      "inflation",
+      "policy_rate"
+    ],
+    "weights": [
+      0.25,
+      0.25,
+      0.25,
+      0.25
+    ],
+    "initial": 10000.0,
+    "rebalance": "monthly",
+    "cost_bps_per_one_way_turnover": 10.0,
+    "data": {
+      "data_kind": "synthetic",
+      "source": "Fabricated correlated macro/factor process; no real securities",
+      "return_convention": "monthly_simple_total_return_decimal",
+      "seed": 20260923,
+      "macro_units": {
+        "growth": "percentage points",
+        "inflation": "percentage points",
+        "policy_rate": "percentage points"
+      },
+      "input_sha256": {
+        "assets.csv": "bc42501c82dd1e7e45e06ba4062c7cd1939b99c2d9c7acd1ed5c8376c8441e72",
+        "factors.csv": "52ee922eafdedc16b4b1cdde7ed94fd8f4ce48b87e92ed34cae357e7f3c1db09",
+        "macro_releases.csv": "7ca8918e505343454b5a454e1eda761b5590bd86af8fe518c4bd6ebd8ff99cda",
+        "metadata.json": "ddd227a5915b580970a65f138cc43a484de169c3987a25a622d2bf1d740105d2"
+      }
+    },
+    "python": "3.9.6",
+    "numpy": "2.0.2",
+    "pandas": "2.3.3",
+    "scenario_sha256": "f0b584603593bb05f1952cbf15810ac5d28ce41768cccdae241edabfe6028df1",
+    "evaluation": null,
+    "source_sha256": {
+      "__init__.py": "f41946fdfd148fa67dfa77811495a119d664d4fa6c71c09570943f7239a12953",
+      "cli.py": "1e834780add134ee5fe46ff25bb013be22a90a4376e4fc0c5a361a37c5498ec1",
+      "data.py": "1ba537d78713271007a29a00dfcd85e86c0e56f95333521762a8848b5ef316b7",
+      "demo.py": "b14dd7ed869aa2c6a852d997ae7e2e9fc684bd6f6e187e9e5d926d00b1bfebfe",
+      "evaluation.py": "a7fb59727e5e8a7c66320bcb264cbbf4061be4f280c877acc400a4c936de0338",
+      "models.py": "1773f358d888111e186ac225b64660a49d57329072cb8f1dd99176629afb42a1",
+      "report.html": "f5b8dd3d308c21f7c45c56eea0ba2437bfcd6176be62067df1f8310985077d3d",
+      "report.py": "31910953e84685ae3c1ff3d6611ddfbdccee9381e6ac9aca0c4fbf67f0467b6f",
+      "simulation.py": "05e22bc57e203529ae024bf3fbcfa00e414ea1a7b6c1c0215d4bbd44b84875a2"
+    },
+    "limitations": [
+      "No demonstrated real-market predictive skill",
+      "Fixed present-day holdings are not a historical trading strategy",
+      "Macro scenarios have no estimated occurrence probability",
+      "No exact default/delisting, taxes, or intramonth drawdowns",
+      "Finite historical shock support; no full parameter posterior",
+      "Monthly market return availability assumed at month end"
+    ]
+  },
+  "files": {
+    "DATA_CONTRACT.md": "445616131af3eb54cec67d8fcaa8460346811cfe204bf9ff764050c4e351813e",
+    "MODEL_SPEC.md": "6bd02e8a7da411eeca99fcff44122e754978fbf11a40fc805f70aa32c4f6ae0e",
+    "RESEARCH.md": "8674041e8582ada1ada3537d1319f1a2293ef7ade0688ed0d0fedf7462f0aadd",
+    "ROADMAP.md": "1c46633fa6d26b3d60184eea2a9d19ce7648a15911a926e3616f76a220308a95",
+    "VALIDATION.md": "a82111c5d6d0579b77031d2dbd1c256678d9bdbc28752e922abfabcae8aba750",
+    "index.html": "e48dab1a0a2b86c12da74759c5e38ef2fd818c93b3759266b8b4f6c15d07f8b2",
+    "simulation.zip": "84be1a3e52fe921aa6f50a8ffb69d96c868a8c0ba46a723f6d09a7efff83159a",
+    "source.zip": "b548c68410aabcba957cebf7e72d5fa5629d834609b390daeec189acf3802d82"
+  }
+}

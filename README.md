@@ -2,7 +2,7 @@
 
 Emory University. Club site with the research tools built by the Systematic Portfolio Management unit.
 
-Four top-level sections: **Overview**, **Membership**, **Apply**, and **Research Tools** — the last containing Ticker Lookup, **Fundamental Data**, Portfolio Builder, Compare, Factors and **Style Rotation**.
+Four top-level sections: **Overview**, **Membership**, **Apply**, and **Research Tools** — the last containing Ticker Lookup, **Fundamental Data**, Portfolio Builder, **Portfolio Outlook**, Compare, Factors and **Style Rotation**.
 
 A static page with serverless data endpoints. Type a ticker, pick a range, get a
 chart and summary statistics, or research its SEC financials.
@@ -20,6 +20,35 @@ slate-blue accents, compact navigation and restrained panel shadows. Its
 sans-serif data layout remains distinct from the serif public pages. Theme
 variables are scoped to the active research section, with light/dark variants,
 visible keyboard focus and reduced-motion support.
+
+## Portfolio Outlook
+
+Open `/#portfolio-outlook` in Research Tools. This embeds the standalone
+Portfolio Lab demonstration: portfolio allocations, economic scenarios,
+return distributions, loss frequencies, monthly drawdowns and rebalancing
+costs. It uses **fabricated securities and macro histories**, not live stock
+forecasts. The full-screen demo at `/portfolio-lab/` is intentionally public
+and contains only synthetic data. The existing member workspace remains gated.
+The iframe loads on opening this tool after sign-in, uses a scripts-only
+sandbox, and makes no provider or market-data API calls.
+
+The page links the primary-source research review, limitations, synthetic
+validation results, a runnable Python source ZIP, and a simulation ZIP with
+full-precision paths, inputs, assumptions and provenance. The neural/foundation,
+diffusion and advanced volatility candidates described in the research are
+not claimed to be implemented. The prototype's ensemble did not beat its
+historical bootstrap baseline on synthetic mean CRPS.
+
+To refresh, regenerate the standalone project's demo, then run:
+
+```sh
+python3 scripts/export-portfolio-lab.py --project ../portfolio-lab
+```
+
+The exporter rejects non-synthetic reports and mismatched source hashes.
+`portfolio-lab/release.json` records artifact and source hashes. No model
+training happens on Vercel; the browser revalues archived joint simulated
+returns. There are no API keys or member data in the published demo.
 
 ## Fundamental Data
 
